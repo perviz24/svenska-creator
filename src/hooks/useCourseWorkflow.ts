@@ -9,6 +9,7 @@ const initialSettings: CourseSettings = {
   targetDuration: 15,
   style: 'professional',
   includeQuizzes: true,
+  enableResearch: true,
   language: 'sv',
 };
 

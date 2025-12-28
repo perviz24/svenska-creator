@@ -38,6 +38,7 @@ export interface CourseSettings {
   targetDuration: number; // in minutes
   style: 'professional' | 'conversational' | 'academic';
   includeQuizzes: boolean;
+  enableResearch: boolean;
   language: 'sv' | 'en';
 }
 
