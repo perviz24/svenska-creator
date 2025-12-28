@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.export-slides]
 verify_jwt = false
+
+[functions.heygen-video]
+verify_jwt = false
