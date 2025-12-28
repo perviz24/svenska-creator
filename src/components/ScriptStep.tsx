@@ -1,11 +1,24 @@
+import { useState } from 'react';
 import { FileText, ExternalLink, RefreshCw, ArrowRight, BookOpen, Clock, Quote, Volume2, Loader2, Play, Square } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ModuleScript, CourseOutline } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { useVoiceSynthesis } from '@/hooks/useVoiceSynthesis';
+
+const ELEVENLABS_VOICES = [
+  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Varm, professionell' },
+  { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', description: 'Auktoritativ, lugn' },
+  { id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda', description: 'Vänlig, energisk' },
+  { id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel', description: 'Berättande, mjuk' },
+  { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily', description: 'Tydlig, pedagogisk' },
+  { id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'Roger', description: 'Djup, resonerande' },
+  { id: 'N2lVS1w4EtoT3dr4eOWO', name: 'Callum', description: 'Ung, dynamisk' },
+  { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', description: 'Modern, klar' },
+];
 
 interface ScriptStepProps {
   outline: CourseOutline | null;
@@ -25,6 +38,7 @@ export function ScriptStep({
   onContinue,
 }: ScriptStepProps) {
   const { getState, generateVoice, playAudio, stopAudio } = useVoiceSynthesis();
+  const [selectedVoice, setSelectedVoice] = useState(ELEVENLABS_VOICES[0].id);
 
   if (!outline) {
     return (
@@ -38,7 +52,7 @@ export function ScriptStep({
 
   const handleGenerateVoice = async (script: ModuleScript) => {
     const fullText = script.sections.map(s => s.content).join('\n\n');
-    await generateVoice(script.moduleId, fullText);
+    await generateVoice(script.moduleId, fullText, selectedVoice);
   };
 
   const handlePlayPause = (script: ModuleScript) => {
@@ -57,6 +71,24 @@ export function ScriptStep({
         <p className="text-muted-foreground max-w-md mx-auto">
           Generera manus för varje modul. AI-forskning från Perplexity berikar innehållet.
         </p>
+      </div>
+
+      {/* Voice Selection */}
+      <div className="flex items-center justify-center gap-3">
+        <label className="text-sm text-muted-foreground">Röst för uppläsning:</label>
+        <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+          <SelectTrigger className="w-[220px]">
+            <SelectValue placeholder="Välj röst" />
+          </SelectTrigger>
+          <SelectContent>
+            {ELEVENLABS_VOICES.map((voice) => (
+              <SelectItem key={voice.id} value={voice.id}>
+                <span className="font-medium">{voice.name}</span>
+                <span className="text-muted-foreground ml-2 text-xs">– {voice.description}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Module Scripts */}
