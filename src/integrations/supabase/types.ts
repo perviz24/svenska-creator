@@ -118,6 +118,98 @@ export type Database = {
         }
         Relationships: []
       }
+      slides: {
+        Row: {
+          background_color: string | null
+          content: string | null
+          course_id: string
+          created_at: string
+          id: string
+          image_attribution: string | null
+          image_source: string | null
+          image_url: string | null
+          layout: string
+          module_id: string
+          slide_number: number
+          speaker_notes: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          background_color?: string | null
+          content?: string | null
+          course_id: string
+          created_at?: string
+          id?: string
+          image_attribution?: string | null
+          image_source?: string | null
+          image_url?: string | null
+          layout?: string
+          module_id: string
+          slide_number: number
+          speaker_notes?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          background_color?: string | null
+          content?: string | null
+          course_id?: string
+          created_at?: string
+          id?: string
+          image_attribution?: string | null
+          image_source?: string | null
+          image_url?: string | null
+          layout?: string
+          module_id?: string
+          slide_number?: number
+          speaker_notes?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slides_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_provider_settings: {
+        Row: {
+          api_key: string | null
+          api_secret: string | null
+          created_at: string
+          id: string
+          is_enabled: boolean
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key?: string | null
+          api_secret?: string | null
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          provider: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string | null
+          api_secret?: string | null
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          provider?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
