@@ -1,4 +1,4 @@
-import { Settings, Mic, Clock, BookOpen, Languages } from 'lucide-react';
+import { Settings, Mic, Clock, BookOpen, Languages, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -144,6 +144,26 @@ export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps
             checked={settings.includeQuizzes}
             onCheckedChange={(checked) => 
               onSettingsChange({ includeQuizzes: checked })
+            }
+          />
+        </div>
+
+        {/* Enable Research */}
+        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="research" className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+              <Search className="w-4 h-4 text-muted-foreground" />
+              AI-forskning (Perplexity)
+            </Label>
+            <span className="text-xs text-muted-foreground">
+              Berika manus med aktuell forskning och källor
+            </span>
+          </div>
+          <Switch
+            id="research"
+            checked={settings.enableResearch}
+            onCheckedChange={(checked) => 
+              onSettingsChange({ enableResearch: checked })
             }
           />
         </div>
