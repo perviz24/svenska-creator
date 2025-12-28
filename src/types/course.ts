@@ -48,6 +48,43 @@ export interface ModuleScript {
   sections: ScriptSection[];
 }
 
+export type SlideLayout = 'title' | 'title-content' | 'two-column' | 'image-focus' | 'quote' | 'bullet-points';
+
+export interface Slide {
+  id?: string;
+  courseId?: string;
+  moduleId: string;
+  slideNumber: number;
+  title: string;
+  content: string;
+  speakerNotes: string;
+  layout: SlideLayout;
+  imageUrl?: string;
+  imageSource?: 'unsplash' | 'pexels' | 'shutterstock' | 'adobe' | 'getty' | 'ai-generated';
+  imageAttribution?: string;
+  suggestedImageQuery?: string;
+  backgroundColor?: string;
+}
+
+export interface StockPhoto {
+  id: string;
+  url: string;
+  thumbnailUrl: string;
+  width: number;
+  height: number;
+  photographer: string;
+  photographerUrl?: string;
+  source: string;
+  attribution: string;
+  downloadUrl?: string;
+}
+
+export interface StockProviderSettings {
+  shutterstock?: { apiKey: string; apiSecret: string; enabled: boolean };
+  adobe?: { apiKey: string; enabled: boolean };
+  getty?: { apiKey: string; enabled: boolean };
+}
+
 export interface CourseSettings {
   voiceId: string;
   voiceName: string;
@@ -56,6 +93,7 @@ export interface CourseSettings {
   includeQuizzes: boolean;
   enableResearch: boolean;
   language: 'sv' | 'en';
+  stockProviders?: StockProviderSettings;
 }
 
 export type WorkflowStep = 
@@ -75,6 +113,7 @@ export interface WorkflowState {
   titleSuggestions: TitleSuggestion[];
   outline: CourseOutline | null;
   scripts: ModuleScript[];
+  slides: Record<string, Slide[]>; // moduleId -> slides
   settings: CourseSettings;
   isProcessing: boolean;
   error: string | null;

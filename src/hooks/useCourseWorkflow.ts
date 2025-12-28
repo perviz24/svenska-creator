@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { WorkflowState, WorkflowStep, TitleSuggestion, CourseOutline, CourseSettings, ModuleScript } from '@/types/course';
+import { WorkflowState, WorkflowStep, TitleSuggestion, CourseOutline, CourseSettings, ModuleScript, Slide } from '@/types/course';
 import { supabase } from '@/integrations/supabase/client';
 import { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
@@ -23,6 +23,7 @@ const initialState: WorkflowState = {
   titleSuggestions: [],
   outline: null,
   scripts: [],
+  slides: {},
   settings: initialSettings,
   isProcessing: false,
   error: null,
@@ -417,6 +418,76 @@ export function useCourseWorkflow() {
     });
   }, [courseId]);
 
+  const generateSlides = useCallback(async (moduleId: string, script: ModuleScript) => {
+    setState(prev => ({ ...prev, isProcessing: true, error: null }));
+    
+    try {
+      const scriptText = script.sections.map(s => s.content).join('\n\n');
+      
+      const { data, error } = await supabase.functions.invoke('generate-slides', {
+        body: {
+          script: scriptText,
+          moduleTitle: script.moduleTitle,
+          courseTitle: state.title,
+          language: state.settings.language,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const slides: Slide[] = data.slides.map((slide: any) => ({
+        moduleId,
+        slideNumber: slide.slideNumber,
+        title: slide.title,
+        content: slide.content,
+        speakerNotes: slide.speakerNotes,
+        layout: slide.layout,
+        suggestedImageQuery: slide.suggestedImageQuery,
+        backgroundColor: slide.suggestedBackgroundColor,
+      }));
+
+      setState(prev => ({
+        ...prev,
+        slides: {
+          ...prev.slides,
+          [moduleId]: slides,
+        },
+        isProcessing: false,
+      }));
+
+      toast.success(`Slides för "${script.moduleTitle}" skapade!`);
+    } catch (error) {
+      console.error('Error generating slides:', error);
+      const message = error instanceof Error ? error.message : 'Kunde inte generera slides';
+      setState(prev => ({
+        ...prev,
+        isProcessing: false,
+        error: message,
+      }));
+      toast.error(message);
+    }
+  }, [state.title, state.settings.language]);
+
+  const updateSlide = useCallback((moduleId: string, slideIndex: number, updates: Partial<Slide>) => {
+    setState(prev => {
+      const moduleSlides = [...(prev.slides[moduleId] || [])];
+      if (moduleSlides[slideIndex]) {
+        moduleSlides[slideIndex] = { ...moduleSlides[slideIndex], ...updates };
+      }
+      return {
+        ...prev,
+        slides: {
+          ...prev.slides,
+          [moduleId]: moduleSlides,
+        },
+      };
+    });
+  }, []);
+
   const startNewCourse = useCallback(() => {
     setCourseId(null);
     setState(initialState);
@@ -433,6 +504,8 @@ export function useCourseWorkflow() {
     nextStep,
     generateOutline,
     generateScript,
+    generateSlides,
+    updateSlide,
     updateSettings,
     startNewCourse,
   };
