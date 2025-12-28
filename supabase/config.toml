@@ -1,1 +1,10 @@
 project_id = "reisbxeeozmvfdzruvui"
+
+[functions.generate-titles]
+verify_jwt = false
+
+[functions.generate-outline]
+verify_jwt = false
+
+[functions.generate-script]
+verify_jwt = false
