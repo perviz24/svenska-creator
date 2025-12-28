@@ -1,10 +1,11 @@
-import { FileText, ExternalLink, RefreshCw, ArrowRight, BookOpen, Clock, Quote } from 'lucide-react';
+import { FileText, ExternalLink, RefreshCw, ArrowRight, BookOpen, Clock, Quote, Volume2, Loader2, Play, Square } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ModuleScript, CourseOutline } from '@/types/course';
 import { cn } from '@/lib/utils';
+import { useVoiceSynthesis } from '@/hooks/useVoiceSynthesis';
 
 interface ScriptStepProps {
   outline: CourseOutline | null;
@@ -23,6 +24,8 @@ export function ScriptStep({
   onGenerateScript,
   onContinue,
 }: ScriptStepProps) {
+  const { getState, generateVoice, playAudio, stopAudio } = useVoiceSynthesis();
+
   if (!outline) {
     return (
       <div className="text-center py-12">
@@ -32,6 +35,20 @@ export function ScriptStep({
   }
 
   const allScriptsGenerated = scripts.length === outline.modules.length;
+
+  const handleGenerateVoice = async (script: ModuleScript) => {
+    const fullText = script.sections.map(s => s.content).join('\n\n');
+    await generateVoice(script.moduleId, fullText);
+  };
+
+  const handlePlayPause = (script: ModuleScript) => {
+    const state = getState(script.moduleId);
+    if (state.isPlaying) {
+      stopAudio(script.moduleId);
+    } else {
+      playAudio(script.moduleId);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -100,6 +117,58 @@ export function ScriptStep({
                         </span>
                       )}
                     </div>
+
+                    {/* Voice Synthesis */}
+                    {(() => {
+                      const voiceState = getState(script.moduleId);
+                      return (
+                        <div className="flex items-center gap-2 pt-2 border-t border-border/30">
+                          {voiceState.audioUrl ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handlePlayPause(script)}
+                              className="gap-2"
+                            >
+                              {voiceState.isPlaying ? (
+                                <>
+                                  <Square className="w-4 h-4" />
+                                  Stoppa
+                                </>
+                              ) : (
+                                <>
+                                  <Play className="w-4 h-4" />
+                                  Spela upp
+                                </>
+                              )}
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleGenerateVoice(script)}
+                              disabled={voiceState.isGenerating}
+                              className="gap-2"
+                            >
+                              {voiceState.isGenerating ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Genererar röst...
+                                </>
+                              ) : (
+                                <>
+                                  <Volume2 className="w-4 h-4" />
+                                  Generera röst
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          {voiceState.error && (
+                            <span className="text-xs text-destructive">{voiceState.error}</span>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Script Sections */}
                     <Accordion type="single" collapsible className="w-full">

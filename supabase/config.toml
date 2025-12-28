@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.generate-script]
 verify_jwt = false
+
+[functions.generate-voice]
+verify_jwt = false
