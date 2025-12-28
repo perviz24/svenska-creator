@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { WorkflowState, WorkflowStep, TitleSuggestion, CourseOutline, CourseSettings } from '@/types/course';
+import { WorkflowState, WorkflowStep, TitleSuggestion, CourseOutline, CourseSettings, ModuleScript } from '@/types/course';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -20,6 +20,7 @@ const initialState: WorkflowState = {
   selectedTitleId: null,
   titleSuggestions: [],
   outline: null,
+  scripts: [],
   settings: initialSettings,
   isProcessing: false,
   error: null,
@@ -166,6 +167,58 @@ export function useCourseWorkflow() {
     }
   }, [state.title, state.settings]);
 
+  const generateScript = useCallback(async (moduleIndex: number) => {
+    if (!state.outline) {
+      toast.error('Ingen kursöversikt tillgänglig');
+      return;
+    }
+
+    const module = state.outline.modules[moduleIndex];
+    if (!module) {
+      toast.error('Modulen kunde inte hittas');
+      return;
+    }
+
+    setState(prev => ({ ...prev, isProcessing: true, error: null }));
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-script', {
+        body: { 
+          module,
+          courseTitle: state.title,
+          style: state.settings.style,
+          language: state.settings.language,
+          enableResearch: state.settings.enableResearch,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const script: ModuleScript = data.script;
+      
+      setState(prev => ({
+        ...prev,
+        scripts: [...prev.scripts, script],
+        isProcessing: false,
+      }));
+
+      toast.success(`Manus för "${module.title}" genererat!`);
+    } catch (error) {
+      console.error('Error generating script:', error);
+      const message = error instanceof Error ? error.message : 'Kunde inte generera manus';
+      setState(prev => ({
+        ...prev,
+        isProcessing: false,
+        error: message,
+      }));
+      toast.error(message);
+    }
+  }, [state.outline, state.title, state.settings]);
+
   const updateSettings = useCallback((settings: Partial<CourseSettings>) => {
     setState(prev => ({
       ...prev,
@@ -182,6 +235,7 @@ export function useCourseWorkflow() {
     completeStep,
     nextStep,
     generateOutline,
+    generateScript,
     updateSettings,
   };
 }
