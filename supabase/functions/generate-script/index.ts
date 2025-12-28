@@ -5,13 +5,58 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function fetchResearch(topic: string, context: string, language: string): Promise<{ research: string; citations: string[] }> {
+  const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+  
+  if (!PERPLEXITY_API_KEY) {
+    console.log('Perplexity not configured, skipping research');
+    return { research: '', citations: [] };
+  }
+
+  try {
+    const systemPrompt = language === 'sv'
+      ? `Du är en forskningsassistent. Ge kortfattad, faktabaserad information med källor. Max 300 ord.`
+      : `You are a research assistant. Provide concise, fact-based information with sources. Max 300 words.`;
+
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Research for healthcare education: ${topic}\nContext: ${context}` }
+        ],
+        search_recency_filter: 'year',
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Perplexity error:', response.status);
+      return { research: '', citations: [] };
+    }
+
+    const data = await response.json();
+    return {
+      research: data.choices?.[0]?.message?.content || '',
+      citations: data.citations || []
+    };
+  } catch (error) {
+    console.error('Research fetch error:', error);
+    return { research: '', citations: [] };
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { module, courseTitle, style = 'professional', language = 'sv' } = await req.json();
+    const { module, courseTitle, style = 'professional', language = 'sv', enableResearch = true } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
@@ -22,7 +67,18 @@ serve(async (req) => {
       throw new Error('Module data is required');
     }
 
-    console.log('Generating script for module:', module.title);
+    console.log('Generating script for module:', module.title, 'with research:', enableResearch);
+
+    // Fetch research from Perplexity if enabled
+    let researchData = { research: '', citations: [] as string[] };
+    if (enableResearch) {
+      researchData = await fetchResearch(module.title, courseTitle, language);
+      console.log('Research fetched with', researchData.citations.length, 'citations');
+    }
+
+    const researchSection = researchData.research 
+      ? `\n\nRELEVANT RESEARCH AND FACTS:\n${researchData.research}\n\nSOURCES TO CITE:\n${researchData.citations.map((c, i) => `[${i + 1}] ${c}`).join('\n')}`
+      : '';
 
     const systemPrompt = language === 'sv'
       ? `Du är en expert på att skriva manus för vårdutbildningsvideor.
@@ -36,6 +92,7 @@ serve(async (req) => {
          - Täcka alla lärandemål och delteman
          - Vara pedagogiskt och lätt att följa
          - Inkludera introduktion och sammanfattning
+         ${researchData.citations.length > 0 ? '- Integrera den forskning och de källor som tillhandahålls naturligt i manuset' : ''}
          
          Svara ENDAST med giltig JSON i detta format:
          {
@@ -44,6 +101,7 @@ serve(async (req) => {
              "moduleTitle": "${module.title}",
              "totalWords": 0,
              "estimatedDuration": ${module.duration},
+             "citations": [],
              "sections": [
                {
                  "id": "section-1",
@@ -65,6 +123,7 @@ serve(async (req) => {
          - Cover all learning objectives and subtopics
          - Be pedagogical and easy to follow
          - Include an introduction and summary
+         ${researchData.citations.length > 0 ? '- Naturally integrate the provided research and sources into the script' : ''}
          
          Respond ONLY with valid JSON in this format:
          {
@@ -73,6 +132,7 @@ serve(async (req) => {
              "moduleTitle": "${module.title}",
              "totalWords": 0,
              "estimatedDuration": ${module.duration},
+             "citations": [],
              "sections": [
                {
                  "id": "section-1",
@@ -94,6 +154,7 @@ ${module.learningObjectives.map((lo: { text: string }) => `- ${lo.text}`).join('
 
 Subtopics:
 ${module.subTopics.map((st: { title: string; duration: number }) => `- ${st.title} (${st.duration} min)`).join('\n')}
+${researchSection}
 
 Write a complete, professional script for this module.`;
 
@@ -148,6 +209,11 @@ Write a complete, professional script for this module.`;
     }
 
     const parsed = JSON.parse(jsonContent);
+    
+    // Add citations from research to the script
+    if (researchData.citations.length > 0 && parsed.script) {
+      parsed.script.citations = researchData.citations;
+    }
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
