@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { WorkflowState, WorkflowStep, TitleSuggestion, CourseOutline, CourseSettings, ModuleScript, Slide } from '@/types/course';
+import { WorkflowState, WorkflowStep, TitleSuggestion, CourseOutline, CourseSettings, ModuleScript, Slide, ModuleAudio, VideoSettings } from '@/types/course';
 import { supabase } from '@/integrations/supabase/client';
 import { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
@@ -15,6 +15,10 @@ const initialSettings: CourseSettings = {
   language: 'sv',
 };
 
+const initialVideoSettings: VideoSettings = {
+  videoStyle: 'presentation',
+};
+
 const initialState: WorkflowState = {
   currentStep: 'title',
   completedSteps: [],
@@ -24,6 +28,8 @@ const initialState: WorkflowState = {
   outline: null,
   scripts: [],
   slides: {},
+  moduleAudio: {},
+  videoSettings: initialVideoSettings,
   settings: initialSettings,
   isProcessing: false,
   error: null,
@@ -488,6 +494,33 @@ export function useCourseWorkflow() {
     });
   }, []);
 
+  const generateModuleAudio = useCallback(async (moduleId: string, script: ModuleScript) => {
+    // This would store audio metadata - in a full implementation,
+    // you'd upload the audio to storage and save the URL
+    setState(prev => ({
+      ...prev,
+      moduleAudio: {
+        ...prev.moduleAudio,
+        [moduleId]: {
+          moduleId,
+          audioUrl: '', // Would be set after upload
+          duration: script.estimatedDuration * 60,
+          slideTiming: [],
+        },
+      },
+    }));
+  }, []);
+
+  const updateVideoSettings = useCallback((updates: Partial<import('@/types/course').VideoSettings>) => {
+    setState(prev => ({
+      ...prev,
+      videoSettings: {
+        ...prev.videoSettings,
+        ...updates,
+      },
+    }));
+  }, []);
+
   const startNewCourse = useCallback(() => {
     setCourseId(null);
     setState(initialState);
@@ -507,6 +540,8 @@ export function useCourseWorkflow() {
     generateSlides,
     updateSlide,
     updateSettings,
+    generateModuleAudio,
+    updateVideoSettings,
     startNewCourse,
   };
 }

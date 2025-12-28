@@ -96,6 +96,19 @@ export interface CourseSettings {
   stockProviders?: StockProviderSettings;
 }
 
+export interface ModuleAudio {
+  moduleId: string;
+  audioUrl: string;
+  duration: number; // in seconds
+  slideTiming: number[]; // timestamps for each slide transition
+}
+
+export interface VideoSettings {
+  avatarId?: string;
+  avatarName?: string;
+  videoStyle: 'presentation' | 'avatar';
+}
+
 export type WorkflowStep = 
   | 'title'
   | 'outline'
@@ -114,6 +127,8 @@ export interface WorkflowState {
   outline: CourseOutline | null;
   scripts: ModuleScript[];
   slides: Record<string, Slide[]>; // moduleId -> slides
+  moduleAudio: Record<string, ModuleAudio>; // moduleId -> audio
+  videoSettings: VideoSettings;
   settings: CourseSettings;
   isProcessing: boolean;
   error: string | null;

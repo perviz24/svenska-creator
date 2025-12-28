@@ -4,6 +4,7 @@ import { TitleStep } from '@/components/TitleStep';
 import { OutlineStep } from '@/components/OutlineStep';
 import { ScriptStep } from '@/components/ScriptStep';
 import { SlideStep } from '@/components/SlideStep';
+import { VideoStep } from '@/components/VideoStep';
 import { ProcessingStep } from '@/components/ProcessingStep';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { useCourseWorkflow } from '@/hooks/useCourseWorkflow';
@@ -21,6 +22,8 @@ const Index = () => {
     generateSlides,
     updateSlide,
     updateSettings,
+    generateModuleAudio,
+    updateVideoSettings,
     startNewCourse,
   } = useCourseWorkflow();
 
@@ -75,6 +78,21 @@ const Index = () => {
         );
       case 'voice':
       case 'video':
+        return (
+          <VideoStep
+            outline={state.outline}
+            scripts={state.scripts}
+            slides={state.slides}
+            moduleAudio={state.moduleAudio}
+            videoSettings={state.videoSettings}
+            courseTitle={state.title}
+            voiceId={state.settings.voiceId}
+            isLoading={state.isProcessing}
+            onGenerateAudio={generateModuleAudio}
+            onUpdateVideoSettings={updateVideoSettings}
+            onContinue={nextStep}
+          />
+        );
       case 'upload':
         return <ProcessingStep currentStep={state.currentStep} />;
       default:
