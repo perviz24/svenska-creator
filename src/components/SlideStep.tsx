@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2 } from 'lucide-react';
+import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Slide, ModuleScript, StockPhoto, CourseOutline } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +16,7 @@ interface SlideStepProps {
   scripts: ModuleScript[];
   slides: Record<string, Slide[]>;
   isLoading: boolean;
+  courseTitle: string;
   onGenerateSlides: (moduleId: string, script: ModuleScript) => Promise<void>;
   onUpdateSlide: (moduleId: string, slideIndex: number, updates: Partial<Slide>) => void;
   onContinue: () => void;
@@ -25,6 +27,7 @@ export function SlideStep({
   scripts,
   slides,
   isLoading,
+  courseTitle,
   onGenerateSlides,
   onUpdateSlide,
   onContinue,
@@ -33,6 +36,7 @@ export function SlideStep({
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
   const [isSearchingPhotos, setIsSearchingPhotos] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [stockPhotos, setStockPhotos] = useState<StockPhoto[]>([]);
   const [customSearchQuery, setCustomSearchQuery] = useState('');
 
@@ -123,6 +127,49 @@ export function SlideStep({
     toast.success('Bild vald!');
   };
 
+  const handleExport = async (format: 'pptx' | 'pdf') => {
+    if (!currentScript || currentModuleSlides.length === 0) return;
+
+    setIsExporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('export-slides', {
+        body: {
+          slides: currentModuleSlides.map(slide => ({
+            title: slide.title,
+            content: slide.content,
+            speakerNotes: slide.speakerNotes,
+            layout: slide.layout,
+            imageUrl: slide.imageUrl,
+            backgroundColor: slide.backgroundColor,
+          })),
+          courseTitle: courseTitle,
+          moduleTitle: currentScript.moduleTitle,
+          format,
+        },
+      });
+
+      if (error) throw error;
+
+      // Create a blob and download
+      const blob = new Blob([data.content], { type: data.contentType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = data.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Presentation exporterad som ${format.toUpperCase()}!`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Kunde inte exportera presentation');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const allModulesHaveSlides = scripts.every(script => 
     slides[script.moduleId] && slides[script.moduleId].length > 0
   );
@@ -153,28 +200,56 @@ export function SlideStep({
         </p>
       </div>
 
-      {/* Module Selector */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {scripts.map((script, index) => (
-          <Button
-            key={script.moduleId}
-            variant={selectedModuleIndex === index ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => {
-              setSelectedModuleIndex(index);
-              setSelectedSlideIndex(0);
-              setStockPhotos([]);
-            }}
-            className="whitespace-nowrap"
-          >
-            Modul {index + 1}
-            {slides[script.moduleId]?.length > 0 && (
-              <Badge variant="secondary" className="ml-2">
-                {slides[script.moduleId].length} slides
-              </Badge>
-            )}
-          </Button>
-        ))}
+      {/* Module Selector with Export */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex gap-2 overflow-x-auto pb-2 flex-1">
+          {scripts.map((script, index) => (
+            <Button
+              key={script.moduleId}
+              variant={selectedModuleIndex === index ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setSelectedModuleIndex(index);
+                setSelectedSlideIndex(0);
+                setStockPhotos([]);
+              }}
+              className="whitespace-nowrap"
+            >
+              Modul {index + 1}
+              {slides[script.moduleId]?.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {slides[script.moduleId].length} slides
+                </Badge>
+              )}
+            </Button>
+          ))}
+        </div>
+        
+        {/* Export Dropdown */}
+        {currentModuleSlides.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={isExporting}>
+                {isExporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                Ladda ner
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-popover z-50">
+              <DropdownMenuItem onClick={() => handleExport('pptx')} className="cursor-pointer">
+                <FileImage className="h-4 w-4 mr-2" />
+                PowerPoint (XML)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('pdf')} className="cursor-pointer">
+                <FileText className="h-4 w-4 mr-2" />
+                PDF (HTML)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {/* Main Content */}

@@ -67,6 +67,7 @@ const Index = () => {
             scripts={state.scripts}
             slides={state.slides}
             isLoading={state.isProcessing}
+            courseTitle={state.title}
             onGenerateSlides={generateSlides}
             onUpdateSlide={updateSlide}
             onContinue={nextStep}
