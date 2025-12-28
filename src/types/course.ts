@@ -32,6 +32,22 @@ export interface CourseOutline {
   modules: Module[];
 }
 
+export interface ScriptSection {
+  id: string;
+  title: string;
+  content: string;
+  slideMarkers: string[];
+}
+
+export interface ModuleScript {
+  moduleId: string;
+  moduleTitle: string;
+  totalWords: number;
+  estimatedDuration: number;
+  citations: string[];
+  sections: ScriptSection[];
+}
+
 export interface CourseSettings {
   voiceId: string;
   voiceName: string;
@@ -58,6 +74,7 @@ export interface WorkflowState {
   selectedTitleId: string | null;
   titleSuggestions: TitleSuggestion[];
   outline: CourseOutline | null;
+  scripts: ModuleScript[];
   settings: CourseSettings;
   isProcessing: boolean;
   error: string | null;

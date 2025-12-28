@@ -2,6 +2,7 @@ import { Header } from '@/components/Header';
 import { ProgressStepper } from '@/components/ProgressStepper';
 import { TitleStep } from '@/components/TitleStep';
 import { OutlineStep } from '@/components/OutlineStep';
+import { ScriptStep } from '@/components/ScriptStep';
 import { ProcessingStep } from '@/components/ProcessingStep';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { useCourseWorkflow } from '@/hooks/useCourseWorkflow';
@@ -15,6 +16,7 @@ const Index = () => {
     goToStep,
     nextStep,
     generateOutline,
+    generateScript,
     updateSettings,
   } = useCourseWorkflow();
 
@@ -44,6 +46,16 @@ const Index = () => {
           />
         );
       case 'script':
+        return (
+          <ScriptStep
+            outline={state.outline}
+            scripts={state.scripts}
+            isLoading={state.isProcessing}
+            currentModuleIndex={state.scripts.length}
+            onGenerateScript={generateScript}
+            onContinue={nextStep}
+          />
+        );
       case 'slides':
       case 'voice':
       case 'video':
