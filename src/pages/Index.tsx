@@ -18,6 +18,7 @@ const Index = () => {
     generateOutline,
     generateScript,
     updateSettings,
+    startNewCourse,
   } = useCourseWorkflow();
 
   const renderCurrentStep = () => {
@@ -68,7 +69,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <Header onNewCourse={startNewCourse} />
       
       <main className="container py-8">
         <div className="max-w-5xl mx-auto">

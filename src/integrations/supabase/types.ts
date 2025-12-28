@@ -14,7 +14,110 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      courses: {
+        Row: {
+          created_at: string
+          current_step: string
+          id: string
+          outline: Json | null
+          selected_title_id: string | null
+          settings: Json
+          title: string
+          title_suggestions: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_step?: string
+          id?: string
+          outline?: Json | null
+          selected_title_id?: string | null
+          settings?: Json
+          title: string
+          title_suggestions?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_step?: string
+          id?: string
+          outline?: Json | null
+          selected_title_id?: string | null
+          settings?: Json
+          title?: string
+          title_suggestions?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      module_scripts: {
+        Row: {
+          audio_url: string | null
+          content: Json
+          course_id: string
+          created_at: string
+          id: string
+          module_id: string
+          module_title: string
+          updated_at: string
+          voice_id: string | null
+        }
+        Insert: {
+          audio_url?: string | null
+          content?: Json
+          course_id: string
+          created_at?: string
+          id?: string
+          module_id: string
+          module_title: string
+          updated_at?: string
+          voice_id?: string | null
+        }
+        Update: {
+          audio_url?: string | null
+          content?: Json
+          course_id?: string
+          created_at?: string
+          id?: string
+          module_id?: string
+          module_title?: string
+          updated_at?: string
+          voice_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "module_scripts_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
