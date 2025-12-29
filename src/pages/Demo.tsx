@@ -38,7 +38,7 @@ import { VoiceSettings } from '@/components/VoiceControlPanel';
 const defaultDemoSettings: DemoModeSettings = {
   enabled: true,
   maxSlides: 5,
-  maxModules: 2,
+  maxModules: 1,
   maxAudioDurationSeconds: 60,
   maxVideoDurationSeconds: 30,
   watermarkEnabled: true,
@@ -188,7 +188,7 @@ const Demo = () => {
           targetDuration: 5, // Very short for demo
           style: state.settings.style,
           language: state.settings.language,
-          maxModules: 2,
+          maxModules: 1,
           demoMode: true,
         }
       });
