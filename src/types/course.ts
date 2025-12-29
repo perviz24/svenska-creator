@@ -89,10 +89,23 @@ export type ProjectMode = 'course' | 'presentation';
 export type ComprehensiveLevel = 'beginner' | 'intermediate' | 'advanced';
 export type CourseLengthPreset = 'short' | 'standard' | 'comprehensive';
 
+export type PresentationStyle = 'modern' | 'classic' | 'minimal' | 'creative' | 'corporate';
+export type PresentationTone = 'formal' | 'professional' | 'friendly' | 'casual' | 'inspirational';
+export type ImageRichness = 'minimal' | 'moderate' | 'rich' | 'visual-heavy';
+export type ProfessionalityLevel = 'very-casual' | 'casual' | 'balanced' | 'professional' | 'very-formal';
+
 export interface PresentationSettings {
   slideCount: number;
   presentationDuration: number; // in minutes
   topic: string;
+  style: PresentationStyle;
+  tone: PresentationTone;
+  primaryColor: string;
+  accentColor: string;
+  imageRichness: ImageRichness;
+  professionalityLevel: ProfessionalityLevel;
+  includeAnimations: boolean;
+  includeCharts: boolean;
 }
 
 export interface CourseStructureLimits {
