@@ -116,8 +116,8 @@ Deno.serve(async (req) => {
           ],
           title: title || 'Course Video',
           dimension: {
-            width: 1920,
-            height: 1080,
+            width: 1280,
+            height: 720,
           },
         }),
       });
