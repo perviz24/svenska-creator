@@ -271,14 +271,9 @@ export function useCourseWorkflow() {
 
   const goToStep = useCallback((step: WorkflowStep) => {
     setState(prev => {
-      const steps: WorkflowStep[] = ['title', 'outline', 'script', 'slides', 'voice', 'video', 'upload'];
-      const currentIndex = steps.indexOf(prev.currentStep);
-      const newIndex = steps.indexOf(step);
-      
-      if (newIndex <= currentIndex || prev.completedSteps.includes(step)) {
-        return { ...prev, currentStep: step };
-      }
-      return prev;
+      // Allow navigation to any step freely
+      saveCourse({ current_step: step });
+      return { ...prev, currentStep: step };
     });
   }, []);
 

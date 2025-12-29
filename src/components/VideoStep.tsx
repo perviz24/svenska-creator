@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Video, Play, Sparkles, Loader2, ChevronRight, User, Settings, ExternalLink, Upload, ChevronDown, ChevronUp } from 'lucide-react';
+import { Video, Play, Sparkles, Loader2, ChevronRight, User, Settings, ExternalLink, Upload, ChevronDown, ChevronUp, SkipForward } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,7 @@ interface VideoStepProps {
   onUpdateVideoSettings: (settings: Partial<VideoSettings>) => void;
   onContinue: () => void;
   onContentUploaded?: (content: string) => void;
+  onSkip?: () => void;
 }
 
 interface HeyGenAvatar {
@@ -48,6 +49,7 @@ export function VideoStep({
   onUpdateVideoSettings,
   onContinue,
   onContentUploaded,
+  onSkip,
 }: VideoStepProps) {
   const [selectedModuleIndex, setSelectedModuleIndex] = useState(0);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
@@ -457,10 +459,18 @@ export function VideoStep({
         </TabsContent>
       </Tabs>
 
-      {/* Continue Button */}
-      <div className="flex justify-end">
+      {/* Action Buttons */}
+      <div className="flex justify-between items-center">
+        <Button 
+          variant="ghost" 
+          onClick={onSkip || onContinue}
+          className="text-muted-foreground"
+        >
+          <SkipForward className="mr-2 h-4 w-4" />
+          Hoppa över
+        </Button>
         <Button onClick={onContinue} size="lg">
-          Fortsätt
+          Fortsätt till export
           <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
       </div>

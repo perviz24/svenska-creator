@@ -45,6 +45,8 @@ export function ProgressStepper({ currentStep, completedSteps, onStepClick }: Pr
           const isCompleted = completedSteps.includes(step.id);
           const isCurrent = step.id === currentStep;
           const isPending = !isCompleted && !isCurrent;
+          // Allow clicking any step - free navigation
+          const canClick = true;
 
           return (
             <div
@@ -53,14 +55,13 @@ export function ProgressStepper({ currentStep, completedSteps, onStepClick }: Pr
             >
               <button
                 onClick={() => onStepClick?.(step.id)}
-                disabled={isPending && !isCompleted}
                 className={cn(
-                  "step-indicator",
+                  "step-indicator cursor-pointer hover:scale-110 transition-transform",
                   isCompleted && "completed",
                   isCurrent && "active",
-                  isPending && "pending",
-                  (isCompleted || isCurrent) && "cursor-pointer"
+                  isPending && "pending opacity-60 hover:opacity-100"
                 )}
+                title={`Gå till ${step.label}`}
               >
                 {isCompleted ? (
                   <Check className="w-4 h-4" />

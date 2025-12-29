@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, ArrowRight, Loader2, Upload, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, ArrowRight, Loader2, Upload, ChevronDown, ChevronUp, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,6 +20,7 @@ interface TitleStepProps {
   onSelectSuggestion: (id: string) => void;
   onContinue: () => void;
   onContentUploaded?: (content: string) => void;
+  onSkip?: () => void;
 }
 
 export function TitleStep({
@@ -32,6 +33,7 @@ export function TitleStep({
   onSelectSuggestion,
   onContinue,
   onContentUploaded,
+  onSkip,
 }: TitleStepProps) {
   const [inputValue, setInputValue] = useState(initialTitle);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -150,8 +152,17 @@ export function TitleStep({
         </CardContent>
       </Card>
 
-      {selectedId && (
-        <div className="flex justify-center animate-slide-up">
+      {/* Action Buttons */}
+      <div className="flex justify-between items-center animate-slide-up">
+        <Button 
+          variant="ghost" 
+          onClick={onSkip || onContinue}
+          className="text-muted-foreground"
+        >
+          <SkipForward className="mr-2 w-4 h-4" />
+          Hoppa över
+        </Button>
+        {selectedId && (
           <Button
             onClick={onContinue}
             variant="gradient"
@@ -161,8 +172,18 @@ export function TitleStep({
             Fortsätt till kursöversikt
             <ArrowRight className="w-5 h-5" />
           </Button>
-        </div>
-      )}
+        )}
+        {!selectedId && inputValue.trim() && (
+          <Button
+            onClick={onContinue}
+            variant="outline"
+            size="lg"
+          >
+            Fortsätt med egen titel
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
