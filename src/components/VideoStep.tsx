@@ -67,6 +67,7 @@ export function VideoStep({
   const [generatedAudioUrls, setGeneratedAudioUrls] = useState<Record<string, string>>({});
   const [generatedVideoIds, setGeneratedVideoIds] = useState<Record<string, string>>({});
   const [showReviewPanel, setShowReviewPanel] = useState(false);
+  const [isGeneratingTestAudio, setIsGeneratingTestAudio] = useState(false);
 
   const canGenerateFromSlides = !!outline && scripts.length > 0 && Object.keys(slides).length > 0;
 
@@ -124,6 +125,55 @@ export function VideoStep({
       toast.error('Kunde inte generera röstberättelse');
     } finally {
       setIsGeneratingAudio(false);
+    }
+  };
+
+  // Test audio generation with only first slide (shorter text for testing)
+  const handleGenerateTestAudio = async () => {
+    if (!currentScript || currentModuleSlides.length === 0) return;
+
+    setIsGeneratingTestAudio(true);
+    try {
+      // Use only the first slide's speaker notes for a quick test
+      const testScript = currentModuleSlides[0]?.speakerNotes || currentModuleSlides[0]?.content || 'Test audio';
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-voice`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ 
+            text: testScript.substring(0, 500), // Max 500 chars for test
+            voiceId: voiceId || 'JBFqnCBsd6RMkjVDRZzb',
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Voice generation failed: ${response.status}`);
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Store the audio URL for review
+      setGeneratedAudioUrls(prev => ({
+        ...prev,
+        [`${currentScript.moduleId}-test`]: audioUrl,
+      }));
+      setShowReviewPanel(true);
+      
+      toast.success('Testljud genererat! Se förhandsgranskning nedan.');
+    } catch (error) {
+      console.error('Test audio generation error:', error);
+      toast.error(error instanceof Error ? error.message : 'Kunde inte generera testljud');
+    } finally {
+      setIsGeneratingTestAudio(false);
     }
   };
 
@@ -335,11 +385,11 @@ export function VideoStep({
                 </div>
               </div>
 
-              {/* Generate Audio Button */}
-              <div className="flex gap-3">
+              {/* Generate Audio Buttons */}
+              <div className="flex gap-3 flex-wrap">
                 <Button 
                   onClick={handleGenerateAudio}
-                  disabled={isGeneratingAudio || !currentModuleSlides.length}
+                  disabled={isGeneratingAudio || isGeneratingTestAudio || !currentModuleSlides.length}
                 >
                   {isGeneratingAudio ? (
                     <>
@@ -350,6 +400,24 @@ export function VideoStep({
                     <>
                       <Sparkles className="mr-2 h-4 w-4" />
                       Generera röstberättelse
+                    </>
+                  )}
+                </Button>
+
+                <Button 
+                  variant="secondary"
+                  onClick={handleGenerateTestAudio}
+                  disabled={isGeneratingAudio || isGeneratingTestAudio || !currentModuleSlides.length}
+                >
+                  {isGeneratingTestAudio ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Testar...
+                    </>
+                  ) : (
+                    <>
+                      <Headphones className="mr-2 h-4 w-4" />
+                      Testa röst (kort)
                     </>
                   )}
                 </Button>
