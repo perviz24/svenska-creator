@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Video, Play, Sparkles, Loader2, ChevronRight, User, Settings, ExternalLink, Upload, SkipForward } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Video, Play, Sparkles, Loader2, ChevronRight, User, Settings, ExternalLink, Upload, SkipForward, Headphones } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slide, ModuleScript, CourseOutline, ModuleAudio, VideoSettings } from '@/types/course';
 import { PresentationPlayer } from '@/components/PresentationPlayer';
+import { AudioReviewPanel, VideoReviewPanel } from '@/components/AudioVideoReviewPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ContentUploader } from '@/components/ContentUploader';
@@ -61,6 +62,11 @@ export function VideoStep({
   const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
   const [showNarrationRefinement, setShowNarrationRefinement] = useState(false);
   const [uploadedNarrationContent, setUploadedNarrationContent] = useState('');
+  
+  // Review state - track generated audio URLs and video IDs per module
+  const [generatedAudioUrls, setGeneratedAudioUrls] = useState<Record<string, string>>({});
+  const [generatedVideoIds, setGeneratedVideoIds] = useState<Record<string, string>>({});
+  const [showReviewPanel, setShowReviewPanel] = useState(false);
 
   const canGenerateFromSlides = !!outline && scripts.length > 0 && Object.keys(slides).length > 0;
 
@@ -102,10 +108,17 @@ export function VideoStep({
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
 
+      // Store the audio URL for review
+      setGeneratedAudioUrls(prev => ({
+        ...prev,
+        [currentScript.moduleId]: audioUrl,
+      }));
+      setShowReviewPanel(true);
+
       // Store the audio URL (in real app, upload to storage)
       await onGenerateAudio(currentScript.moduleId, currentScript);
       
-      toast.success('Röstberättelse genererad!');
+      toast.success('Röstberättelse genererad! Se förhandsgranskning nedan.');
     } catch (error) {
       console.error('Audio generation error:', error);
       toast.error('Kunde inte generera röstberättelse');
@@ -159,7 +172,16 @@ export function VideoStep({
 
       if (error) throw error;
 
-      toast.success('Videogenerering startad! Video-ID: ' + data.videoId);
+      // Store the video ID for tracking
+      if (data.videoId && currentScript) {
+        setGeneratedVideoIds(prev => ({
+          ...prev,
+          [currentScript.moduleId]: data.videoId,
+        }));
+        setShowReviewPanel(true);
+      }
+
+      toast.success('Videogenerering startad! Se status nedan.');
     } catch (error) {
       console.error('HeyGen video error:', error);
       toast.error('Kunde inte starta videogenerering');
@@ -498,6 +520,63 @@ export function VideoStep({
       </Tabs>
           </>
         )
+      )}
+
+      {/* Review Panel - Shows generated audio and video for review */}
+      {showReviewPanel && currentScript && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Headphones className="h-5 w-5" />
+                  Granska genererat innehåll
+                </CardTitle>
+                <CardDescription>
+                  Lyssna på röstinspelningen och kontrollera videostatus innan export
+                </CardDescription>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setShowReviewPanel(false)}
+              >
+                Dölj
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Audio Review */}
+            <AudioReviewPanel
+              audioUrl={generatedAudioUrls[currentScript.moduleId] || currentAudio?.audioUrl || null}
+              moduleTitle={currentScript.moduleTitle}
+              onRegenerate={handleGenerateAudio}
+              isGenerating={isGeneratingAudio}
+            />
+
+            {/* Video Review (only show if using HeyGen) */}
+            {videoSettings.videoStyle === 'avatar' && (
+              <VideoReviewPanel
+                videoId={generatedVideoIds[currentScript.moduleId] || null}
+                moduleTitle={currentScript.moduleTitle}
+                onRegenerate={handleGenerateHeyGenVideo}
+                isGenerating={isGeneratingHeyGenVideo}
+              />
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Toggle Review Button */}
+      {(Object.keys(generatedAudioUrls).length > 0 || Object.keys(generatedVideoIds).length > 0) && !showReviewPanel && (
+        <Button
+          variant="outline"
+          onClick={() => setShowReviewPanel(true)}
+          className="w-full"
+        >
+          <Headphones className="mr-2 h-4 w-4" />
+          Visa genererat innehåll för granskning
+        </Button>
       )}
 
       {/* Action Buttons */}
