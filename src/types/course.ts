@@ -107,6 +107,8 @@ export interface CustomTemplate {
   createdAt: string;
 }
 
+export type StockVideoProvider = 'pexels' | 'pixabay' | 'storyblocks' | 'shutterstock';
+
 export interface PresentationSettings {
   slideCount: number;
   presentationDuration: number; // in minutes
@@ -121,7 +123,7 @@ export interface PresentationSettings {
   includeCharts: boolean;
   customTemplate?: CustomTemplate;
   includeStockVideos: boolean;
-  stockVideoProvider: 'pexels' | 'pixabay' | 'storyblocks' | 'shutterstock';
+  stockVideoProvider: StockVideoProvider;
 }
 
 export interface CourseStructureLimits {

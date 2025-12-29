@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Search, Play, Check, X, Loader2, Film, ExternalLink, Sparkles } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { StockVideoProvider } from '@/types/course';
 
 export interface StockVideo {
   id: string;
@@ -20,7 +22,7 @@ export interface StockVideo {
   height: number;
   user: string;
   userUrl: string;
-  source: 'pexels' | 'pixabay';
+  source: StockVideoProvider;
   tags?: string[];
   aiRelevanceScore?: number;
 }
@@ -29,16 +31,17 @@ interface StockVideoSearchProps {
   context?: string; // Course/slide context for AI-enhanced search
   onVideoSelect: (video: StockVideo) => void;
   selectedVideos?: StockVideo[];
+  provider?: StockVideoProvider;
 }
 
-export function StockVideoSearch({ context, onVideoSelect, selectedVideos = [] }: StockVideoSearchProps) {
+export function StockVideoSearch({ context, onVideoSelect, selectedVideos = [], provider = 'pexels' }: StockVideoSearchProps) {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [videos, setVideos] = useState<StockVideo[]>([]);
   const [previewVideo, setPreviewVideo] = useState<StockVideo | null>(null);
   const [enhancedQuery, setEnhancedQuery] = useState<string | null>(null);
-
   const handleAIEnhanceQuery = async () => {
     if (!searchQuery.trim() && !context) {
       toast.error('Ange en sökfråga eller kontext först');
@@ -83,11 +86,19 @@ export function StockVideoSearch({ context, onVideoSelect, selectedVideos = [] }
           action: 'search',
           query: searchQuery,
           context,
-          perPage: 20
+          perPage: 20,
+          provider,
+          userId: user?.id,
         }
       });
 
       if (error) throw error;
+      
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+      
       if (data?.videos) {
         setVideos(data.videos);
         if (data.videos.length === 0) {
