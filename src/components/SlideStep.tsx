@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage, Upload, ChevronDown, ChevronUp } from 'lucide-react';
+import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage, Upload, ChevronDown, ChevronUp, Palette, SkipForward } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,7 @@ interface SlideStepProps {
   onUpdateSlide: (moduleId: string, slideIndex: number, updates: Partial<Slide>) => void;
   onContinue: () => void;
   onContentUploaded?: (content: string) => void;
+  onSkip?: () => void;
 }
 
 export function SlideStep({
@@ -35,6 +36,7 @@ export function SlideStep({
   onUpdateSlide,
   onContinue,
   onContentUploaded,
+  onSkip,
 }: SlideStepProps) {
   const [selectedModuleIndex, setSelectedModuleIndex] = useState(0);
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
@@ -44,6 +46,8 @@ export function SlideStep({
   const [stockPhotos, setStockPhotos] = useState<StockPhoto[]>([]);
   const [customSearchQuery, setCustomSearchQuery] = useState('');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [enhanceType, setEnhanceType] = useState<'design' | 'content' | 'full'>('full');
   if (!outline || scripts.length === 0) {
     return (
       <Card className="border-dashed border-2">
@@ -129,6 +133,61 @@ export function SlideStep({
       imageAttribution: photo.attribution,
     });
     toast.success('Bild vald!');
+  };
+
+  const handleEnhanceSlides = async () => {
+    if (!currentScript || currentModuleSlides.length === 0) return;
+
+    setIsEnhancing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('enhance-slides', {
+        body: {
+          slides: currentModuleSlides.map(slide => ({
+            title: slide.title,
+            content: slide.content,
+            layout: slide.layout,
+            speakerNotes: slide.speakerNotes,
+            backgroundColor: slide.backgroundColor,
+          })),
+          enhanceType,
+          courseTitle,
+          language: 'sv',
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      // Apply enhanced slides
+      const enhancedSlides = data.enhancedSlides || [];
+      enhancedSlides.forEach((enhanced: any, index: number) => {
+        if (index < currentModuleSlides.length) {
+          onUpdateSlide(currentScript.moduleId, index, {
+            title: enhanced.title || currentModuleSlides[index].title,
+            content: enhanced.content || currentModuleSlides[index].content,
+            layout: enhanced.layout || currentModuleSlides[index].layout,
+            speakerNotes: enhanced.speakerNotes || currentModuleSlides[index].speakerNotes,
+            backgroundColor: enhanced.backgroundColor || currentModuleSlides[index].backgroundColor,
+          });
+        }
+      });
+
+      // Show design suggestions if available
+      if (data.overallSuggestions?.designNotes) {
+        toast.info(data.overallSuggestions.designNotes, { duration: 5000 });
+      }
+
+      toast.success(`${enhancedSlides.length} slides förbättrade med AI!`);
+    } catch (error) {
+      console.error('Error enhancing slides:', error);
+      toast.error('Kunde inte förbättra slides');
+    } finally {
+      setIsEnhancing(false);
+    }
   };
 
   const handleExport = async (format: 'pptx' | 'pdf') => {
@@ -251,31 +310,63 @@ export function SlideStep({
           ))}
         </div>
         
-        {/* Export Dropdown */}
-        {currentModuleSlides.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" disabled={isExporting}>
-                {isExporting ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Download className="h-4 w-4 mr-2" />
-                )}
-                Ladda ner
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover z-50">
-              <DropdownMenuItem onClick={() => handleExport('pptx')} className="cursor-pointer">
-                <FileImage className="h-4 w-4 mr-2" />
-                PowerPoint (XML)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('pdf')} className="cursor-pointer">
-                <FileText className="h-4 w-4 mr-2" />
-                PDF (HTML)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        {/* AI Enhancement & Export */}
+        <div className="flex gap-2">
+          {currentModuleSlides.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" disabled={isEnhancing}>
+                  {isEnhancing ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Palette className="h-4 w-4 mr-2" />
+                  )}
+                  AI-förbättra
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover z-50">
+                <DropdownMenuItem onClick={() => { setEnhanceType('design'); handleEnhanceSlides(); }} className="cursor-pointer">
+                  <Palette className="h-4 w-4 mr-2" />
+                  Förbättra design
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setEnhanceType('content'); handleEnhanceSlides(); }} className="cursor-pointer">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Förbättra innehåll
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setEnhanceType('full'); handleEnhanceSlides(); }} className="cursor-pointer">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Full AI-analys
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          
+          {/* Export Dropdown */}
+          {currentModuleSlides.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" disabled={isExporting}>
+                  {isExporting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Ladda ner
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover z-50">
+                <DropdownMenuItem onClick={() => handleExport('pptx')} className="cursor-pointer">
+                  <FileImage className="h-4 w-4 mr-2" />
+                  PowerPoint (XML)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('pdf')} className="cursor-pointer">
+                  <FileText className="h-4 w-4 mr-2" />
+                  PDF (HTML)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
 
       {/* Main Content */}
@@ -519,15 +610,21 @@ export function SlideStep({
         </div>
       )}
 
-      {/* Continue Button */}
-      {allModulesHaveSlides && (
-        <div className="flex justify-end">
-          <Button onClick={onContinue} size="lg">
-            Fortsätt till röstsyntes
-            <ChevronRight className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
-      )}
+      {/* Action Buttons */}
+      <div className="flex justify-between items-center pt-4">
+        <Button 
+          variant="ghost" 
+          onClick={onSkip || onContinue}
+          className="text-muted-foreground"
+        >
+          <SkipForward className="mr-2 h-4 w-4" />
+          Hoppa över detta steg
+        </Button>
+        <Button onClick={onContinue} size="lg">
+          Fortsätt till övningar
+          <ChevronRight className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }

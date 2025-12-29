@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { HelpCircle, RefreshCw, ArrowRight, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp, Trash2, Upload } from 'lucide-react';
+import { HelpCircle, RefreshCw, ArrowRight, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp, Trash2, Upload, SkipForward } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,7 @@ interface QuizStepProps {
   onQuizGenerated: (moduleId: string, quiz: ModuleQuiz) => void;
   onContinue: () => void;
   onContentUploaded?: (content: string) => void;
+  onSkip?: () => void;
 }
 
 export function QuizStep({
@@ -32,6 +33,7 @@ export function QuizStep({
   onQuizGenerated,
   onContinue,
   onContentUploaded,
+  onSkip,
 }: QuizStepProps) {
   const [generatingModule, setGeneratingModule] = useState<string | null>(null);
   const [expandedQuiz, setExpandedQuiz] = useState<string | null>(null);
@@ -310,33 +312,44 @@ export function QuizStep({
       </div>
 
       {/* Actions */}
-      <div className="flex justify-center gap-4 pt-4">
-        {!allQuizzesGenerated && Object.keys(quizzes).length > 0 && (
-          <Button
-            onClick={() => {
-              const nextScript = scripts.find(s => !quizzes[s.moduleId]);
-              if (nextScript) generateQuiz(nextScript);
-            }}
-            disabled={isLoading || generatingModule !== null}
-            className="gap-2"
-          >
-            {generatingModule ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Genererar...
-              </>
-            ) : (
-              <>
-                Generera nästa quiz
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </Button>
-        )}
-        <Button onClick={onContinue} variant={allQuizzesGenerated ? 'default' : 'outline'} className="gap-2">
-          {allQuizzesGenerated ? 'Fortsätt till röst' : 'Hoppa över quiz'}
-          <ArrowRight className="w-4 h-4" />
+      <div className="flex justify-between items-center pt-4">
+        <Button 
+          variant="ghost" 
+          onClick={onSkip || onContinue}
+          className="text-muted-foreground gap-2"
+        >
+          <SkipForward className="w-4 h-4" />
+          Hoppa över
         </Button>
+        <div className="flex gap-3">
+          {!allQuizzesGenerated && Object.keys(quizzes).length > 0 && (
+            <Button
+              onClick={() => {
+                const nextScript = scripts.find(s => !quizzes[s.moduleId]);
+                if (nextScript) generateQuiz(nextScript);
+              }}
+              disabled={isLoading || generatingModule !== null}
+              variant="outline"
+              className="gap-2"
+            >
+              {generatingModule ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Genererar...
+                </>
+              ) : (
+                <>
+                  Generera nästa quiz
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </Button>
+          )}
+          <Button onClick={onContinue} className="gap-2">
+            Fortsätt till röst
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

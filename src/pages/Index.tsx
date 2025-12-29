@@ -48,6 +48,7 @@ const Index = () => {
             onSelectSuggestion={selectTitle}
             onContinue={nextStep}
             onContentUploaded={handleContentUploaded}
+            onSkip={nextStep}
           />
         );
       case 'outline':
@@ -88,6 +89,7 @@ const Index = () => {
             onUpdateSlide={updateSlide}
             onContinue={nextStep}
             onContentUploaded={handleContentUploaded}
+            onSkip={nextStep}
           />
         );
       case 'exercises':
@@ -114,6 +116,7 @@ const Index = () => {
             onQuizGenerated={addQuiz}
             onContinue={nextStep}
             onContentUploaded={handleContentUploaded}
+            onSkip={nextStep}
           />
         );
       case 'voice':
@@ -132,6 +135,7 @@ const Index = () => {
             onUpdateVideoSettings={updateVideoSettings}
             onContinue={nextStep}
             onContentUploaded={handleContentUploaded}
+            onSkip={nextStep}
           />
         );
       case 'upload':

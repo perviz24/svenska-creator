@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.ai-review-edit]
 verify_jwt = false
+
+[functions.enhance-slides]
+verify_jwt = false
