@@ -197,22 +197,27 @@ const Index = () => {
           </div>
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content Area */}
-            <div className="lg:col-span-2">
-              {renderCurrentStep()}
-            </div>
+          {(() => {
+            const showSettingsPanel = state.settings.projectMode === 'course';
 
-            {/* Settings Panel */}
-            <div className="lg:col-span-1">
-              <div className="sticky top-24">
-                <SettingsPanel
-                  settings={state.settings}
-                  onSettingsChange={updateSettings}
-                />
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Main Content Area */}
+                <div className={showSettingsPanel ? 'lg:col-span-2' : 'lg:col-span-3'}>
+                  {renderCurrentStep()}
+                </div>
+
+                {/* Settings Panel (only for full course mode) */}
+                {showSettingsPanel && (
+                  <div className="lg:col-span-1">
+                    <div className="sticky top-24">
+                      <SettingsPanel settings={state.settings} onSettingsChange={updateSettings} />
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
+            );
+          })()}
         </div>
       </main>
     </div>

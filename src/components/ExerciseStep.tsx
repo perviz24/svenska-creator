@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AIReviewEditor } from '@/components/AIReviewEditor';
+import { ContentUploader } from '@/components/ContentUploader';
 
 interface ExerciseStepProps {
   outline: CourseOutline | null;
@@ -81,6 +82,9 @@ export function ExerciseStep({
   // AI editing state
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<'title' | 'purpose' | null>(null);
+
+  // Upload toggle (quick access)
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
 
   if (!outline) {
     return (
@@ -443,6 +447,30 @@ export function ExerciseStep({
         </p>
       </div>
 
+      {/* Upload own content (quick access) */}
+      <Collapsible open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" size="sm" className="w-full justify-between">
+            <span className="flex items-center gap-2">
+              <Upload className="w-4 h-4" />
+              Ladda upp underlag för övningar
+            </span>
+            {isUploadOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <ContentUploader
+            onContentUploaded={(content) => {
+              setKnowledgeBase((prev) => (prev ? `${prev}\n\n--- UPPLADDAT UNDERLAG ---\n${content}` : content));
+              toast.success('Underlag importerat och kopplat till övningssteget!');
+            }}
+            label="Importera underlag"
+            description="Ladda upp dokument, klistra in text eller ange URL:er som ska påverka övningsgenereringen."
+            placeholder="Klistra in underlag för övningar här..."
+            compact
+          />
+        </CollapsibleContent>
+      </Collapsible>
       <Tabs defaultValue="generator" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="generator" className="gap-2">
