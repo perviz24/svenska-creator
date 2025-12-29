@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.system-diagnostics]
 verify_jwt = false
+
+[functions.recommend-research-mode]
+verify_jwt = false
