@@ -463,6 +463,7 @@ const Demo = () => {
             moduleAudio={state.moduleAudio}
             courseTitle={state.title}
             demoMode={state.settings.demoMode}
+            projectMode={state.settings.projectMode}
           />
         );
       default:
