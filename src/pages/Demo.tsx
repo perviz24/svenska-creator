@@ -3,6 +3,8 @@ import { Header } from '@/components/Header';
 import { ProgressStepper } from '@/components/ProgressStepper';
 import { ModeSelectionStep } from '@/components/ModeSelectionStep';
 import { TitleStep } from '@/components/TitleStep';
+import { OutlineStep } from '@/components/OutlineStep';
+import { ScriptStep } from '@/components/ScriptStep';
 import { SlideStep } from '@/components/SlideStep';
 import { ExportStep } from '@/components/ExportStep';
 import { SettingsPanel } from '@/components/SettingsPanel';
@@ -133,12 +135,15 @@ const Demo = () => {
 
   const nextStep = () => {
     setState(prev => {
-      // Demo uses simplified presentation workflow
-      const demoSteps: WorkflowStep[] = ['mode', 'title', 'slides', 'upload'];
-      const currentIndex = demoSteps.indexOf(prev.currentStep);
+      // Demo uses full course workflow with short content
+      const courseSteps: WorkflowStep[] = ['mode', 'title', 'outline', 'script', 'slides', 'upload'];
+      const presentationSteps: WorkflowStep[] = ['mode', 'title', 'slides', 'upload'];
       
-      if (currentIndex < demoSteps.length - 1) {
-        const newStep = demoSteps[currentIndex + 1];
+      const steps = prev.settings.projectMode === 'presentation' ? presentationSteps : courseSteps;
+      const currentIndex = steps.indexOf(prev.currentStep);
+      
+      if (currentIndex < steps.length - 1) {
+        const newStep = steps[currentIndex + 1];
         return {
           ...prev,
           currentStep: newStep,
@@ -146,6 +151,122 @@ const Demo = () => {
         };
       }
       return prev;
+    });
+  };
+
+  // Generate outline for demo (short version)
+  const generateOutline = async () => {
+    if (!state.title.trim()) {
+      toast.error('Välj en titel först');
+      return;
+    }
+
+    setState(prev => ({ ...prev, isProcessing: true, error: null }));
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-outline', {
+        body: { 
+          title: state.title,
+          targetDuration: 5, // Very short for demo
+          style: state.settings.style,
+          language: state.settings.language,
+          maxModules: 2,
+          demoMode: true,
+        }
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      const outline: CourseOutline = data.outline;
+      
+      setState(prev => ({
+        ...prev,
+        outline,
+        isProcessing: false,
+      }));
+
+      toast.success('Demo-kursöversikt genererad! (2 korta moduler)');
+    } catch (error) {
+      console.error('Error generating outline:', error);
+      const message = error instanceof Error ? error.message : 'Kunde inte generera kursöversikt';
+      setState(prev => ({
+        ...prev,
+        isProcessing: false,
+        error: message,
+      }));
+      toast.error(message);
+    }
+  };
+
+  const updateOutline = (outline: CourseOutline) => {
+    setState(prev => ({ ...prev, outline }));
+  };
+
+  // Generate script for demo (short version)
+  const generateScript = async (moduleIndex: number) => {
+    if (!state.outline) {
+      toast.error('Ingen kursöversikt tillgänglig');
+      return;
+    }
+
+    const module = state.outline.modules[moduleIndex];
+    if (!module) {
+      toast.error('Modulen kunde inte hittas');
+      return;
+    }
+
+    setState(prev => ({ ...prev, isProcessing: true, error: null }));
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-script', {
+        body: { 
+          module: { ...module, duration: 2 }, // Very short for demo
+          courseTitle: state.title,
+          style: state.settings.style,
+          language: state.settings.language,
+          enableResearch: false, // Skip research for speed
+          demoMode: true,
+        }
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      const script: ModuleScript = data.script;
+      
+      setState(prev => ({
+        ...prev,
+        scripts: [...prev.scripts, script],
+        isProcessing: false,
+      }));
+
+      toast.success(`Demo-manus för "${module.title}" genererat! (~260 ord)`);
+    } catch (error) {
+      console.error('Error generating script:', error);
+      const message = error instanceof Error ? error.message : 'Kunde inte generera manus';
+      setState(prev => ({
+        ...prev,
+        isProcessing: false,
+        error: message,
+      }));
+      toast.error(message);
+    }
+  };
+
+  const uploadScript = (moduleId: string, script: ModuleScript) => {
+    setState(prev => {
+      const existingIndex = prev.scripts.findIndex(s => s.moduleId === moduleId);
+      let newScripts: ModuleScript[];
+      
+      if (existingIndex >= 0) {
+        newScripts = [...prev.scripts];
+        newScripts[existingIndex] = script;
+      } else {
+        newScripts = [...prev.scripts, script];
+      }
+      
+      return { ...prev, scripts: newScripts };
     });
   };
 
@@ -282,6 +403,32 @@ const Demo = () => {
             projectMode={state.settings.projectMode}
           />
         );
+      case 'outline':
+        return (
+          <OutlineStep
+            outline={state.outline}
+            isLoading={state.isProcessing}
+            courseTitle={state.title}
+            onGenerateOutline={generateOutline}
+            onRegenerateOutline={generateOutline}
+            onUpdateOutline={updateOutline}
+            onContinue={nextStep}
+          />
+        );
+      case 'script':
+        return (
+          <ScriptStep
+            outline={state.outline}
+            scripts={state.scripts}
+            isLoading={state.isProcessing}
+            currentModuleIndex={state.scripts.length}
+            courseTitle={state.title}
+            language={state.settings.language}
+            onGenerateScript={generateScript}
+            onContinue={nextStep}
+            onUploadScript={uploadScript}
+          />
+        );
       case 'slides':
         return (
           <SlideStep
@@ -312,8 +459,12 @@ const Demo = () => {
     }
   };
 
-  // Demo uses simplified presentation workflow
-  const demoSteps: WorkflowStep[] = ['mode', 'title', 'slides', 'upload'];
+  // Demo steps based on project mode
+  const getDemoSteps = (): WorkflowStep[] => {
+    return state.settings.projectMode === 'presentation' 
+      ? ['mode', 'title', 'slides', 'upload']
+      : ['mode', 'title', 'outline', 'script', 'slides', 'upload'];
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -368,10 +519,11 @@ const Demo = () => {
             <ProgressStepper
               currentStep={state.currentStep}
               completedSteps={state.completedSteps}
-              projectMode="presentation" // Demo uses simplified workflow
+              projectMode={state.settings.projectMode}
               demoMode={state.settings.demoMode}
               onStepClick={goToStep}
             />
+          </div>
           </div>
 
           {/* Main Content Grid */}

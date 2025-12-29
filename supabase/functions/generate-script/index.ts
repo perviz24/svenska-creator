@@ -56,7 +56,7 @@ serve(async (req) => {
   }
 
   try {
-    const { module, courseTitle, style = 'professional', language = 'sv', enableResearch = true } = await req.json();
+    const { module, courseTitle, style = 'professional', language = 'sv', enableResearch = true, demoMode = false } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
@@ -67,11 +67,11 @@ serve(async (req) => {
       throw new Error('Module data is required');
     }
 
-    console.log('Generating script for module:', module.title, 'with research:', enableResearch);
+    console.log('Generating script for module:', module.title, 'with research:', enableResearch, 'demo:', demoMode);
 
-    // Fetch research from Perplexity if enabled
+    // Skip research in demo mode for faster generation
     let researchData = { research: '', citations: [] as string[] };
-    if (enableResearch) {
+    if (enableResearch && !demoMode) {
       researchData = await fetchResearch(module.title, courseTitle, language);
       console.log('Research fetched with', researchData.citations.length, 'citations');
     }
@@ -80,18 +80,31 @@ serve(async (req) => {
       ? `\n\nRELEVANT RESEARCH AND FACTS:\n${researchData.research}\n\nSOURCES TO CITE:\n${researchData.citations.map((c, i) => `[${i + 1}] ${c}`).join('\n')}`
       : '';
 
+    // Demo mode: very short script (2 min, ~260 words)
+    const effectiveDuration = demoMode ? 2 : module.duration;
+    const wordsPerMinute = 130;
+    const targetWords = demoMode ? 260 : effectiveDuration * wordsPerMinute;
+
+    const demoInstructionSv = demoMode 
+      ? 'VIKTIGT: Detta är en DEMO. Skriv ett MYCKET kort manus på max 260 ord (2 min). Bara 2 korta sektioner. Inga långa förklaringar.'
+      : '';
+    
+    const demoInstructionEn = demoMode
+      ? 'IMPORTANT: This is a DEMO. Write a VERY short script of max 260 words (2 min). Only 2 short sections. No long explanations.'
+      : '';
+
     const systemPrompt = language === 'sv'
       ? `Du är en expert på att skriva manus för vårdutbildningsvideor.
          Skriv ett komplett manus för en utbildningsmodul på svenska.
+         ${demoInstructionSv}
          
          Stilen ska vara ${style === 'professional' ? 'professionell och tydlig' : style === 'conversational' ? 'konversationell och engagerande' : 'akademisk och formell'}.
          
          Manuset ska:
-         - Vara cirka ${module.duration} minuter långt när det läses upp (ungefär 130 ord per minut)
+         - Vara cirka ${effectiveDuration} minuter långt (${targetWords} ord)
          - Inkludera tydliga markeringar för bildbyten med formatet: [BILD: beskrivning av bilden]
-         - Täcka alla lärandemål och delteman
          - Vara pedagogiskt och lätt att följa
-         - Inkludera introduktion och sammanfattning
+         ${demoMode ? '- MAX 2 sektioner, väldigt kort' : '- Täcka alla lärandemål och delteman'}
          ${researchData.citations.length > 0 ? '- Integrera den forskning och de källor som tillhandahålls naturligt i manuset' : ''}
          
          Svara ENDAST med giltig JSON i detta format:
@@ -99,30 +112,30 @@ serve(async (req) => {
            "script": {
              "moduleId": "${module.id}",
              "moduleTitle": "${module.title}",
-             "totalWords": 0,
-             "estimatedDuration": ${module.duration},
+             "totalWords": ${targetWords},
+             "estimatedDuration": ${effectiveDuration},
              "citations": [],
              "sections": [
                {
                  "id": "section-1",
                  "title": "Sektion titel",
                  "content": "Manustext här med [BILD: bildförslag] markeringar...",
-                 "slideMarkers": ["BILD: beskrivning 1", "BILD: beskrivning 2"]
+                 "slideMarkers": ["BILD: beskrivning 1"]
                }
              ]
            }
          }`
       : `You are an expert at writing scripts for healthcare education videos.
          Write a complete script for an educational module in English.
+         ${demoInstructionEn}
          
          The style should be ${style}.
          
          The script should:
-         - Be approximately ${module.duration} minutes long when read aloud (about 130 words per minute)
+         - Be approximately ${effectiveDuration} minutes long (${targetWords} words)
          - Include clear markers for slide changes with the format: [SLIDE: description of the slide]
-         - Cover all learning objectives and subtopics
          - Be pedagogical and easy to follow
-         - Include an introduction and summary
+         ${demoMode ? '- MAX 2 sections, very short' : '- Cover all learning objectives and subtopics'}
          ${researchData.citations.length > 0 ? '- Naturally integrate the provided research and sources into the script' : ''}
          
          Respond ONLY with valid JSON in this format:
@@ -130,18 +143,18 @@ serve(async (req) => {
            "script": {
              "moduleId": "${module.id}",
              "moduleTitle": "${module.title}",
-             "totalWords": 0,
-             "estimatedDuration": ${module.duration},
+             "totalWords": ${targetWords},
+             "estimatedDuration": ${effectiveDuration},
              "citations": [],
              "sections": [
                {
                  "id": "section-1",
                  "title": "Section title",
                  "content": "Script text here with [SLIDE: slide suggestion] markers...",
-                 "slideMarkers": ["SLIDE: description 1", "SLIDE: description 2"]
+                 "slideMarkers": ["SLIDE: description 1"]
                }
              ]
-           }
+          }
          }`;
 
     const userPrompt = `Course: "${courseTitle}"
