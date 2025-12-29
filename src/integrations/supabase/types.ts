@@ -172,6 +172,82 @@ export type Database = {
         }
         Relationships: []
       }
+      module_exercises: {
+        Row: {
+          course_id: string
+          created_at: string
+          exercises: Json
+          id: string
+          module_id: string
+          module_title: string
+          updated_at: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          exercises?: Json
+          id?: string
+          module_id: string
+          module_title: string
+          updated_at?: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          exercises?: Json
+          id?: string
+          module_id?: string
+          module_title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "module_exercises_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      module_quizzes: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          module_id: string
+          module_title: string
+          questions: Json
+          updated_at: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          module_id: string
+          module_title: string
+          questions?: Json
+          updated_at?: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          module_id?: string
+          module_title?: string
+          questions?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "module_quizzes_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       module_scripts: {
         Row: {
           audio_url: string | null
