@@ -21,6 +21,9 @@ import {
   Save,
   Trash2,
   Mic,
+  Download,
+  FileText,
+  Presentation,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -44,9 +47,10 @@ interface ExportStepProps {
   courseTitle: string;
   onComplete?: () => void;
   demoMode?: DemoModeSettings;
+  projectMode?: 'course' | 'presentation';
 }
 
-export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demoMode }: ExportStepProps) {
+export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demoMode, projectMode = 'course' }: ExportStepProps) {
   const isDemoMode = demoMode?.enabled || false;
   // Bunny.net state
   const [bunnyVideos, setBunnyVideos] = useState<BunnyVideo[]>([]);
@@ -661,6 +665,137 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
     }
   };
 
+  // Presentation Mode Export - Simplified view focused on slide downloads
+  if (projectMode === 'presentation') {
+    return (
+      <div className="space-y-6">
+        {isDemoMode && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 mb-4">
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+              <AlertCircle className="h-5 w-5" />
+              <div>
+                <p className="font-medium">Demo Mode Active</p>
+                <p className="text-sm opacity-80">
+                  Export funktionerna är begränsade i demo-läge.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-bold">Exportera presentation</h2>
+          <p className="text-muted-foreground">
+            Ladda ner din presentation i olika format
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* PowerPoint Export */}
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-orange-500/10 group-hover:bg-orange-500/20 transition-colors">
+                  <Presentation className="h-6 w-6 text-orange-500" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">PowerPoint</CardTitle>
+                  <CardDescription>Ladda ner som .pptx-fil</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Perfekt för att redigera och presentera i Microsoft PowerPoint eller Google Slides.
+              </p>
+              <Button className="w-full" variant="outline" disabled={isDemoMode}>
+                <Download className="h-4 w-4 mr-2" />
+                Ladda ner PowerPoint
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* PDF Export */}
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-red-500/10 group-hover:bg-red-500/20 transition-colors">
+                  <FileText className="h-6 w-6 text-red-500" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">PDF-dokument</CardTitle>
+                  <CardDescription>Ladda ner som .pdf-fil</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Idealisk för utskrift och delning som statiskt dokument.
+              </p>
+              <Button className="w-full" variant="outline" disabled={isDemoMode}>
+                <Download className="h-4 w-4 mr-2" />
+                Ladda ner PDF
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Google Slides Export */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-blue-500/10">
+                <ExternalLink className="h-6 w-6 text-blue-500" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Google Slides</CardTitle>
+                <CardDescription>Exportera till Google Slides för samarbete</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Exportera din presentation direkt till Google Slides för realtidssamarbete och molnlagring.
+            </p>
+            <Button className="w-full" disabled={isDemoMode}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Exportera till Google Slides
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Presentation Info */}
+        <Card className="bg-muted/30">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Presentation className="h-5 w-5 text-primary" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-medium">{courseTitle || 'Din presentation'}</h4>
+                <p className="text-sm text-muted-foreground">
+                  {outline?.modules?.length || 0} avsnitt • {
+                    outline?.modules?.reduce((acc, m) => acc + (m.subTopics?.length || 0), 0) || 0
+                  } slides
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {isDemoMode && (
+          <div className="text-center text-sm text-muted-foreground">
+            <p>Export är tillgängligt i fullversionen.</p>
+            <a href="/auth" className="text-primary hover:underline">
+              Logga in för att exportera →
+            </a>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Course Mode Export - Full Bunny.net and LearnDash integration
   return (
     <div className="space-y-6">
       {isDemoMode && (
