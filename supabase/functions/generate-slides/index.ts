@@ -108,14 +108,22 @@ serve(async (req) => {
   }
 
   try {
-    const { script, moduleTitle, courseTitle, language = 'sv', autoFetchImages = true } = await req.json();
+    const { script, moduleTitle, courseTitle, language = 'sv', autoFetchImages = true, maxSlides = 10, demoMode = false } = await req.json();
 
-    if (!script) {
+    // Handle script content - it can be the script object or a string
+    const scriptContent = typeof script === 'object' ? JSON.stringify(script.sections || script) : script;
+    const effectiveModuleTitle = moduleTitle || (typeof script === 'object' ? script.moduleTitle : 'Module');
+
+    if (!scriptContent) {
       return new Response(
         JSON.stringify({ error: 'Script content is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // In demo mode, limit slides
+    const effectiveMaxSlides = demoMode ? Math.min(maxSlides, 5) : maxSlides;
+    console.log('Demo mode:', demoMode, 'Max slides:', effectiveMaxSlides);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -148,11 +156,18 @@ serve(async (req) => {
          - Prioritize images with people, workplaces, concrete objects over abstract illustrations
          - Use max 4-5 words for image suggestions for better search results`;
 
+    const demoInstruction = demoMode 
+      ? (language === 'sv' 
+        ? `DEMO-LÄGE: Skapa ENDAST ${effectiveMaxSlides} slides. Håll allt kort och koncist.`
+        : `DEMO MODE: Create ONLY ${effectiveMaxSlides} slides. Keep everything short and concise.`)
+      : '';
+
     const userPrompt = language === 'sv'
-      ? `Analysera detta manus för modulen "${moduleTitle}" i kursen "${courseTitle}" och skapa presentationsslides.
+      ? `Analysera detta manus för modulen "${effectiveModuleTitle}" i kursen "${courseTitle}" och skapa presentationsslides.
+${demoInstruction}
 
 MANUS:
-${script}
+${scriptContent}
 
 Skapa en JSON-array med slides. Varje slide ska ha:
 - slideNumber: Löpnummer (börja med 1)
@@ -166,12 +181,13 @@ Skapa en JSON-array med slides. Varje slide ska ha:
   * DÅLIGT: "success concept" eller "growth metaphor"
 - suggestedBackgroundColor: Valfri HEX-färgkod för bakgrund
 
-Skapa 5-10 slides beroende på innehållets längd. Första sliden ska vara en titelslide.
+Skapa ${demoMode ? effectiveMaxSlides : '5-10'} slides${demoMode ? '' : ' beroende på innehållets längd'}. Första sliden ska vara en titelslide.
 VIKTIGT: suggestedImageQuery MÅSTE vara specifik och sökbar - inga abstrakta koncept!`
-      : `Analyze this script for the module "${moduleTitle}" in the course "${courseTitle}" and create presentation slides.
+      : `Analyze this script for the module "${effectiveModuleTitle}" in the course "${courseTitle}" and create presentation slides.
+${demoInstruction}
 
 SCRIPT:
-${script}
+${scriptContent}
 
 Create a JSON array of slides. Each slide should have:
 - slideNumber: Sequential number (start with 1)
@@ -185,10 +201,10 @@ Create a JSON array of slides. Each slide should have:
   * BAD: "success concept" or "growth metaphor"
 - suggestedBackgroundColor: Optional HEX color code for background
 
-Create 5-10 slides depending on content length. First slide should be a title slide.
+Create ${demoMode ? effectiveMaxSlides : '5-10'} slides${demoMode ? '' : ' depending on content length'}. First slide should be a title slide.
 IMPORTANT: suggestedImageQuery MUST be specific and searchable - no abstract concepts!`;
 
-    console.log('Generating slides for module:', moduleTitle);
+    console.log('Generating slides for module:', effectiveModuleTitle, 'demo:', demoMode);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -271,7 +287,13 @@ IMPORTANT: suggestedImageQuery MUST be specific and searchable - no abstract con
     const slidesData = JSON.parse(toolCall.function.arguments);
     let slides: SlideContent[] = slidesData.slides;
 
-    console.log(`Generated ${slides.length} slides for module "${moduleTitle}"`);
+    // Enforce demo mode slide limit
+    if (demoMode && slides.length > effectiveMaxSlides) {
+      console.log(`Demo mode: limiting slides from ${slides.length} to ${effectiveMaxSlides}`);
+      slides = slides.slice(0, effectiveMaxSlides);
+    }
+
+    console.log(`Generated ${slides.length} slides for module "${effectiveModuleTitle}"${demoMode ? ' (demo mode)' : ''}`);
 
     // Auto-fetch images for each slide if enabled
     if (autoFetchImages) {
