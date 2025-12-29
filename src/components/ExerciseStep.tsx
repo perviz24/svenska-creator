@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { BookOpen, RefreshCw, ArrowRight, Loader2, ChevronDown, ChevronUp, Clock, FileText, Upload, CheckSquare, List, Edit, Download, GraduationCap, Search, Globe, Database } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { BookOpen, RefreshCw, ArrowRight, Loader2, ChevronDown, ChevronUp, Clock, FileText, Upload, CheckSquare, Edit, Download, GraduationCap, Search, Globe, Database, Link, File, X, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 import { ModuleScript, CourseOutline, ModuleExercises, Exercise, ExercisePart, ExerciseSection } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,6 +29,20 @@ interface ExerciseStepProps {
 type ExerciseType = 'mixed' | 'checklist' | 'reflection' | 'practical' | 'case-study';
 type ResearchMode = 'general' | 'academic' | 'deep' | 'quick' | 'reasoning';
 
+interface UploadedDocument {
+  id: string;
+  fileName: string;
+  content: string;
+  wordCount: number;
+}
+
+interface ScrapedUrl {
+  url: string;
+  title: string;
+  content: string;
+  success: boolean;
+}
+
 export function ExerciseStep({
   outline,
   scripts,
@@ -45,13 +60,22 @@ export function ExerciseStep({
   const [exerciseType, setExerciseType] = useState<ExerciseType>('mixed');
   
   // Research settings
-  const [showResearchPanel, setShowResearchPanel] = useState(false);
   const [researchMode, setResearchMode] = useState<ResearchMode>('general');
   const [knowledgeBase, setKnowledgeBase] = useState('');
   const [urlsToScrape, setUrlsToScrape] = useState('');
   const [domainFilter, setDomainFilter] = useState('');
   const [isResearching, setIsResearching] = useState(false);
   const [researchResults, setResearchResults] = useState<string>('');
+  
+  // File upload state
+  const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // URL scraping state
+  const [scrapedUrls, setScrapedUrls] = useState<ScrapedUrl[]>([]);
+  const [isScraping, setIsScraping] = useState(false);
 
   if (!outline) {
     return (
@@ -109,16 +133,130 @@ export function ExerciseStep({
     }
   };
 
+  // File upload handler
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    const newDocuments: UploadedDocument[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setUploadProgress(((i + 1) / files.length) * 100);
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const { data, error } = await supabase.functions.invoke('parse-document', {
+          body: formData,
+        });
+
+        if (error) throw error;
+
+        if (data.success && data.extractedText) {
+          newDocuments.push({
+            id: `doc-${Date.now()}-${i}`,
+            fileName: file.name,
+            content: data.extractedText,
+            wordCount: data.wordCount || 0,
+          });
+          toast.success(`"${file.name}" laddades upp`);
+        } else {
+          toast.error(`Kunde inte läsa "${file.name}"`);
+        }
+      } catch (error) {
+        console.error('Upload error:', error);
+        toast.error(`Fel vid uppladdning av "${file.name}"`);
+      }
+    }
+
+    setUploadedDocuments(prev => [...prev, ...newDocuments]);
+    
+    // Combine all document content into knowledge base
+    const allContent = [...uploadedDocuments, ...newDocuments]
+      .map(d => `--- ${d.fileName} ---\n${d.content}`)
+      .join('\n\n');
+    setKnowledgeBase(allContent);
+
+    setIsUploading(false);
+    setUploadProgress(0);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Remove uploaded document
+  const removeDocument = (id: string) => {
+    const updated = uploadedDocuments.filter(d => d.id !== id);
+    setUploadedDocuments(updated);
+    
+    const allContent = updated
+      .map(d => `--- ${d.fileName} ---\n${d.content}`)
+      .join('\n\n');
+    setKnowledgeBase(allContent);
+  };
+
+  // URL scraping handler
+  const scrapeUrls = async () => {
+    const urls = urlsToScrape.split('\n').map(u => u.trim()).filter(u => u.length > 0);
+    if (urls.length === 0) {
+      toast.error('Ange minst en URL');
+      return;
+    }
+
+    setIsScraping(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('scrape-url', {
+        body: { urls },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        const results = data.results.map((r: { url: string; title?: string; content?: string; success: boolean }) => ({
+          url: r.url,
+          title: r.title || r.url,
+          content: r.content || '',
+          success: r.success,
+        }));
+        
+        setScrapedUrls(results);
+        
+        // Add scraped content to knowledge base
+        if (data.combinedContent) {
+          setKnowledgeBase(prev => 
+            prev ? `${prev}\n\n--- SCRAPED URLS ---\n${data.combinedContent}` : data.combinedContent
+          );
+        }
+        
+        toast.success(`${data.successfulUrls}/${data.totalUrls} URLs scrapade`);
+      }
+    } catch (error) {
+      console.error('Scraping error:', error);
+      toast.error('Kunde inte scrapa URLs');
+    } finally {
+      setIsScraping(false);
+    }
+  };
+
   const performResearch = async (topic: string) => {
     setIsResearching(true);
     try {
+      // Combine uploaded documents with manual knowledge base
+      const combinedKnowledge = knowledgeBase;
+
       const { data, error } = await supabase.functions.invoke('research-topic', {
         body: {
           topic,
           context: courseTitle,
           language,
           researchMode,
-          knowledgeBase: knowledgeBase || undefined,
+          knowledgeBase: combinedKnowledge || undefined,
           urlsToScrape: urlsToScrape ? urlsToScrape.split('\n').filter(u => u.trim()) : undefined,
           domainFilter: domainFilter ? domainFilter.split(',').map(d => d.trim()) : undefined,
         },
@@ -325,14 +463,84 @@ export function ExerciseStep({
                 ))}
               </div>
 
-              {/* Knowledge Base */}
+              {/* File Upload for Knowledge Base */}
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2">
+                  <Upload className="w-4 h-4" />
+                  Ladda upp dokument
+                </Label>
+                
+                <div className="flex gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.txt,.md,.csv"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="gap-2"
+                  >
+                    {isUploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <File className="w-4 h-4" />
+                    )}
+                    Välj filer
+                  </Button>
+                  <span className="text-xs text-muted-foreground self-center">
+                    PDF, DOCX, TXT, MD, CSV (max 10MB)
+                  </span>
+                </div>
+
+                {isUploading && (
+                  <div className="space-y-1">
+                    <Progress value={uploadProgress} className="h-2" />
+                    <p className="text-xs text-muted-foreground">Laddar upp...</p>
+                  </div>
+                )}
+
+                {/* Uploaded Documents List */}
+                {uploadedDocuments.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-foreground">Uppladdade dokument:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {uploadedDocuments.map(doc => (
+                        <Badge 
+                          key={doc.id} 
+                          variant="secondary" 
+                          className="gap-1 pr-1"
+                        >
+                          <File className="w-3 h-3" />
+                          {doc.fileName}
+                          <span className="text-muted-foreground ml-1">({doc.wordCount} ord)</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-4 w-4 p-0 ml-1 hover:bg-destructive/20"
+                            onClick={() => removeDocument(doc.id)}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Manual Knowledge Base Input */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <Database className="w-4 h-4" />
-                  Kunskapsbas (valfri)
+                  Kunskapsbas (manuell inmatning)
                 </Label>
                 <Textarea
-                  placeholder="Klistra in innehåll från dokument, anteckningar eller tidigare forskning som ska inkluderas i analysen..."
+                  placeholder="Klistra in innehåll från dokument, anteckningar eller tidigare forskning..."
                   value={knowledgeBase}
                   onChange={(e) => setKnowledgeBase(e.target.value)}
                   className="min-h-[80px] text-sm"
@@ -340,10 +548,10 @@ export function ExerciseStep({
               </div>
 
               {/* URLs to Scrape */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label className="flex items-center gap-2">
-                  <Globe className="w-4 h-4" />
-                  URLs att inkludera (en per rad)
+                  <Link className="w-4 h-4" />
+                  URLs att scrapa
                 </Label>
                 <Textarea
                   placeholder="https://example.com/article1&#10;https://example.com/article2"
@@ -351,6 +559,45 @@ export function ExerciseStep({
                   onChange={(e) => setUrlsToScrape(e.target.value)}
                   className="min-h-[60px] text-sm font-mono"
                 />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={scrapeUrls}
+                  disabled={isScraping || !urlsToScrape.trim()}
+                  className="gap-2"
+                >
+                  {isScraping ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Globe className="w-4 h-4" />
+                  )}
+                  Scrapa URLs
+                </Button>
+
+                {/* Scraped URLs Results */}
+                {scrapedUrls.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-foreground">Scrapade sidor:</p>
+                    <div className="space-y-1">
+                      {scrapedUrls.map((scraped, idx) => (
+                        <div 
+                          key={idx}
+                          className={cn(
+                            "flex items-center gap-2 text-xs p-2 rounded",
+                            scraped.success ? "bg-success/10" : "bg-destructive/10"
+                          )}
+                        >
+                          {scraped.success ? (
+                            <Check className="w-3 h-3 text-success" />
+                          ) : (
+                            <X className="w-3 h-3 text-destructive" />
+                          )}
+                          <span className="truncate flex-1">{scraped.title || scraped.url}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Domain Filter */}
