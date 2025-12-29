@@ -221,12 +221,17 @@ export function VideoReviewPanel({ videoId, moduleTitle, onRegenerate, isGenerat
 
       if (error) throw error;
 
+      // Ensure error is always a string, not an object
+      const errorMessage = typeof data.error === 'string' 
+        ? data.error 
+        : (data.error?.message || data.error?.detail || null);
+      
       setVideoStatus({
         status: data.status,
         videoUrl: data.videoUrl,
         thumbnailUrl: data.thumbnailUrl,
         duration: data.duration,
-        error: data.error,
+        error: errorMessage,
       });
 
       // Stop polling if completed or failed
