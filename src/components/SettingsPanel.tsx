@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, Mic, Clock, BookOpen, Languages, Search, ChevronDown, Users, Volume2, Palette, Image, Sparkles, Briefcase } from 'lucide-react';
+import { Settings, Mic, Clock, BookOpen, Languages, Search, ChevronDown, Users, Volume2, Palette, Image, Sparkles, Briefcase, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,6 +13,7 @@ import { CourseSettings, ProjectMode, PresentationSettings, PresentationStyle, P
 import { SystemDiagnostics } from '@/components/SystemDiagnostics';
 import { UserInvitePanel } from '@/components/UserInvitePanel';
 import { VoiceControlPanel } from '@/components/VoiceControlPanel';
+import { PresentationPreviewCard } from '@/components/PresentationPreviewCard';
 
 interface SettingsPanelProps {
   settings: CourseSettings;
@@ -83,11 +84,24 @@ export function SettingsPanel({ settings, onSettingsChange, projectMode, onPrese
   if (projectMode === 'presentation') {
     return (
       <div className="space-y-4">
+        {/* Preview Card */}
+        <Card className="border-border/50 shadow-lg overflow-hidden">
+          <CardHeader className="pb-2 pt-3">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Eye className="w-4 h-4 text-accent" />
+              Förhandsvisning
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-3">
+            <PresentationPreviewCard settings={presentationSettings} />
+          </CardContent>
+        </Card>
+
         <Card className="border-border/50 shadow-lg">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Sparkles className="w-5 h-5 text-accent" />
-              Presentation
+              Inställningar
             </CardTitle>
           </CardHeader>
           <CardContent>
