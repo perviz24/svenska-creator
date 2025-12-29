@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.freelancer-integration]
 verify_jwt = false
+
+[functions.export-google-slides]
+verify_jwt = false

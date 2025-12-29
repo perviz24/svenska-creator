@@ -39,11 +39,25 @@ serve(async (req) => {
       ? `Du är en expert på att skapa professionella presentationsbilder från kursmanus. 
          Skapa visuellt tilltalande och pedagogiskt effektiva slides.
          Varje slide ska ha en tydlig struktur och vara lätt att följa.
-         Föreslå relevanta bildförslag på engelska för stockfotosökning.`
+         
+         KRITISKT FÖR BILDFÖRSLAG:
+         - Föreslå SPECIFIKA och KONKRETA bildförslag på engelska för stockfotosökning
+         - Undvik abstrakta eller vaga termer som "concept", "abstract", "metaphor"
+         - Använd beskrivande fraser som "professional business meeting in modern office"
+         - För tekniska ämnen, föreslå bilder på verkliga föremål eller situationer
+         - Bildförslaget ska matcha slide-innehållet EXAKT, inte vara en tolkning
+         - Prioritera bilder med människor, arbetsplatser, konkreta objekt över abstrakta illustrationer`
       : `You are an expert at creating professional presentation slides from course scripts.
          Create visually appealing and pedagogically effective slides.
          Each slide should have a clear structure and be easy to follow.
-         Suggest relevant image queries in English for stock photo search.`;
+         
+         CRITICAL FOR IMAGE SUGGESTIONS:
+         - Suggest SPECIFIC and CONCRETE image queries in English for stock photo search
+         - Avoid abstract or vague terms like "concept", "abstract", "metaphor"
+         - Use descriptive phrases like "professional business meeting in modern office"
+         - For technical topics, suggest images of real objects or situations
+         - Image suggestion must match slide content EXACTLY, not be an interpretation
+         - Prioritize images with people, workplaces, concrete objects over abstract illustrations`;
 
     const userPrompt = language === 'sv'
       ? `Analysera detta manus för modulen "${moduleTitle}" i kursen "${courseTitle}" och skapa presentationsslides.
@@ -53,14 +67,18 @@ ${script}
 
 Skapa en JSON-array med slides. Varje slide ska ha:
 - slideNumber: Löpnummer (börja med 1)
-- title: Kort, engagerande rubrik
+- title: Kort, engagerande rubrik (max 8 ord)
 - content: Huvudinnehåll (markdown-format, max 3-4 punkter eller ett kort stycke)
 - speakerNotes: Detaljerade anteckningar för presentatören
 - layout: En av 'title', 'title-content', 'two-column', 'image-focus', 'quote', 'bullet-points'
-- suggestedImageQuery: Sökord på ENGELSKA för att hitta relevant stockfoto
+- suggestedImageQuery: KONKRET sökord på ENGELSKA för stockfoto. Exempel:
+  * BRA: "professional team collaborating at whiteboard in bright office"
+  * BRA: "laptop showing analytics dashboard on wooden desk"
+  * DÅLIGT: "success concept" eller "growth metaphor" eller "abstract business"
 - suggestedBackgroundColor: Valfri HEX-färgkod för bakgrund
 
-Skapa 5-10 slides beroende på innehållets längd. Första sliden ska vara en titelslide.`
+Skapa 5-10 slides beroende på innehållets längd. Första sliden ska vara en titelslide.
+VIKTIGT: suggestedImageQuery MÅSTE vara specifik och sökbar på Unsplash/Pexels - inga abstrakta koncept!`
       : `Analyze this script for the module "${moduleTitle}" in the course "${courseTitle}" and create presentation slides.
 
 SCRIPT:
@@ -68,14 +86,18 @@ ${script}
 
 Create a JSON array of slides. Each slide should have:
 - slideNumber: Sequential number (start with 1)
-- title: Short, engaging headline
+- title: Short, engaging headline (max 8 words)
 - content: Main content (markdown format, max 3-4 bullet points or a short paragraph)
 - speakerNotes: Detailed notes for the presenter
 - layout: One of 'title', 'title-content', 'two-column', 'image-focus', 'quote', 'bullet-points'
-- suggestedImageQuery: Search terms in ENGLISH to find relevant stock photo
+- suggestedImageQuery: CONCRETE search terms in ENGLISH for stock photo. Examples:
+  * GOOD: "professional team collaborating at whiteboard in bright office"
+  * GOOD: "laptop showing analytics dashboard on wooden desk"
+  * BAD: "success concept" or "growth metaphor" or "abstract business"
 - suggestedBackgroundColor: Optional HEX color code for background
 
-Create 5-10 slides depending on content length. First slide should be a title slide.`;
+Create 5-10 slides depending on content length. First slide should be a title slide.
+IMPORTANT: suggestedImageQuery MUST be specific and searchable on Unsplash/Pexels - no abstract concepts!`;
 
     console.log('Generating slides for module:', moduleTitle);
 

@@ -26,16 +26,26 @@ serve(async (req) => {
     }
 
     const stylePrompts: Record<string, string> = {
-      professional: 'Professional, corporate style, clean and modern, suitable for business presentation',
-      educational: 'Educational illustration, clear and pedagogical, suitable for learning content',
-      creative: 'Creative and artistic, vibrant colors, visually striking',
-      minimalist: 'Minimalist design, simple shapes, muted colors, elegant',
-      tech: 'Technology themed, futuristic, digital aesthetic, innovative',
+      professional: 'Professional, corporate photography style, clean and modern, neutral colors, suitable for business presentation, photorealistic, no text overlays',
+      educational: 'Educational setting, bright and clear, classroom or learning environment, photorealistic, suitable for course content, no text overlays',
+      creative: 'Creative and artistic, vibrant but balanced colors, modern design aesthetic, no text overlays',
+      minimalist: 'Minimalist design, soft gradients, simple geometric shapes, muted elegant colors, no text overlays',
+      tech: 'Technology themed, modern devices, digital workspace, clean and professional, no text overlays',
     };
 
-    const fullPrompt = `${prompt}. ${stylePrompts[style] || stylePrompts.professional}. High quality, 16:9 aspect ratio, suitable for presentation slide background.`;
+    // Enhance the prompt to be more specific and avoid abstract AI imagery
+    const enhancedPrompt = `Create a realistic, high-quality photograph or illustration for a presentation slide.
+Subject: ${prompt}
+Style requirements: ${stylePrompts[style] || stylePrompts.professional}
+Technical requirements: 
+- 16:9 aspect ratio landscape orientation
+- Suitable as slide background with space for text overlay
+- No text, watermarks, or logos in the image
+- Professional quality, well-lit, in focus
+- Realistic and contextually appropriate for educational/business use
+- Avoid abstract concepts, surreal imagery, or AI-typical artifacts`;
 
-    console.log('Generating AI image with prompt:', fullPrompt.substring(0, 100) + '...');
+    console.log('Generating AI image with prompt:', enhancedPrompt.substring(0, 150) + '...');
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -48,7 +58,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'user',
-            content: fullPrompt
+            content: enhancedPrompt
           }
         ],
         modalities: ['image', 'text']
