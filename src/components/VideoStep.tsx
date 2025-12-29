@@ -155,7 +155,11 @@ export function VideoStep({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Voice generation failed: ${response.status}`);
+        // Ensure error is always a string, not an object
+        const errorMessage = typeof errorData.error === 'string' 
+          ? errorData.error 
+          : (errorData.error?.message || errorData.error?.detail || `Voice generation failed: ${response.status}`);
+        throw new Error(errorMessage);
       }
 
       const audioBlob = await response.blob();
