@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { FileText, ExternalLink, RefreshCw, ArrowRight, BookOpen, Clock, Quote, Volume2, Loader2, Play, Square, Upload, FileUp } from 'lucide-react';
+import { FileText, ExternalLink, RefreshCw, ArrowRight, BookOpen, Clock, Quote, Volume2, Loader2, Play, Square, Upload, FileUp, Sparkles, Wand2, Edit3, ArrowUpRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import { ModuleScript, CourseOutline, ScriptSection } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { useVoiceSynthesis } from '@/hooks/useVoiceSynthesis';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const ELEVENLABS_VOICES = [
   { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Varm, professionell' },
@@ -29,6 +30,8 @@ interface ScriptStepProps {
   scripts: ModuleScript[];
   isLoading: boolean;
   currentModuleIndex: number;
+  courseTitle: string;
+  language?: 'sv' | 'en';
   onGenerateScript: (moduleIndex: number) => void;
   onContinue: () => void;
   onUploadScript?: (moduleId: string, script: ModuleScript) => void;
@@ -39,6 +42,8 @@ export function ScriptStep({
   scripts,
   isLoading,
   currentModuleIndex,
+  courseTitle,
+  language = 'sv',
   onGenerateScript,
   onContinue,
   onUploadScript,
@@ -48,6 +53,9 @@ export function ScriptStep({
   const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
   const [manualText, setManualText] = useState<Record<string, string>>({});
   const [selectedModuleForUpload, setSelectedModuleForUpload] = useState<string | null>(null);
+  const [analyzingModule, setAnalyzingModule] = useState<string | null>(null);
+  const [editingModule, setEditingModule] = useState<string | null>(null);
+  const [editedSections, setEditedSections] = useState<Record<string, ScriptSection[]>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!outline) {
@@ -133,6 +141,100 @@ export function ScriptStep({
       setManualText(prev => ({ ...prev, [moduleId]: '' }));
       toast.success('Manus sparat!');
     }
+  };
+
+  const analyzeWithAI = async (script: ModuleScript, action: 'analyze' | 'expand' | 'convert') => {
+    setAnalyzingModule(script.moduleId);
+    
+    try {
+      const manuscriptText = script.sections.map(s => s.content).join('\n\n');
+      
+      const { data, error } = await supabase.functions.invoke('analyze-manuscript', {
+        body: {
+          manuscript: manuscriptText,
+          moduleTitle: script.moduleTitle,
+          courseTitle,
+          action,
+          language,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        if (data.error.includes('Rate limit')) {
+          toast.error('För många förfrågningar. Försök igen senare.');
+        } else if (data.error.includes('Payment')) {
+          toast.error('Krediter krävs. Lägg till krediter för att fortsätta.');
+        } else {
+          throw new Error(data.error);
+        }
+        return;
+      }
+
+      // Update the script with AI-analyzed content
+      const updatedScript: ModuleScript = {
+        ...script,
+        sections: data.sections,
+        totalWords: data.totalWords,
+        estimatedDuration: data.estimatedDuration,
+      };
+
+      if (onUploadScript) {
+        onUploadScript(script.moduleId, updatedScript);
+        toast.success(
+          action === 'expand' ? 'Manus expanderat!' :
+          action === 'convert' ? 'Manus konverterat till presentationsformat!' :
+          'Manus analyserat och förbättrat!'
+        );
+        if (data.summary) {
+          toast.info(data.summary, { duration: 5000 });
+        }
+      }
+    } catch (error) {
+      console.error('Error analyzing manuscript:', error);
+      toast.error('Kunde inte analysera manuset');
+    } finally {
+      setAnalyzingModule(null);
+    }
+  };
+
+  const startEditing = (script: ModuleScript) => {
+    setEditingModule(script.moduleId);
+    setEditedSections(prev => ({
+      ...prev,
+      [script.moduleId]: [...script.sections]
+    }));
+  };
+
+  const saveEdits = (script: ModuleScript) => {
+    const sections = editedSections[script.moduleId];
+    if (!sections) return;
+
+    const totalWords = sections.reduce((acc, s) => acc + s.content.split(/\s+/).filter(w => w).length, 0);
+    const updatedScript: ModuleScript = {
+      ...script,
+      sections,
+      totalWords,
+      estimatedDuration: Math.ceil(totalWords / 150),
+    };
+
+    if (onUploadScript) {
+      onUploadScript(script.moduleId, updatedScript);
+      toast.success('Ändringar sparade!');
+    }
+    
+    setEditingModule(null);
+  };
+
+  const updateSectionContent = (moduleId: string, sectionIndex: number, content: string) => {
+    setEditedSections(prev => {
+      const sections = [...(prev[moduleId] || [])];
+      if (sections[sectionIndex]) {
+        sections[sectionIndex] = { ...sections[sectionIndex], content };
+      }
+      return { ...prev, [moduleId]: sections };
+    });
   };
 
   return (
@@ -253,6 +355,62 @@ export function ScriptStep({
                       )}
                     </div>
 
+                    {/* AI Actions */}
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-border/30">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => analyzeWithAI(script, 'analyze')}
+                        disabled={analyzingModule === script.moduleId}
+                        className="gap-2"
+                      >
+                        {analyzingModule === script.moduleId ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-4 h-4" />
+                        )}
+                        Förbättra med AI
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => analyzeWithAI(script, 'expand')}
+                        disabled={analyzingModule === script.moduleId}
+                        className="gap-2"
+                      >
+                        <ArrowUpRight className="w-4 h-4" />
+                        Expandera
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => analyzeWithAI(script, 'convert')}
+                        disabled={analyzingModule === script.moduleId}
+                        className="gap-2"
+                      >
+                        <Wand2 className="w-4 h-4" />
+                        Konvertera till slides
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => editingModule === script.moduleId ? saveEdits(script) : startEditing(script)}
+                        className="gap-2"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                        {editingModule === script.moduleId ? 'Spara' : 'Redigera'}
+                      </Button>
+                      {editingModule === script.moduleId && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setEditingModule(null)}
+                        >
+                          Avbryt
+                        </Button>
+                      )}
+                    </div>
+
                     {/* Voice Synthesis */}
                     {(() => {
                       const voiceState = getState(script.moduleId);
@@ -307,27 +465,35 @@ export function ScriptStep({
 
                     {/* Script Sections */}
                     <Accordion type="single" collapsible className="w-full">
-                      {script.sections.map((section, sIdx) => (
+                      {(editingModule === script.moduleId ? editedSections[script.moduleId] : script.sections)?.map((section, sIdx) => (
                         <AccordionItem key={section.id} value={section.id}>
                           <AccordionTrigger className="text-sm hover:no-underline">
                             {section.title}
                           </AccordionTrigger>
                           <AccordionContent>
-                            <div className="prose prose-sm dark:prose-invert max-w-none">
-                              <p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">
-                                {section.content}
-                              </p>
-                              {section.slideMarkers.length > 0 && (
-                                <div className="mt-3 space-y-1">
-                                  <p className="text-xs font-medium text-foreground">Bilder:</p>
-                                  <ul className="list-disc list-inside text-xs text-muted-foreground">
-                                    {section.slideMarkers.map((marker, mIdx) => (
-                                      <li key={mIdx}>{marker}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </div>
+                            {editingModule === script.moduleId ? (
+                              <Textarea
+                                value={section.content}
+                                onChange={(e) => updateSectionContent(script.moduleId, sIdx, e.target.value)}
+                                className="min-h-[150px] text-sm"
+                              />
+                            ) : (
+                              <div className="prose prose-sm dark:prose-invert max-w-none">
+                                <p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">
+                                  {section.content}
+                                </p>
+                                {section.slideMarkers.length > 0 && (
+                                  <div className="mt-3 space-y-1">
+                                    <p className="text-xs font-medium text-foreground">Bilder:</p>
+                                    <ul className="list-disc list-inside text-xs text-muted-foreground">
+                                      {section.slideMarkers.map((marker, mIdx) => (
+                                        <li key={mIdx}>{marker}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </AccordionContent>
                         </AccordionItem>
                       ))}
