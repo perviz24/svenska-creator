@@ -60,6 +60,28 @@ export function SlideStep({
   const [showSlideRefinement, setShowSlideRefinement] = useState(false);
   const [uploadedSlideContent, setUploadedSlideContent] = useState('');
 
+  // Helper function to clean markdown from slide content
+  const cleanMarkdown = (text: string): string => {
+    if (!text) return '';
+    return text
+      // Remove bold/italic markers
+      .replace(/\*\*\*/g, '')
+      .replace(/\*\*/g, '')
+      .replace(/\*/g, '')
+      // Remove heading markers
+      .replace(/^#{1,6}\s*/gm, '')
+      // Remove list markers (but keep the text)
+      .replace(/^[\s]*[-•]\s*/gm, '• ')
+      // Remove numbered list markers
+      .replace(/^[\s]*\d+\.\s*/gm, '')
+      // Remove underscores for emphasis
+      .replace(/__/g, '')
+      .replace(/_/g, '')
+      // Clean up multiple newlines
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  };
+
   // In presentation mode, we don't need scripts - generate from title directly
   const isPresentation = projectMode === 'presentation';
   const canGenerateFromScripts = !!outline && scripts.length > 0;
@@ -547,20 +569,20 @@ export function SlideStep({
                     />
                   )}
                   {/* Gradient overlay for better text readability */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
                   
-                  <div className="relative z-10 p-5 h-full flex flex-col justify-end">
-                    <Badge variant="secondary" className="self-start mb-2 text-[10px] bg-white/20 text-white backdrop-blur-sm border-0">
+                  <div className="relative z-10 p-6 h-full flex flex-col justify-end">
+                    <Badge variant="secondary" className="self-start mb-3 text-xs bg-white/20 text-white backdrop-blur-sm border-0">
                       {getLayoutLabel(currentSlide.layout)}
                     </Badge>
-                    <h3 className="text-lg font-bold mb-2 text-white drop-shadow-md line-clamp-2">
-                      {currentSlide.title}
+                    <h3 className="text-xl md:text-2xl font-bold mb-3 text-white drop-shadow-lg line-clamp-2">
+                      {cleanMarkdown(currentSlide.title)}
                     </h3>
-                    <div className="text-xs text-white/80 whitespace-pre-wrap overflow-hidden line-clamp-3 drop-shadow">
-                      {currentSlide.content}
+                    <div className="text-sm md:text-base text-white/90 whitespace-pre-wrap overflow-hidden line-clamp-4 drop-shadow leading-relaxed">
+                      {cleanMarkdown(currentSlide.content)}
                     </div>
                     {currentSlide.imageAttribution && (
-                      <p className="text-[10px] text-white/50 mt-2 truncate">
+                      <p className="text-xs text-white/60 mt-3 truncate">
                         📷 {currentSlide.imageAttribution}
                       </p>
                     )}
