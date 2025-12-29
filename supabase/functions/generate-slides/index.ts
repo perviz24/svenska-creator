@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,6 +29,68 @@ interface StockPhoto {
   photographerUrl: string;
   source: string;
   attribution: string;
+}
+
+// Cache utilities
+async function generateCacheKey(functionName: string, params: Record<string, unknown>): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(JSON.stringify({ functionName, params }));
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function getCachedResponse(supabase: any, cacheKey: string): Promise<any | null> {
+  try {
+    const { data, error } = await supabase
+      .from('ai_response_cache')
+      .select('response, id, hit_count')
+      .eq('cache_key', cacheKey)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+    
+    if (error || !data) return null;
+    
+    supabase
+      .from('ai_response_cache')
+      .update({ hit_count: data.hit_count + 1 })
+      .eq('id', data.id)
+      .then(() => console.log('Cache hit count updated'));
+    
+    console.log('Cache HIT for key:', cacheKey.substring(0, 16) + '...');
+    return data.response;
+  } catch (e) {
+    console.error('Cache read error:', e);
+    return null;
+  }
+}
+
+async function setCachedResponse(
+  supabase: any,
+  cacheKey: string,
+  functionName: string,
+  requestHash: string,
+  response: any,
+  ttlHours: number = 24
+): Promise<void> {
+  try {
+    const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
+    
+    await supabase
+      .from('ai_response_cache')
+      .upsert({
+        cache_key: cacheKey,
+        function_name: functionName,
+        request_hash: requestHash,
+        response,
+        expires_at: expiresAt,
+        hit_count: 0,
+      }, { onConflict: 'cache_key' });
+    
+    console.log('Response cached with TTL:', ttlHours, 'hours');
+  } catch (e) {
+    console.error('Cache write error:', e);
+  }
 }
 
 // Search stock photos from Unsplash and Pexels
@@ -94,7 +157,6 @@ async function searchStockPhotos(query: string): Promise<StockPhoto | null> {
   
   // Return the best match (first result, prioritizing landscape images)
   if (photos.length > 0) {
-    // Prefer images with good aspect ratio for slides (landscape)
     const landscapePhotos = photos.filter(p => p.width > p.height);
     return landscapePhotos.length > 0 ? landscapePhotos[0] : photos[0];
   }
@@ -108,7 +170,7 @@ serve(async (req) => {
   }
 
   try {
-    const { script, moduleTitle, courseTitle, language = 'sv', autoFetchImages = true, maxSlides = 10, demoMode = false } = await req.json();
+    const { script, moduleTitle, courseTitle, language = 'sv', autoFetchImages = true, maxSlides = 10, demoMode = false, skipCache = false } = await req.json();
 
     // Handle script content - it can be the script object or a string
     const scriptContent = typeof script === 'object' ? JSON.stringify(script.sections || script) : script;
@@ -121,14 +183,57 @@ serve(async (req) => {
       );
     }
 
-    // In demo mode, limit slides
-    const effectiveMaxSlides = demoMode ? Math.min(maxSlides, 5) : maxSlides;
-    console.log('Demo mode:', demoMode, 'Max slides:', effectiveMaxSlides);
-
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
+
+    // Initialize Supabase client for caching
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    // Create cache key (exclude autoFetchImages as that's a post-processing step)
+    const cacheParams = { scriptContent: scriptContent.substring(0, 1000), moduleTitle: effectiveModuleTitle, courseTitle, language, maxSlides, demoMode };
+    const cacheKey = await generateCacheKey('generate-slides', cacheParams);
+
+    // Check cache first (unless skipCache is true)
+    if (!skipCache) {
+      const cachedResponse = await getCachedResponse(supabase, cacheKey);
+      if (cachedResponse) {
+        let slides = cachedResponse.slides as SlideContent[];
+        
+        // Still fetch images if needed (images may change)
+        if (autoFetchImages) {
+          console.log('Cache HIT - fetching fresh images for cached slides...');
+          const slidesWithImages = await Promise.all(
+            slides.map(async (slide) => {
+              if (slide.suggestedImageQuery && !slide.imageUrl) {
+                try {
+                  const photo = await searchStockPhotos(slide.suggestedImageQuery);
+                  if (photo) {
+                    return { ...slide, imageUrl: photo.url, imageSource: photo.source, imageAttribution: photo.attribution };
+                  }
+                } catch (e) {
+                  console.error(`Error fetching image for slide ${slide.slideNumber}:`, e);
+                }
+              }
+              return slide;
+            })
+          );
+          slides = slidesWithImages;
+        }
+        
+        return new Response(JSON.stringify({ slides, fromCache: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // In demo mode, limit slides
+    const effectiveMaxSlides = demoMode ? Math.min(maxSlides, 5) : maxSlides;
+    console.log('Cache MISS - generating slides. Demo mode:', demoMode, 'Max slides:', effectiveMaxSlides);
 
     const systemPrompt = language === 'sv' 
       ? `Du är en expert på att skapa professionella presentationsbilder från kursmanus. 
@@ -212,7 +317,7 @@ Create a JSON array of slides. Each slide should have:
 Create ${demoMode ? effectiveMaxSlides : '5-10'} slides${demoMode ? '' : ' depending on content length'}. First slide should be a title slide.
 CRITICAL: NEVER use markdown formatting in title or content! Plain text only.`;
 
-    console.log('Generating slides for module:', effectiveModuleTitle, 'demo:', demoMode);
+    console.log('Generating slides for module:', effectiveModuleTitle);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -301,7 +406,10 @@ CRITICAL: NEVER use markdown formatting in title or content! Plain text only.`;
       slides = slides.slice(0, effectiveMaxSlides);
     }
 
-    console.log(`Generated ${slides.length} slides for module "${effectiveModuleTitle}"${demoMode ? ' (demo mode)' : ''}`);
+    console.log(`Generated ${slides.length} slides for module "${effectiveModuleTitle}"`);
+
+    // Cache the slides (without images - 12 hour TTL)
+    await setCachedResponse(supabase, cacheKey, 'generate-slides', cacheKey, { slides }, 12);
 
     // Auto-fetch images for each slide if enabled
     if (autoFetchImages) {
@@ -336,7 +444,7 @@ CRITICAL: NEVER use markdown formatting in title or content! Plain text only.`;
     }
 
     return new Response(
-      JSON.stringify({ slides }),
+      JSON.stringify({ slides, fromCache: false }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

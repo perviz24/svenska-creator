@@ -1,9 +1,72 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Cache utilities
+async function generateCacheKey(functionName: string, params: Record<string, unknown>): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(JSON.stringify({ functionName, params }));
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function getCachedResponse(supabase: any, cacheKey: string): Promise<any | null> {
+  try {
+    const { data, error } = await supabase
+      .from('ai_response_cache')
+      .select('response, id, hit_count')
+      .eq('cache_key', cacheKey)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+    
+    if (error || !data) return null;
+    
+    supabase
+      .from('ai_response_cache')
+      .update({ hit_count: data.hit_count + 1 })
+      .eq('id', data.id)
+      .then(() => console.log('Cache hit count updated'));
+    
+    console.log('Cache HIT for key:', cacheKey.substring(0, 16) + '...');
+    return data.response;
+  } catch (e) {
+    console.error('Cache read error:', e);
+    return null;
+  }
+}
+
+async function setCachedResponse(
+  supabase: any,
+  cacheKey: string,
+  functionName: string,
+  requestHash: string,
+  response: any,
+  ttlHours: number = 24
+): Promise<void> {
+  try {
+    const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
+    
+    await supabase
+      .from('ai_response_cache')
+      .upsert({
+        cache_key: cacheKey,
+        function_name: functionName,
+        request_hash: requestHash,
+        response,
+        expires_at: expiresAt,
+        hit_count: 0,
+      }, { onConflict: 'cache_key' });
+    
+    console.log('Response cached with TTL:', ttlHours, 'hours');
+  } catch (e) {
+    console.error('Cache write error:', e);
+  }
+}
 
 // Professional exercise template based on GeniusMotion format
 const DEFAULT_EXERCISE_TEMPLATE = `
@@ -69,7 +132,8 @@ serve(async (req) => {
       exerciseTemplate, 
       exerciseCount = 3, 
       language = 'sv',
-      exerciseType = 'mixed' // 'checklist', 'reflection', 'practical', 'case-study', 'mixed'
+      exerciseType = 'mixed',
+      skipCache = false
     } = await req.json();
 
     if (!script) {
@@ -77,13 +141,34 @@ serve(async (req) => {
     }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const isSwedish = language === 'sv';
+    // Initialize Supabase client for caching
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    // Use provided template or default
+    // Create cache key
+    const scriptSample = typeof script === 'string' ? script.substring(0, 500) : JSON.stringify(script).substring(0, 500);
+    const cacheParams = { scriptSample, moduleTitle, courseTitle, exerciseCount, language, exerciseType };
+    const cacheKey = await generateCacheKey('generate-exercises', cacheParams);
+
+    // Check cache first
+    if (!skipCache) {
+      const cachedResponse = await getCachedResponse(supabase, cacheKey);
+      if (cachedResponse) {
+        return new Response(JSON.stringify({ ...cachedResponse, fromCache: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    console.log(`Cache MISS - generating ${exerciseCount} exercises for module: ${moduleTitle}`);
+
+    const isSwedish = language === 'sv';
     const templateToUse = exerciseTemplate || DEFAULT_EXERCISE_TEMPLATE;
 
     let systemPrompt = isSwedish
@@ -157,8 +242,6 @@ Important:
 - Adapt content to the course topic but keep the structure
 - Always include "Other: ___" as an option
 - Create varied exercise types if "mixed" is selected`;
-
-    console.log(`Generating ${exerciseCount} exercises for module: ${moduleTitle}`);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -264,11 +347,12 @@ Important:
     }
 
     const result = JSON.parse(toolCall.function.arguments);
+    const responseData = { exercises: result.exercises, moduleTitle };
 
-    return new Response(JSON.stringify({
-      exercises: result.exercises,
-      moduleTitle,
-    }), {
+    // Cache the response (24 hour TTL)
+    await setCachedResponse(supabase, cacheKey, 'generate-exercises', cacheKey, responseData, 24);
+
+    return new Response(JSON.stringify({ ...responseData, fromCache: false }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

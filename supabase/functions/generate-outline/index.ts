@@ -1,9 +1,73 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Cache utilities
+async function generateCacheKey(functionName: string, params: Record<string, unknown>): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(JSON.stringify({ functionName, params }));
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function getCachedResponse(supabase: any, cacheKey: string): Promise<any | null> {
+  try {
+    const { data, error } = await supabase
+      .from('ai_response_cache')
+      .select('response, id, hit_count')
+      .eq('cache_key', cacheKey)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+    
+    if (error || !data) return null;
+    
+    // Update hit count in background
+    supabase
+      .from('ai_response_cache')
+      .update({ hit_count: data.hit_count + 1 })
+      .eq('id', data.id)
+      .then(() => console.log('Cache hit count updated'));
+    
+    console.log('Cache HIT for key:', cacheKey.substring(0, 16) + '...');
+    return data.response;
+  } catch (e) {
+    console.error('Cache read error:', e);
+    return null;
+  }
+}
+
+async function setCachedResponse(
+  supabase: any,
+  cacheKey: string,
+  functionName: string,
+  requestHash: string,
+  response: any,
+  ttlHours: number = 24
+): Promise<void> {
+  try {
+    const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
+    
+    await supabase
+      .from('ai_response_cache')
+      .upsert({
+        cache_key: cacheKey,
+        function_name: functionName,
+        request_hash: requestHash,
+        response,
+        expires_at: expiresAt,
+        hit_count: 0,
+      }, { onConflict: 'cache_key' });
+    
+    console.log('Response cached with TTL:', ttlHours, 'hours');
+  } catch (e) {
+    console.error('Cache write error:', e);
+  }
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -20,10 +84,13 @@ serve(async (req) => {
       slidesPerModule = 15,
       comprehensiveLevel = 'intermediate',
       courseLengthPreset = 'standard',
-      demoMode = false
+      demoMode = false,
+      skipCache = false
     } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
@@ -33,7 +100,24 @@ serve(async (req) => {
       throw new Error('Course title is required');
     }
 
-    console.log('Generating course outline for:', title);
+    // Initialize Supabase client for caching
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    // Create cache key from relevant parameters
+    const cacheParams = { title, targetDuration, style, language, maxModules, comprehensiveLevel, courseLengthPreset, demoMode };
+    const cacheKey = await generateCacheKey('generate-outline', cacheParams);
+
+    // Check cache first (unless skipCache is true)
+    if (!skipCache) {
+      const cachedResponse = await getCachedResponse(supabase, cacheKey);
+      if (cachedResponse) {
+        return new Response(JSON.stringify({ ...cachedResponse, fromCache: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    console.log('Cache MISS - generating new outline for:', title);
     console.log('Settings - Duration:', targetDuration, 'Modules:', maxModules, 'Level:', comprehensiveLevel, 'Demo:', demoMode);
 
     // In demo mode: very short output (2 modules, minimal content)
@@ -193,7 +277,10 @@ serve(async (req) => {
 
     const parsed = JSON.parse(jsonContent);
 
-    return new Response(JSON.stringify(parsed), {
+    // Cache the response (24 hour TTL for outlines)
+    await setCachedResponse(supabase, cacheKey, 'generate-outline', cacheKey, parsed, 24);
+
+    return new Response(JSON.stringify({ ...parsed, fromCache: false }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
