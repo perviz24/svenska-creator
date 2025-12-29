@@ -28,7 +28,7 @@ interface ModeSelectionStepProps {
 const defaultDemoSettings: DemoModeSettings = {
   enabled: false,
   maxSlides: 5,
-  maxModules: 2,
+  maxModules: 1,
   maxAudioDurationSeconds: 60,
   maxVideoDurationSeconds: 30,
   watermarkEnabled: true,
