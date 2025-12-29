@@ -53,31 +53,35 @@ export function ModeSelectionStep({
       onPresentationSettingsChange({
         slideCount,
         presentationDuration: duration,
-        topic: '',
+        topic: presentationSettings?.topic || '',
+        style: presentationSettings?.style || 'modern',
+        tone: presentationSettings?.tone || 'professional',
+        primaryColor: presentationSettings?.primaryColor || '#6366f1',
+        accentColor: presentationSettings?.accentColor || '#f59e0b',
+        imageRichness: presentationSettings?.imageRichness || 'moderate',
+        professionalityLevel: presentationSettings?.professionalityLevel || 'professional',
+        includeAnimations: presentationSettings?.includeAnimations ?? true,
+        includeCharts: presentationSettings?.includeCharts ?? false,
       });
     }
   };
 
   const handleSlideCountChange = (value: number[]) => {
     setSlideCount(value[0]);
-    if (projectMode === 'presentation') {
+    if (projectMode === 'presentation' && presentationSettings) {
       onPresentationSettingsChange({
         ...presentationSettings,
         slideCount: value[0],
-        presentationDuration: duration,
-        topic: presentationSettings?.topic || '',
       });
     }
   };
 
   const handleDurationChange = (value: number[]) => {
     setDuration(value[0]);
-    if (projectMode === 'presentation') {
+    if (projectMode === 'presentation' && presentationSettings) {
       onPresentationSettingsChange({
         ...presentationSettings,
-        slideCount,
         presentationDuration: value[0],
-        topic: presentationSettings?.topic || '',
       });
     }
   };
