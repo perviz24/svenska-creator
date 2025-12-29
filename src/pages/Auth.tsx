@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { Loader2, GraduationCap } from 'lucide-react';
+import { Loader2, GraduationCap, FlaskConical, ArrowRight } from 'lucide-react';
 
 const authSchema = z.object({
   email: z.string().email('Ogiltig e-postadress'),
@@ -96,7 +96,33 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      {/* Demo Mode Banner */}
+      <Link 
+        to="/demo"
+        className="mb-6 w-full max-w-md group"
+      >
+        <div className="flex items-center justify-between p-4 rounded-xl border-2 border-dashed border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500 transition-all">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-500 text-white">
+              <FlaskConical className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground flex items-center gap-2">
+                Testa Demo
+                <span className="text-xs bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">
+                  Ingen inloggning krävs
+                </span>
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Utforska hela arbetsflödet med begränsade funktioner
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="w-5 h-5 text-amber-500 group-hover:translate-x-1 transition-transform" />
+        </div>
+      </Link>
+
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
