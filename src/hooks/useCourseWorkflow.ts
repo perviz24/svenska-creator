@@ -126,6 +126,49 @@ export function useCourseWorkflow() {
           });
         });
 
+        // Load exercises for this course
+        const { data: exercisesData } = await supabase
+          .from('module_exercises')
+          .select('*')
+          .eq('course_id', course.id);
+
+        const exercisesMap: Record<string, ModuleExercises> = {};
+        (exercisesData || []).forEach((e) => {
+          exercisesMap[e.module_id] = {
+            moduleId: e.module_id,
+            moduleTitle: e.module_title,
+            exercises: (e.exercises as unknown as ModuleExercises['exercises']) || [],
+          };
+        });
+
+        // Load quizzes for this course
+        const { data: quizzesData } = await supabase
+          .from('module_quizzes')
+          .select('*')
+          .eq('course_id', course.id);
+
+        const quizzesMap: Record<string, ModuleQuiz> = {};
+        (quizzesData || []).forEach((q) => {
+          quizzesMap[q.module_id] = {
+            moduleId: q.module_id,
+            moduleTitle: q.module_title,
+            questions: (q.questions as unknown as ModuleQuiz['questions']) || [],
+          };
+        });
+
+        // Load audio from module_scripts
+        const audioMap: Record<string, ModuleAudio> = {};
+        (scriptsData || []).forEach((s) => {
+          if (s.audio_url) {
+            audioMap[s.module_id] = {
+              moduleId: s.module_id,
+              audioUrl: s.audio_url,
+              duration: 0,
+              slideTiming: [],
+            };
+          }
+        });
+
         // Parse the JSONB fields properly
         const titleSuggestions = Array.isArray(course.title_suggestions) 
           ? course.title_suggestions as unknown as TitleSuggestion[]
@@ -144,6 +187,9 @@ export function useCourseWorkflow() {
           currentStep: course.current_step as WorkflowStep,
           scripts,
           slides: slidesMap,
+          exercises: exercisesMap,
+          quizzes: quizzesMap,
+          moduleAudio: audioMap,
           completedSteps: getCompletedSteps(course.current_step as WorkflowStep),
         }));
       }
@@ -397,6 +443,64 @@ export function useCourseWorkflow() {
     saveCourse({ outline });
   }, [courseId]);
 
+  const saveExercises = async (moduleId: string, moduleExercises: ModuleExercises) => {
+    if (!user || !courseId) return;
+
+    try {
+      const insertData = {
+        course_id: courseId,
+        module_id: moduleId,
+        module_title: moduleExercises.moduleTitle,
+        exercises: JSON.parse(JSON.stringify(moduleExercises.exercises)),
+      };
+
+      await supabase
+        .from('module_exercises')
+        .upsert(insertData, { onConflict: 'course_id,module_id' });
+
+      console.log(`Saved exercises for module ${moduleId}`);
+    } catch (error) {
+      console.error('Error saving exercises:', error);
+    }
+  };
+
+  const saveQuiz = async (moduleId: string, quiz: ModuleQuiz) => {
+    if (!user || !courseId) return;
+
+    try {
+      const insertData = {
+        course_id: courseId,
+        module_id: moduleId,
+        module_title: quiz.moduleTitle,
+        questions: JSON.parse(JSON.stringify(quiz.questions)),
+      };
+
+      await supabase
+        .from('module_quizzes')
+        .upsert(insertData, { onConflict: 'course_id,module_id' });
+
+      console.log(`Saved quiz for module ${moduleId}`);
+    } catch (error) {
+      console.error('Error saving quiz:', error);
+    }
+  };
+
+  const saveAudio = async (moduleId: string, audioUrl: string, voiceId?: string) => {
+    if (!user || !courseId) return;
+
+    try {
+      await supabase
+        .from('module_scripts')
+        .update({ audio_url: audioUrl, voice_id: voiceId || null })
+        .eq('course_id', courseId)
+        .eq('module_id', moduleId);
+
+      console.log(`Saved audio for module ${moduleId}`);
+    } catch (error) {
+      console.error('Error saving audio:', error);
+    }
+  };
+
   const addQuiz = useCallback((moduleId: string, quiz: ModuleQuiz) => {
     setState(prev => ({
       ...prev,
@@ -405,7 +509,11 @@ export function useCourseWorkflow() {
         [moduleId]: quiz,
       },
     }));
-  }, []);
+    
+    // Persist to database
+    saveQuiz(moduleId, quiz);
+    saveCourse({ current_step: 'quiz' });
+  }, [courseId]);
 
   const addExercises = useCallback((moduleId: string, moduleExercises: ModuleExercises) => {
     setState(prev => ({
@@ -415,7 +523,11 @@ export function useCourseWorkflow() {
         [moduleId]: moduleExercises,
       },
     }));
-  }, []);
+    
+    // Persist to database
+    saveExercises(moduleId, moduleExercises);
+    saveCourse({ current_step: 'exercises' });
+  }, [courseId]);
 
   const addSummary = useCallback((moduleId: string, summary: ModuleSummary) => {
     setState(prev => ({
@@ -663,22 +775,28 @@ export function useCourseWorkflow() {
     });
   }, [courseId]);
 
-  const generateModuleAudio = useCallback(async (moduleId: string, script: ModuleScript) => {
-    // This would store audio metadata - in a full implementation,
-    // you'd upload the audio to storage and save the URL
+  const generateModuleAudio = useCallback(async (moduleId: string, script: ModuleScript, audioUrl?: string) => {
+    const audio: ModuleAudio = {
+      moduleId,
+      audioUrl: audioUrl || '',
+      duration: script.estimatedDuration * 60,
+      slideTiming: [],
+    };
+    
     setState(prev => ({
       ...prev,
       moduleAudio: {
         ...prev.moduleAudio,
-        [moduleId]: {
-          moduleId,
-          audioUrl: '', // Would be set after upload
-          duration: script.estimatedDuration * 60,
-          slideTiming: [],
-        },
+        [moduleId]: audio,
       },
     }));
-  }, []);
+    
+    // Persist audio URL to database if provided
+    if (audioUrl) {
+      await saveAudio(moduleId, audioUrl, state.settings.voiceId);
+      await saveCourse({ current_step: 'voice' });
+    }
+  }, [courseId, state.settings.voiceId]);
 
   const updateVideoSettings = useCallback((updates: Partial<import('@/types/course').VideoSettings>) => {
     setState(prev => ({
