@@ -367,13 +367,18 @@ export function useCourseWorkflow() {
 
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
     
+    const demoMode = state.settings.demoMode;
+    const isDemoMode = demoMode?.enabled || false;
+    
     try {
       const { data, error } = await supabase.functions.invoke('generate-outline', {
         body: { 
           title: state.title,
-          targetDuration: state.settings.targetDuration,
+          targetDuration: isDemoMode ? 5 : state.settings.targetDuration, // Very short for demo
           style: state.settings.style,
           language: state.settings.language,
+          maxModules: isDemoMode ? demoMode.maxModules : state.settings.structureLimits?.maxModules,
+          demoMode: isDemoMode,
         }
       });
 
@@ -421,14 +426,18 @@ export function useCourseWorkflow() {
 
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
     
+    const demoMode = state.settings.demoMode;
+    const isDemoMode = demoMode?.enabled || false;
+    
     try {
       const { data, error } = await supabase.functions.invoke('generate-script', {
         body: { 
-          module,
+          module: isDemoMode ? { ...module, duration: 2 } : module, // Shorter module duration for demo
           courseTitle: state.title,
           style: state.settings.style,
           language: state.settings.language,
-          enableResearch: state.settings.enableResearch,
+          enableResearch: isDemoMode ? false : state.settings.enableResearch, // Skip research in demo for speed
+          demoMode: isDemoMode,
         }
       });
 

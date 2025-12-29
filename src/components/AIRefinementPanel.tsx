@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import { Sparkles, Loader2, Wand2, Check, ArrowRight, RefreshCw, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,14 +58,14 @@ const AVAILABLE_LANGUAGES = [
   { code: 'ar', name: 'العربية', flag: '🇸🇦' },
 ];
 
-export function AIRefinementPanel({
+export const AIRefinementPanel = forwardRef<HTMLDivElement, AIRefinementPanelProps>(({
   content,
   contentType,
   context,
   language = 'sv',
   onRefinedContent,
   onSkipRefinement,
-}: AIRefinementPanelProps) {
+}, ref) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [customInstruction, setCustomInstruction] = useState('');
@@ -170,7 +170,7 @@ export function AIRefinementPanel({
   };
 
   return (
-    <Card className="border-primary/30 bg-primary/5">
+    <Card ref={ref} className="border-primary/30 bg-primary/5">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -323,4 +323,6 @@ export function AIRefinementPanel({
       </CardContent>
     </Card>
   );
-}
+});
+
+AIRefinementPanel.displayName = 'AIRefinementPanel';
