@@ -12,16 +12,17 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceId } = await req.json();
+    const { text, voiceId, apiKey } = await req.json();
 
     if (!text) {
       throw new Error('Text is required');
     }
 
-    const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY');
+    // Use user-provided API key or fall back to environment variable
+    const ELEVENLABS_API_KEY = apiKey || Deno.env.get('ELEVENLABS_API_KEY');
     
     if (!ELEVENLABS_API_KEY) {
-      throw new Error('ElevenLabs API key not configured');
+      throw new Error('ElevenLabs API key not configured. Please add your API key in Settings.');
     }
 
     console.log(`Generating voice for ${text.length} characters with voice ${voiceId || 'default'}`);

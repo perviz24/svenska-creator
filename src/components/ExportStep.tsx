@@ -19,6 +19,8 @@ import {
   RefreshCw,
   AlertCircle,
   Save,
+  Trash2,
+  Mic,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,6 +65,11 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
   const [heygenCredentialsSaved, setHeygenCredentialsSaved] = useState(false);
   const [isSavingHeygenCredentials, setIsSavingHeygenCredentials] = useState(false);
   
+  // ElevenLabs credentials
+  const [elevenlabsApiKey, setElevenlabsApiKey] = useState('');
+  const [elevenlabsCredentialsSaved, setElevenlabsCredentialsSaved] = useState(false);
+  const [isSavingElevenlabsCredentials, setIsSavingElevenlabsCredentials] = useState(false);
+  
   // LearnDash state
   const [wpUrl, setWpUrl] = useState('');
   const [wpUsername, setWpUsername] = useState('');
@@ -74,6 +81,9 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
   const [isSavingCredentials, setIsSavingCredentials] = useState(false);
   const [credentialsSaved, setCredentialsSaved] = useState(false);
   const [isLoadingCredentials, setIsLoadingCredentials] = useState(true);
+  
+  // Clearing state
+  const [isClearingCredentials, setIsClearingCredentials] = useState<string | null>(null);
 
   // Module to video mapping
   const [moduleVideoMap, setModuleVideoMap] = useState<Record<string, string>>({});
@@ -105,7 +115,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
         setCredentialsSaved(true);
       }
 
-      // Load integration credentials (Bunny.net, HeyGen)
+      // Load integration credentials (Bunny.net, HeyGen, ElevenLabs)
       const { data: intData } = await supabase
         .from('integration_credentials')
         .select('*')
@@ -125,6 +135,13 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
           const creds = heygenCredentials.credentials as { apiKey?: string };
           setHeygenApiKey(creds.apiKey || '');
           setHeygenCredentialsSaved(true);
+        }
+
+        const elevenlabsCredentials = intData.find(c => c.provider === 'elevenlabs');
+        if (elevenlabsCredentials?.credentials) {
+          const creds = elevenlabsCredentials.credentials as { apiKey?: string };
+          setElevenlabsApiKey(creds.apiKey || '');
+          setElevenlabsCredentialsSaved(true);
         }
       }
     } catch (error) {
@@ -199,6 +216,109 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
       toast({ title: 'Failed to save credentials', variant: 'destructive' });
     } finally {
       setIsSavingHeygenCredentials(false);
+    }
+  };
+
+  const saveElevenlabsCredentials = async () => {
+    if (!elevenlabsApiKey) {
+      toast({ title: 'Enter your ElevenLabs API key', variant: 'destructive' });
+      return;
+    }
+
+    setIsSavingElevenlabsCredentials(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: 'Please log in to save credentials', variant: 'destructive' });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('integration_credentials')
+        .upsert({
+          user_id: user.id,
+          provider: 'elevenlabs',
+          credentials: { apiKey: elevenlabsApiKey },
+        }, { onConflict: 'user_id,provider' });
+
+      if (error) throw error;
+
+      setElevenlabsCredentialsSaved(true);
+      toast({ title: 'ElevenLabs credentials saved' });
+    } catch (error) {
+      console.error('Failed to save ElevenLabs credentials:', error);
+      toast({ title: 'Failed to save credentials', variant: 'destructive' });
+    } finally {
+      setIsSavingElevenlabsCredentials(false);
+    }
+  };
+
+  // Clear credentials functions
+  const clearIntegrationCredentials = async (provider: string) => {
+    setIsClearingCredentials(provider);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('integration_credentials')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('provider', provider);
+
+      if (error) throw error;
+
+      // Reset state based on provider
+      switch (provider) {
+        case 'bunny':
+          setBunnyApiKey('');
+          setBunnyLibraryId('');
+          setBunnyCredentialsSaved(false);
+          break;
+        case 'heygen':
+          setHeygenApiKey('');
+          setHeygenCredentialsSaved(false);
+          break;
+        case 'elevenlabs':
+          setElevenlabsApiKey('');
+          setElevenlabsCredentialsSaved(false);
+          break;
+      }
+
+      toast({ title: 'Credentials cleared' });
+    } catch (error) {
+      console.error('Failed to clear credentials:', error);
+      toast({ title: 'Failed to clear credentials', variant: 'destructive' });
+    } finally {
+      setIsClearingCredentials(null);
+    }
+  };
+
+  const clearLearnDashCredentials = async () => {
+    setIsClearingCredentials('learndash');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('learndash_credentials')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setWpUrl('');
+      setWpUsername('');
+      setWpAppPassword('');
+      setCredentialsSaved(false);
+      setConnectionStatus('idle');
+
+      toast({ title: 'LearnDash credentials cleared' });
+    } catch (error) {
+      console.error('Failed to clear credentials:', error);
+      toast({ title: 'Failed to clear credentials', variant: 'destructive' });
+    } finally {
+      setIsClearingCredentials(null);
     }
   };
 
@@ -996,28 +1116,44 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
                       Find this in Bunny.net: Stream → Library → The number in the URL
                     </p>
                   </div>
-                  <Button
-                    onClick={saveBunnyCredentials}
-                    disabled={isSavingBunnyCredentials || !bunnyApiKey || !bunnyLibraryId}
-                    className="w-full"
-                  >
-                    {isSavingBunnyCredentials ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : bunnyCredentialsSaved ? (
-                      <>
-                        <Check className="h-4 w-4 mr-2" />
-                        Saved
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Save Bunny.net Credentials
-                      </>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={saveBunnyCredentials}
+                      disabled={isSavingBunnyCredentials || !bunnyApiKey || !bunnyLibraryId}
+                      className="flex-1"
+                    >
+                      {isSavingBunnyCredentials ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : bunnyCredentialsSaved ? (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Saved
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Save
+                        </>
+                      )}
+                    </Button>
+                    {bunnyCredentialsSaved && (
+                      <Button
+                        variant="outline"
+                        onClick={() => clearIntegrationCredentials('bunny')}
+                        disabled={isClearingCredentials === 'bunny'}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        {isClearingCredentials === 'bunny' ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
                     )}
-                  </Button>
+                  </div>
                 </>
               )}
             </CardContent>
@@ -1059,34 +1195,129 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
                       Find this in HeyGen: Settings → API Access → API Key
                     </p>
                   </div>
-                  <Button
-                    onClick={saveHeygenCredentials}
-                    disabled={isSavingHeygenCredentials || !heygenApiKey}
-                    className="w-full"
-                  >
-                    {isSavingHeygenCredentials ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : heygenCredentialsSaved ? (
-                      <>
-                        <Check className="h-4 w-4 mr-2" />
-                        Saved
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Save HeyGen Credentials
-                      </>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={saveHeygenCredentials}
+                      disabled={isSavingHeygenCredentials || !heygenApiKey}
+                      className="flex-1"
+                    >
+                      {isSavingHeygenCredentials ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : heygenCredentialsSaved ? (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Saved
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Save
+                        </>
+                      )}
+                    </Button>
+                    {heygenCredentialsSaved && (
+                      <Button
+                        variant="outline"
+                        onClick={() => clearIntegrationCredentials('heygen')}
+                        disabled={isClearingCredentials === 'heygen'}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        {isClearingCredentials === 'heygen' ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
                     )}
-                  </Button>
+                  </div>
                 </>
               )}
             </CardContent>
           </Card>
 
-          {/* LearnDash info card */}
+          {/* ElevenLabs Credentials */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Mic className="h-5 w-5" />
+                ElevenLabs
+                {elevenlabsCredentialsSaved && (
+                  <Badge variant="outline" className="text-green-500 border-green-500/30">
+                    <Check className="h-3 w-3 mr-1" />
+                    Saved
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                AI voice generation credentials
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoadingCredentials ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>API Key</Label>
+                    <Input
+                      type="password"
+                      placeholder="Your ElevenLabs API key"
+                      value={elevenlabsApiKey}
+                      onChange={(e) => { setElevenlabsApiKey(e.target.value); setElevenlabsCredentialsSaved(false); }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Find this in ElevenLabs: Profile → API Key
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={saveElevenlabsCredentials}
+                      disabled={isSavingElevenlabsCredentials || !elevenlabsApiKey}
+                      className="flex-1"
+                    >
+                      {isSavingElevenlabsCredentials ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : elevenlabsCredentialsSaved ? (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Saved
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Save
+                        </>
+                      )}
+                    </Button>
+                    {elevenlabsCredentialsSaved && (
+                      <Button
+                        variant="outline"
+                        onClick={() => clearIntegrationCredentials('elevenlabs')}
+                        disabled={isClearingCredentials === 'elevenlabs'}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        {isClearingCredentials === 'elevenlabs' ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* LearnDash Credentials */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -1100,20 +1331,36 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
                 )}
               </CardTitle>
               <CardDescription>
-                WordPress/LearnDash credentials are configured in the LearnDash tab
+                WordPress/LearnDash credentials
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {credentialsSaved ? (
-                  <span className="flex items-center gap-2 text-green-500">
+              {credentialsSaved ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-green-500 flex items-center gap-2">
                     <Check className="h-4 w-4" />
-                    LearnDash credentials are configured for {wpUrl}
-                  </span>
-                ) : (
-                  'Go to the LearnDash tab to configure your WordPress credentials.'
-                )}
-              </p>
+                    Configured for {wpUrl}
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={clearLearnDashCredentials}
+                    disabled={isClearingCredentials === 'learndash'}
+                    className="text-destructive hover:text-destructive"
+                    size="sm"
+                  >
+                    {isClearingCredentials === 'learndash' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-2" />
+                    )}
+                    Clear Credentials
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Go to the LearnDash tab to configure your WordPress credentials.
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
