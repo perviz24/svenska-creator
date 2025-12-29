@@ -43,13 +43,6 @@ export function QuizStep({
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   
-  if (!outline) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Ingen kursöversikt tillgänglig.</p>
-      </div>
-    );
-  }
 
   const allQuizzesGenerated = Object.keys(quizzes).length === scripts.length;
 

@@ -134,18 +134,23 @@ export function ModeSelectionStep({
       >
         {/* Course Option */}
         <Label htmlFor="mode-course" className="cursor-pointer">
-          <Card className={cn(
-            "relative transition-all hover:shadow-lg border-2",
-            projectMode === 'course' 
-              ? "border-primary bg-primary/5" 
-              : "border-border hover:border-primary/50"
-          )}>
+          <Card
+            onClick={() => handleModeChange('course')}
+            className={cn(
+              "relative transition-all hover:shadow-lg border-2",
+              projectMode === 'course'
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-primary/50"
+            )}
+          >
             <CardHeader className="pb-2">
               <div className="flex items-center gap-3">
-                <div className={cn(
-                  "p-3 rounded-xl",
-                  projectMode === 'course' ? "bg-primary text-primary-foreground" : "bg-muted"
-                )}>
+                <div
+                  className={cn(
+                    "p-3 rounded-xl",
+                    projectMode === 'course' ? "bg-primary text-primary-foreground" : "bg-muted"
+                  )}
+                >
                   <GraduationCap className="w-6 h-6" />
                 </div>
                 <div>
@@ -173,18 +178,23 @@ export function ModeSelectionStep({
 
         {/* Presentation Option */}
         <Label htmlFor="mode-presentation" className="cursor-pointer">
-          <Card className={cn(
-            "relative transition-all hover:shadow-lg border-2",
-            projectMode === 'presentation' 
-              ? "border-primary bg-primary/5" 
-              : "border-border hover:border-primary/50"
-          )}>
+          <Card
+            onClick={() => handleModeChange('presentation')}
+            className={cn(
+              "relative transition-all hover:shadow-lg border-2",
+              projectMode === 'presentation'
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-primary/50"
+            )}
+          >
             <CardHeader className="pb-2">
               <div className="flex items-center gap-3">
-                <div className={cn(
-                  "p-3 rounded-xl",
-                  projectMode === 'presentation' ? "bg-primary text-primary-foreground" : "bg-muted"
-                )}>
+                <div
+                  className={cn(
+                    "p-3 rounded-xl",
+                    projectMode === 'presentation' ? "bg-primary text-primary-foreground" : "bg-muted"
+                  )}
+                >
                   <Presentation className="w-6 h-6" />
                 </div>
                 <div>
@@ -200,7 +210,7 @@ export function ModeSelectionStep({
             </CardHeader>
             <CardContent>
               <CardDescription className="text-sm">
-                Generera snabbt professionella slides från ett ämne. Perfekt för möten, 
+                Generera snabbt professionella slides från ett ämne. Perfekt för möten,
                 föredrag och presentationer.
               </CardDescription>
               <div className="mt-4 flex flex-wrap gap-2">

@@ -86,13 +86,6 @@ export function ExerciseStep({
   // Upload toggle (quick access)
   const [isUploadOpen, setIsUploadOpen] = useState(false);
 
-  if (!outline) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Ingen kursöversikt tillgänglig.</p>
-      </div>
-    );
-  }
 
   const allExercisesGenerated = Object.keys(exercises).length === scripts.length;
 

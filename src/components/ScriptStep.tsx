@@ -64,15 +64,9 @@ export function ScriptStep({
   const [uploadedRawContent, setUploadedRawContent] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!outline) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Ingen kursöversikt tillgänglig.</p>
-      </div>
-    );
-  }
-
-  const allScriptsGenerated = scripts.length === outline.modules.length;
+  const canGenerateFromOutline = !!outline;
+  const modules = outline?.modules ?? [];
+  const allScriptsGenerated = canGenerateFromOutline && scripts.length === modules.length;
 
   const handleGenerateVoice = async (script: ModuleScript) => {
     const fullText = script.sections.map(s => s.content).join('\n\n');
@@ -343,8 +337,17 @@ export function ScriptStep({
 
       {/* Module Scripts */}
       <div className="space-y-4">
-        {outline.modules.map((module, index) => {
-          const script = scripts.find(s => s.moduleId === module.id);
+        {!canGenerateFromOutline ? (
+          <Card className="border-dashed border-2">
+            <CardContent className="py-10 text-center">
+              <p className="text-muted-foreground">
+                Skapa först <span className="font-medium text-foreground">Kursöversikt</span> för att kunna generera eller ladda upp manus per modul.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          modules.map((module, index) => {
+            const script = scripts.find(s => s.moduleId === module.id);
           const isCurrentModule = index === currentModuleIndex;
           const canGenerate = index <= scripts.length;
 
@@ -665,7 +668,8 @@ export function ScriptStep({
               </CardContent>
             </Card>
           );
-        })}
+          })
+        )}
       </div>
 
       {/* Actions */}
