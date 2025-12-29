@@ -1,10 +1,14 @@
-import { Settings, Mic, Clock, BookOpen, Languages, Search } from 'lucide-react';
+import { useState } from 'react';
+import { Settings, Mic, Clock, BookOpen, Languages, Search, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
 import { CourseSettings } from '@/types/course';
+import { SystemDiagnostics } from '@/components/SystemDiagnostics';
 
 interface SettingsPanelProps {
   settings: CourseSettings;
@@ -24,150 +28,167 @@ const styles = [
 ];
 
 export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps) {
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  
   return (
-    <Card className="border-border/50 shadow-lg">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Settings className="w-5 h-5 text-accent" />
-          Kursinställningar
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Voice Selection */}
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2 text-sm font-medium">
-            <Mic className="w-4 h-4 text-muted-foreground" />
-            Berättarröst
-          </Label>
-          <Select
-            value={settings.voiceId}
-            onValueChange={(value) => {
-              const voice = voices.find(v => v.id === value);
-              onSettingsChange({ 
-                voiceId: value,
-                voiceName: voice?.name || ''
-              });
-            }}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Välj röst" />
-            </SelectTrigger>
-            <SelectContent>
-              {voices.map((voice) => (
-                <SelectItem key={voice.id} value={voice.id}>
-                  {voice.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Target Duration */}
-        <div className="space-y-3">
-          <Label className="flex items-center justify-between text-sm font-medium">
-            <span className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              Målad längd per modul
-            </span>
-            <span className="text-accent font-semibold">
-              {settings.targetDuration} min
-            </span>
-          </Label>
-          <Slider
-            value={[settings.targetDuration]}
-            onValueChange={([value]) => onSettingsChange({ targetDuration: value })}
-            min={5}
-            max={30}
-            step={5}
-            className="w-full"
-          />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>5 min</span>
-            <span>30 min</span>
-          </div>
-        </div>
-
-        {/* Style Selection */}
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2 text-sm font-medium">
-            <BookOpen className="w-4 h-4 text-muted-foreground" />
-            Presentationsstil
-          </Label>
-          <Select
-            value={settings.style}
-            onValueChange={(value: CourseSettings['style']) => 
-              onSettingsChange({ style: value })
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Välj stil" />
-            </SelectTrigger>
-            <SelectContent>
-              {styles.map((style) => (
-                <SelectItem key={style.value} value={style.value}>
-                  {style.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Language */}
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2 text-sm font-medium">
-            <Languages className="w-4 h-4 text-muted-foreground" />
-            Språk
-          </Label>
-          <Select
-            value={settings.language}
-            onValueChange={(value: CourseSettings['language']) => 
-              onSettingsChange({ language: value })
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Välj språk" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="sv">Svenska</SelectItem>
-              <SelectItem value="en">English</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Include Quizzes */}
-        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-          <Label htmlFor="quizzes" className="text-sm font-medium cursor-pointer">
-            Inkludera quiz-frågor
-          </Label>
-          <Switch
-            id="quizzes"
-            checked={settings.includeQuizzes}
-            onCheckedChange={(checked) => 
-              onSettingsChange({ includeQuizzes: checked })
-            }
-          />
-        </div>
-
-        {/* Enable Research */}
-        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="research" className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-              <Search className="w-4 h-4 text-muted-foreground" />
-              AI-forskning (Perplexity)
+    <div className="space-y-4">
+      <Card className="border-border/50 shadow-lg">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Settings className="w-5 h-5 text-accent" />
+            Kursinställningar
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Voice Selection */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2 text-sm font-medium">
+              <Mic className="w-4 h-4 text-muted-foreground" />
+              Berättarröst
             </Label>
-            <span className="text-xs text-muted-foreground">
-              Berika manus med aktuell forskning och källor
-            </span>
+            <Select
+              value={settings.voiceId}
+              onValueChange={(value) => {
+                const voice = voices.find(v => v.id === value);
+                onSettingsChange({ 
+                  voiceId: value,
+                  voiceName: voice?.name || ''
+                });
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Välj röst" />
+              </SelectTrigger>
+              <SelectContent>
+                {voices.map((voice) => (
+                  <SelectItem key={voice.id} value={voice.id}>
+                    {voice.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <Switch
-            id="research"
-            checked={settings.enableResearch}
-            onCheckedChange={(checked) => 
-              onSettingsChange({ enableResearch: checked })
-            }
-          />
-        </div>
-      </CardContent>
-    </Card>
+
+          {/* Target Duration */}
+          <div className="space-y-3">
+            <Label className="flex items-center justify-between text-sm font-medium">
+              <span className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                Målad längd per modul
+              </span>
+              <span className="text-accent font-semibold">
+                {settings.targetDuration} min
+              </span>
+            </Label>
+            <Slider
+              value={[settings.targetDuration]}
+              onValueChange={([value]) => onSettingsChange({ targetDuration: value })}
+              min={5}
+              max={30}
+              step={5}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>5 min</span>
+              <span>30 min</span>
+            </div>
+          </div>
+
+          {/* Style Selection */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2 text-sm font-medium">
+              <BookOpen className="w-4 h-4 text-muted-foreground" />
+              Presentationsstil
+            </Label>
+            <Select
+              value={settings.style}
+              onValueChange={(value: CourseSettings['style']) => 
+                onSettingsChange({ style: value })
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Välj stil" />
+              </SelectTrigger>
+              <SelectContent>
+                {styles.map((style) => (
+                  <SelectItem key={style.value} value={style.value}>
+                    {style.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Language */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2 text-sm font-medium">
+              <Languages className="w-4 h-4 text-muted-foreground" />
+              Språk
+            </Label>
+            <Select
+              value={settings.language}
+              onValueChange={(value: CourseSettings['language']) => 
+                onSettingsChange({ language: value })
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Välj språk" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sv">Svenska</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Include Quizzes */}
+          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+            <Label htmlFor="quizzes" className="text-sm font-medium cursor-pointer">
+              Inkludera quiz-frågor
+            </Label>
+            <Switch
+              id="quizzes"
+              checked={settings.includeQuizzes}
+              onCheckedChange={(checked) => 
+                onSettingsChange({ includeQuizzes: checked })
+              }
+            />
+          </div>
+
+          {/* Enable Research */}
+          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="research" className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                <Search className="w-4 h-4 text-muted-foreground" />
+                AI-forskning (Perplexity)
+              </Label>
+              <span className="text-xs text-muted-foreground">
+                Berika manus med aktuell forskning och källor
+              </span>
+            </div>
+            <Switch
+              id="research"
+              checked={settings.enableResearch}
+              onCheckedChange={(checked) => 
+                onSettingsChange({ enableResearch: checked })
+              }
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* System Diagnostics */}
+      <Collapsible open={showDiagnostics} onOpenChange={setShowDiagnostics}>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" size="sm" className="w-full justify-between">
+            <span>Systemdiagnostik</span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${showDiagnostics ? 'rotate-180' : ''}`} />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <SystemDiagnostics />
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
   );
 }

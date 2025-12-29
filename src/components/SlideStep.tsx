@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage, Upload, ChevronDown, ChevronUp, Palette, SkipForward } from 'lucide-react';
+import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage, Upload, ChevronDown, ChevronUp, Palette, SkipForward, Layers } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ContentUploader } from '@/components/ContentUploader';
+import { CanvaTemplates } from '@/components/CanvaTemplates';
 
 interface SlideStepProps {
   outline: CourseOutline | null;
@@ -48,6 +49,8 @@ export function SlideStep({
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhanceType, setEnhanceType] = useState<'design' | 'content' | 'full'>('full');
+  const [isCanvaOpen, setIsCanvaOpen] = useState(false);
+
   if (!outline || scripts.length === 0) {
     return (
       <Card className="border-dashed border-2">
@@ -495,9 +498,13 @@ export function SlideStep({
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="stock" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsList className="grid w-full grid-cols-3 mb-4">
                   <TabsTrigger value="stock">Stockfoton</TabsTrigger>
                   <TabsTrigger value="ai">AI-genererad</TabsTrigger>
+                  <TabsTrigger value="canva" className="flex items-center gap-1">
+                    <Layers className="h-3 w-3" />
+                    Canva
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="stock" className="space-y-4">
@@ -603,6 +610,22 @@ export function SlideStep({
                       />
                     </div>
                   )}
+                </TabsContent>
+
+                <TabsContent value="canva" className="space-y-4">
+                  <CanvaTemplates
+                    slides={currentModuleSlides}
+                    onApplyTemplate={(templateId, styledSlides) => {
+                      styledSlides.forEach((slide, index) => {
+                        onUpdateSlide(currentScript.moduleId, index, {
+                          backgroundColor: slide.backgroundColor,
+                        });
+                      });
+                    }}
+                    onExportToCanva={() => {
+                      toast.info('Öppna den nedladdade filen i Canva för att redigera');
+                    }}
+                  />
                 </TabsContent>
               </Tabs>
             </CardContent>
