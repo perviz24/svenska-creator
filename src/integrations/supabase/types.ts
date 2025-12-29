@@ -53,6 +53,36 @@ export type Database = {
         }
         Relationships: []
       }
+      learndash_credentials: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          wp_app_password: string
+          wp_url: string
+          wp_username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          wp_app_password: string
+          wp_url: string
+          wp_username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          wp_app_password?: string
+          wp_url?: string
+          wp_username?: string
+        }
+        Relationships: []
+      }
       module_scripts: {
         Row: {
           audio_url: string | null

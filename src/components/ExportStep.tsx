@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import {
   Copy,
   RefreshCw,
   AlertCircle,
+  Save,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -59,9 +60,81 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isExporting, setIsExporting] = useState(false);
   const [exportResult, setExportResult] = useState<{ courseId: number; courseUrl: string; lessonsCreated: number } | null>(null);
+  const [isSavingCredentials, setIsSavingCredentials] = useState(false);
+  const [credentialsSaved, setCredentialsSaved] = useState(false);
+  const [isLoadingCredentials, setIsLoadingCredentials] = useState(true);
 
   // Module to video mapping
   const [moduleVideoMap, setModuleVideoMap] = useState<Record<string, string>>({});
+
+  // Load saved credentials on mount
+  useEffect(() => {
+    loadSavedCredentials();
+  }, []);
+
+  const loadSavedCredentials = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setIsLoadingCredentials(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('learndash_credentials')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setWpUrl(data.wp_url);
+        setWpUsername(data.wp_username);
+        setWpAppPassword(data.wp_app_password);
+        setCredentialsSaved(true);
+      }
+    } catch (error) {
+      console.error('Failed to load credentials:', error);
+    } finally {
+      setIsLoadingCredentials(false);
+    }
+  };
+
+  const saveCredentials = async () => {
+    if (!wpUrl || !wpUsername || !wpAppPassword) {
+      toast({ title: 'Fill in all credentials first', variant: 'destructive' });
+      return;
+    }
+
+    setIsSavingCredentials(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: 'Please log in to save credentials', variant: 'destructive' });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('learndash_credentials')
+        .upsert({
+          user_id: user.id,
+          wp_url: wpUrl,
+          wp_username: wpUsername,
+          wp_app_password: wpAppPassword,
+        }, { onConflict: 'user_id' });
+
+      if (error) throw error;
+
+      setCredentialsSaved(true);
+      toast({ title: 'Credentials saved', description: 'Your LearnDash credentials have been saved securely.' });
+    } catch (error) {
+      console.error('Failed to save credentials:', error);
+      toast({ title: 'Failed to save credentials', variant: 'destructive' });
+    } finally {
+      setIsSavingCredentials(false);
+    }
+  };
 
   const loadBunnyVideos = async () => {
     setIsLoadingVideos(true);
@@ -553,65 +626,96 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
           {/* WordPress Credentials */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">WordPress Connection</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2">
+                WordPress Connection
+                {credentialsSaved && (
+                  <Badge variant="outline" className="text-green-500 border-green-500/30">
+                    <Check className="h-3 w-3 mr-1" />
+                    Saved
+                  </Badge>
+                )}
+              </CardTitle>
               <CardDescription>
                 Connect to your WordPress site with LearnDash installed
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>WordPress Site URL</Label>
-                <Input
-                  placeholder="https://yoursite.com"
-                  value={wpUrl}
-                  onChange={(e) => setWpUrl(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Username</Label>
-                <Input
-                  placeholder="admin"
-                  value={wpUsername}
-                  onChange={(e) => setWpUsername(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Application Password</Label>
-                <Input
-                  type="password"
-                  placeholder="xxxx xxxx xxxx xxxx"
-                  value={wpAppPassword}
-                  onChange={(e) => setWpAppPassword(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Create an application password in WordPress: Users → Your Profile → Application Passwords
-                </p>
-              </div>
-              <Button
-                onClick={testLearnDashConnection}
-                disabled={isTestingConnection}
-                variant={connectionStatus === 'success' ? 'outline' : 'default'}
-                className="w-full"
-              >
-                {isTestingConnection ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Testing...
-                  </>
-                ) : connectionStatus === 'success' ? (
-                  <>
-                    <Check className="h-4 w-4 mr-2 text-green-500" />
-                    Connected
-                  </>
-                ) : connectionStatus === 'error' ? (
-                  <>
-                    <AlertCircle className="h-4 w-4 mr-2 text-red-500" />
-                    Retry Connection
-                  </>
-                ) : (
-                  'Test Connection'
-                )}
-              </Button>
+              {isLoadingCredentials ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>WordPress Site URL</Label>
+                    <Input
+                      placeholder="https://yoursite.com"
+                      value={wpUrl}
+                      onChange={(e) => { setWpUrl(e.target.value); setCredentialsSaved(false); }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Username</Label>
+                    <Input
+                      placeholder="admin"
+                      value={wpUsername}
+                      onChange={(e) => { setWpUsername(e.target.value); setCredentialsSaved(false); }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Application Password</Label>
+                    <Input
+                      type="password"
+                      placeholder="xxxx xxxx xxxx xxxx"
+                      value={wpAppPassword}
+                      onChange={(e) => { setWpAppPassword(e.target.value); setCredentialsSaved(false); }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Create an application password in WordPress: Users → Your Profile → Application Passwords
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={testLearnDashConnection}
+                      disabled={isTestingConnection}
+                      variant={connectionStatus === 'success' ? 'outline' : 'default'}
+                      className="flex-1"
+                    >
+                      {isTestingConnection ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Testing...
+                        </>
+                      ) : connectionStatus === 'success' ? (
+                        <>
+                          <Check className="h-4 w-4 mr-2 text-green-500" />
+                          Connected
+                        </>
+                      ) : connectionStatus === 'error' ? (
+                        <>
+                          <AlertCircle className="h-4 w-4 mr-2 text-red-500" />
+                          Retry Connection
+                        </>
+                      ) : (
+                        'Test Connection'
+                      )}
+                    </Button>
+                    <Button
+                      onClick={saveCredentials}
+                      disabled={isSavingCredentials || !wpUrl || !wpUsername || !wpAppPassword}
+                      variant="outline"
+                    >
+                      {isSavingCredentials ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : credentialsSaved ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
