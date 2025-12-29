@@ -1,6 +1,6 @@
-import { Check, FileText, Layers, Mic, Video, Upload, Sparkles, HelpCircle, BookOpen } from 'lucide-react';
+import { Check, FileText, Layers, Mic, Video, Upload, Sparkles, HelpCircle, BookOpen, LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { WorkflowStep } from '@/types/course';
+import { WorkflowStep, ProjectMode } from '@/types/course';
 
 interface Step {
   id: WorkflowStep;
@@ -8,7 +8,8 @@ interface Step {
   icon: React.ReactNode;
 }
 
-const steps: Step[] = [
+const allSteps: Step[] = [
+  { id: 'mode', label: 'Läge', icon: <LayoutGrid className="w-4 h-4" /> },
   { id: 'title', label: 'Titel', icon: <Sparkles className="w-4 h-4" /> },
   { id: 'outline', label: 'Översikt', icon: <FileText className="w-4 h-4" /> },
   { id: 'script', label: 'Manus', icon: <FileText className="w-4 h-4" /> },
@@ -20,13 +21,21 @@ const steps: Step[] = [
   { id: 'upload', label: 'Export', icon: <Upload className="w-4 h-4" /> },
 ];
 
+const courseStepIds: WorkflowStep[] = ['mode', 'title', 'outline', 'script', 'slides', 'exercises', 'quiz', 'voice', 'video', 'upload'];
+const presentationStepIds: WorkflowStep[] = ['mode', 'title', 'slides', 'upload'];
+
 interface ProgressStepperProps {
   currentStep: WorkflowStep;
   completedSteps: WorkflowStep[];
+  projectMode?: ProjectMode;
   onStepClick?: (step: WorkflowStep) => void;
 }
 
-export function ProgressStepper({ currentStep, completedSteps, onStepClick }: ProgressStepperProps) {
+export function ProgressStepper({ currentStep, completedSteps, projectMode = 'course', onStepClick }: ProgressStepperProps) {
+  // Filter steps based on project mode
+  const stepIds = projectMode === 'presentation' ? presentationStepIds : courseStepIds;
+  const steps = allSteps.filter(step => stepIds.includes(step.id));
+  
   const currentIndex = steps.findIndex(s => s.id === currentStep);
 
   return (
@@ -38,7 +47,7 @@ export function ProgressStepper({ currentStep, completedSteps, onStepClick }: Pr
         {/* Progress line filled */}
         <div 
           className="absolute left-0 top-5 h-0.5 bg-accent transition-all duration-500"
-          style={{ width: `${(currentIndex / (steps.length - 1)) * 100}%` }}
+          style={{ width: `${(Math.max(0, currentIndex) / (steps.length - 1)) * 100}%` }}
         />
 
         {steps.map((step, index) => {

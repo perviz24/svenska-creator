@@ -14,6 +14,7 @@ const initialSettings: CourseSettings = {
   enableResearch: true,
   language: 'sv',
   aiQualityMode: 'quality',
+  projectMode: 'course',
 };
 
 const initialVideoSettings: VideoSettings = {
@@ -21,7 +22,7 @@ const initialVideoSettings: VideoSettings = {
 };
 
 const initialState: WorkflowState = {
-  currentStep: 'title',
+  currentStep: 'mode',
   completedSteps: [],
   title: '',
   selectedTitleId: null,
@@ -116,7 +117,7 @@ export function useCourseWorkflow() {
   };
 
   const getCompletedSteps = (currentStep: WorkflowStep): WorkflowStep[] => {
-    const steps: WorkflowStep[] = ['title', 'outline', 'script', 'slides', 'voice', 'video', 'upload'];
+    const steps: WorkflowStep[] = ['mode', 'title', 'outline', 'script', 'slides', 'exercises', 'quiz', 'voice', 'video', 'upload'];
     const currentIndex = steps.indexOf(currentStep);
     return steps.slice(0, currentIndex);
   };
@@ -286,9 +287,14 @@ export function useCourseWorkflow() {
   }, []);
 
   const nextStep = useCallback(() => {
-    const steps: WorkflowStep[] = ['title', 'outline', 'script', 'slides', 'exercises', 'quiz', 'voice', 'video', 'upload'];
     setState(prev => {
+      // Determine steps based on project mode
+      const courseSteps: WorkflowStep[] = ['mode', 'title', 'outline', 'script', 'slides', 'exercises', 'quiz', 'voice', 'video', 'upload'];
+      const presentationSteps: WorkflowStep[] = ['mode', 'title', 'slides', 'upload'];
+      
+      const steps = prev.settings.projectMode === 'presentation' ? presentationSteps : courseSteps;
       const currentIndex = steps.indexOf(prev.currentStep);
+      
       if (currentIndex < steps.length - 1) {
         const newStep = steps[currentIndex + 1];
         

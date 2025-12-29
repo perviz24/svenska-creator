@@ -85,6 +85,14 @@ export interface StockProviderSettings {
   getty?: { apiKey: string; enabled: boolean };
 }
 
+export type ProjectMode = 'course' | 'presentation';
+
+export interface PresentationSettings {
+  slideCount: number;
+  presentationDuration: number; // in minutes
+  topic: string;
+}
+
 export interface CourseSettings {
   voiceId: string;
   voiceName: string;
@@ -95,6 +103,8 @@ export interface CourseSettings {
   language: 'sv' | 'en';
   stockProviders?: StockProviderSettings;
   aiQualityMode: 'fast' | 'quality'; // fast = flash models, quality = pro/gpt-5 models
+  projectMode: ProjectMode;
+  presentationSettings?: PresentationSettings;
 }
 
 export interface ModuleAudio {
@@ -181,6 +191,7 @@ export interface VideoSettings {
 }
 
 export type WorkflowStep = 
+  | 'mode'
   | 'title'
   | 'outline'
   | 'script'
