@@ -57,7 +57,20 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('ElevenLabs API error:', errorText);
-      throw new Error(`ElevenLabs API error: ${response.status}`);
+      
+      // Parse the error to provide a better message
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.detail?.status === 'quota_exceeded') {
+          throw new Error(`ElevenLabs-kvoten överskriden. Du har ${errorData.detail.message?.match(/(\d+) credits remaining/)?.[1] || '0'} krediter kvar.`);
+        }
+        throw new Error(errorData.detail?.message || `ElevenLabs API error: ${response.status}`);
+      } catch (parseError) {
+        if (parseError instanceof Error && parseError.message.includes('ElevenLabs')) {
+          throw parseError;
+        }
+        throw new Error(`ElevenLabs API error: ${response.status}`);
+      }
     }
 
     const audioBuffer = await response.arrayBuffer();
