@@ -4,12 +4,14 @@ const corsHeaders = {
 };
 
 interface HeyGenRequest {
-  action: 'list-avatars' | 'generate-video';
+  action: 'list-avatars' | 'generate-video' | 'check-status';
   // For generate-video
   script?: string;
   avatarId?: string;
   voiceId?: string;
   title?: string;
+  // For check-status
+  videoId?: string;
   // User-provided API key
   apiKey?: string;
 }
@@ -29,7 +31,7 @@ Deno.serve(async (req) => {
 
   try {
     const body: HeyGenRequest = await req.json();
-    const { action, script, avatarId, voiceId, title, apiKey } = body;
+    const { action, script, avatarId, voiceId, title, videoId, apiKey } = body;
 
     // Use user-provided API key or fall back to environment variable
     const HEYGEN_API_KEY = apiKey || Deno.env.get('HEYGEN_API_KEY');
@@ -134,6 +136,44 @@ Deno.serve(async (req) => {
           videoId: data.data?.video_id,
           status: 'processing',
           message: 'Video generation started. Check status with the video ID.',
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    if (action === 'check-status') {
+      if (!videoId) {
+        throw new Error('videoId is required for status check');
+      }
+
+      console.log(`Checking status for video ${videoId}`);
+
+      const response = await fetch(`https://api.heygen.com/v1/video_status.get?video_id=${videoId}`, {
+        headers: {
+          'X-Api-Key': HEYGEN_API_KEY,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('HeyGen status check error:', error);
+        throw new Error(`HeyGen API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Video status:', data);
+
+      return new Response(
+        JSON.stringify({
+          videoId: videoId,
+          status: data.data?.status || 'unknown',
+          videoUrl: data.data?.video_url || null,
+          thumbnailUrl: data.data?.thumbnail_url || null,
+          duration: data.data?.duration || null,
+          error: data.data?.error || null,
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
