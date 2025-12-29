@@ -24,6 +24,10 @@ const allSteps: Step[] = [
 const courseStepIds: WorkflowStep[] = ['mode', 'title', 'outline', 'script', 'slides', 'exercises', 'quiz', 'voice', 'video', 'upload'];
 const presentationStepIds: WorkflowStep[] = ['mode', 'title', 'slides', 'upload'];
 
+// Demo mode uses simplified steps (no exercises, quiz, voice, video)
+const demoCourseStepIds: WorkflowStep[] = ['mode', 'title', 'outline', 'script', 'slides', 'upload'];
+const demoPresentationStepIds: WorkflowStep[] = ['mode', 'title', 'slides', 'upload'];
+
 interface ProgressStepperProps {
   currentStep: WorkflowStep;
   completedSteps: WorkflowStep[];
@@ -33,8 +37,15 @@ interface ProgressStepperProps {
 }
 
 export function ProgressStepper({ currentStep, completedSteps, projectMode = 'course', demoMode, onStepClick }: ProgressStepperProps) {
-  // Filter steps based on project mode
-  const stepIds = projectMode === 'presentation' ? presentationStepIds : courseStepIds;
+  // Filter steps based on project mode and demo mode
+  const getStepIds = () => {
+    if (demoMode?.enabled) {
+      return projectMode === 'presentation' ? demoPresentationStepIds : demoCourseStepIds;
+    }
+    return projectMode === 'presentation' ? presentationStepIds : courseStepIds;
+  };
+  
+  const stepIds = getStepIds();
   const steps = allSteps.filter(step => stepIds.includes(step.id));
   
   const currentIndex = steps.findIndex(s => s.id === currentStep);

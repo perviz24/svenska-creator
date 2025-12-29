@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { ProgressStepper } from '@/components/ProgressStepper';
 import { ModeSelectionStep } from '@/components/ModeSelectionStep';
@@ -496,12 +497,12 @@ const Demo = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <a 
-              href="/auth" 
+            <Link 
+              to="/auth" 
               className="text-sm text-primary hover:underline"
             >
               Logga in för full funktionalitet →
-            </a>
+            </Link>
             <button
               onClick={startNewDemo}
               className="px-3 py-1.5 text-sm font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-500/20 transition-colors"
