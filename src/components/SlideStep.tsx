@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Slide, ModuleScript, StockPhoto, CourseOutline, DemoModeSettings } from '@/types/course';
+import { Slide, ModuleScript, StockPhoto, CourseOutline, DemoModeSettings, ProjectMode } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -22,6 +22,7 @@ interface SlideStepProps {
   isLoading: boolean;
   courseTitle: string;
   demoMode?: DemoModeSettings;
+  projectMode?: ProjectMode;
   onGenerateSlides: (moduleId: string, script: ModuleScript) => Promise<void>;
   onUpdateSlide: (moduleId: string, slideIndex: number, updates: Partial<Slide>) => void;
   onContinue: () => void;
@@ -36,6 +37,7 @@ export function SlideStep({
   isLoading,
   courseTitle,
   demoMode,
+  projectMode = 'course',
   onGenerateSlides,
   onUpdateSlide,
   onContinue,
@@ -58,14 +60,38 @@ export function SlideStep({
   const [showSlideRefinement, setShowSlideRefinement] = useState(false);
   const [uploadedSlideContent, setUploadedSlideContent] = useState('');
 
+  // In presentation mode, we don't need scripts - generate from title directly
+  const isPresentation = projectMode === 'presentation';
   const canGenerateFromScripts = !!outline && scripts.length > 0;
+  const canGenerate = isPresentation || canGenerateFromScripts;
 
+  // For presentations, use a placeholder module ID based on title
+  const presentationModuleId = `presentation-${courseTitle?.replace(/\s+/g, '-').toLowerCase() || 'slides'}`;
+  
   const currentScript = canGenerateFromScripts ? scripts[selectedModuleIndex] : undefined;
-  const currentModuleSlides = currentScript ? slides[currentScript.moduleId] || [] : [];
+  const currentModuleId = isPresentation ? presentationModuleId : currentScript?.moduleId;
+  const currentModuleSlides = currentModuleId ? slides[currentModuleId] || [] : [];
   const currentSlide = currentModuleSlides[selectedSlideIndex];
 
   const handleGenerateSlides = async () => {
-    if (currentScript) {
+    if (isPresentation) {
+      // For presentations, create a minimal script-like object from the title
+      const presentationScript: ModuleScript = {
+        moduleId: presentationModuleId,
+        moduleTitle: courseTitle || 'Presentation',
+        totalWords: 0,
+        estimatedDuration: 0,
+        citations: [],
+        sections: [{
+          id: 'section-1',
+          title: courseTitle || 'Presentation',
+          content: courseTitle || 'Presentation content',
+          slideMarkers: [],
+        }],
+      };
+      await onGenerateSlides(presentationModuleId, presentationScript);
+      setSelectedSlideIndex(0);
+    } else if (currentScript) {
       await onGenerateSlides(currentScript.moduleId, currentScript);
       setSelectedSlideIndex(0);
     }
@@ -109,11 +135,13 @@ export function SlideStep({
 
       if (error) throw error;
 
-      onUpdateSlide(currentScript.moduleId, selectedSlideIndex, {
-        imageUrl: data.imageUrl,
-        imageSource: 'ai-generated',
-        imageAttribution: 'AI-generated image',
-      });
+      if (currentModuleId) {
+        onUpdateSlide(currentModuleId, selectedSlideIndex, {
+          imageUrl: data.imageUrl,
+          imageSource: 'ai-generated',
+          imageAttribution: 'AI-generated image',
+        });
+      }
 
       toast.success('AI-bild genererad!');
     } catch (error) {
@@ -125,7 +153,8 @@ export function SlideStep({
   };
 
   const handleSelectPhoto = (photo: StockPhoto) => {
-    onUpdateSlide(currentScript.moduleId, selectedSlideIndex, {
+    if (!currentModuleId) return;
+    onUpdateSlide(currentModuleId, selectedSlideIndex, {
       imageUrl: photo.url,
       imageSource: photo.source as Slide['imageSource'],
       imageAttribution: photo.attribution,
@@ -134,7 +163,7 @@ export function SlideStep({
   };
 
   const handleEnhanceSlides = async () => {
-    if (!currentScript || currentModuleSlides.length === 0) return;
+    if (!currentModuleId || currentModuleSlides.length === 0) return;
 
     setIsEnhancing(true);
     try {
@@ -164,7 +193,7 @@ export function SlideStep({
       const enhancedSlides = data.enhancedSlides || [];
       enhancedSlides.forEach((enhanced: any, index: number) => {
         if (index < currentModuleSlides.length) {
-          onUpdateSlide(currentScript.moduleId, index, {
+          onUpdateSlide(currentModuleId, index, {
             title: enhanced.title || currentModuleSlides[index].title,
             content: enhanced.content || currentModuleSlides[index].content,
             layout: enhanced.layout || currentModuleSlides[index].layout,
@@ -189,10 +218,12 @@ export function SlideStep({
   };
 
   const handleExport = async (format: 'pptx' | 'pdf') => {
-    if (!currentScript || currentModuleSlides.length === 0) return;
+    if (!currentModuleId || currentModuleSlides.length === 0) return;
 
     setIsExporting(true);
     try {
+      const moduleTitle = isPresentation ? courseTitle : currentScript?.moduleTitle || 'Presentation';
+      
       const { data, error } = await supabase.functions.invoke('export-slides', {
         body: {
           slides: currentModuleSlides.map(slide => ({
@@ -204,7 +235,7 @@ export function SlideStep({
             backgroundColor: slide.backgroundColor,
           })),
           courseTitle: courseTitle,
-          moduleTitle: currentScript.moduleTitle,
+          moduleTitle,
           format,
         },
       });
@@ -248,15 +279,21 @@ export function SlideStep({
   };
 
 
+  // Determine step number based on project mode
+  const stepNumber = projectMode === 'presentation' ? 3 : 5;
+  const stepDescription = projectMode === 'presentation' 
+    ? 'Skapa slides för din presentation'
+    : 'Skapa slides från manus';
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
           <Presentation className="h-4 w-4" />
-          Steg 4: Presentationsslides
+          Steg {stepNumber}: Presentationsslides
         </div>
-        <h2 className="text-2xl font-bold">Skapa slides från manus</h2>
+        <h2 className="text-2xl font-bold">{stepDescription}</h2>
         <p className="text-muted-foreground max-w-md mx-auto">
           AI genererar professionella slides med smarta bildförslag från stockfoto-bibliotek.
         </p>
@@ -320,31 +357,46 @@ export function SlideStep({
       {uploadMode === 'generate' && (
         <>
 
-      {/* Module Selector with Export */}
+      {/* Module Selector with Export - only show for course mode with scripts */}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex gap-2 overflow-x-auto pb-2 flex-1">
-          {scripts.map((script, index) => (
-            <Button
-              key={script.moduleId}
-              variant={selectedModuleIndex === index ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => {
-                setSelectedModuleIndex(index);
-                setSelectedSlideIndex(0);
-                setStockPhotos([]);
-              }}
-              className="whitespace-nowrap"
-            >
-              Modul {index + 1}
-              {slides[script.moduleId]?.length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {slides[script.moduleId].length} slides
-                </Badge>
-              )}
-            </Button>
-          ))}
-        </div>
+        {!isPresentation && scripts.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-2 flex-1">
+            {scripts.map((script, index) => (
+              <Button
+                key={script.moduleId}
+                variant={selectedModuleIndex === index ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setSelectedModuleIndex(index);
+                  setSelectedSlideIndex(0);
+                  setStockPhotos([]);
+                }}
+                className="whitespace-nowrap"
+              >
+                Modul {index + 1}
+                {slides[script.moduleId]?.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {slides[script.moduleId].length} slides
+                  </Badge>
+                )}
+              </Button>
+            ))}
+          </div>
+        )}
         
+        {/* Show slide count in presentation mode */}
+        {isPresentation && currentModuleSlides.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">
+              {currentModuleSlides.length} slides
+            </Badge>
+          </div>
+        )}
+        
+        {/* Spacer when no module buttons */}
+        {(isPresentation || scripts.length === 0) && currentModuleSlides.length === 0 && (
+          <div className="flex-1" />
+        )}
         {/* AI Enhancement & Export */}
         <div className="flex gap-2">
           {currentModuleSlides.length > 0 && (
@@ -392,11 +444,11 @@ export function SlideStep({
               <DropdownMenuContent align="end" className="bg-popover z-50">
                 <DropdownMenuItem onClick={() => handleExport('pptx')} className="cursor-pointer">
                   <FileImage className="h-4 w-4 mr-2" />
-                  PowerPoint (XML)
+                  PowerPoint (.pptx)
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExport('pdf')} className="cursor-pointer">
                   <FileText className="h-4 w-4 mr-2" />
-                  PDF (HTML)
+                  PDF-dokument
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -405,13 +457,15 @@ export function SlideStep({
       </div>
 
       {/* Main Content */}
-      {!canGenerateFromScripts ? (
+      {!canGenerate ? (
         <Card className="border-dashed border-2">
           <CardContent className="py-12 text-center">
             <Presentation className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">Generera slides</h3>
             <p className="text-muted-foreground">
-              Du måste först generera manus för att kunna skapa slides.
+              {isPresentation 
+                ? 'Ange en titel först för att kunna generera slides.'
+                : 'Du måste först generera manus för att kunna skapa slides.'}
             </p>
           </CardContent>
         </Card>
@@ -419,9 +473,15 @@ export function SlideStep({
         <Card>
           <CardContent className="py-12 text-center">
             <Presentation className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">Generera slides för {currentScript?.moduleTitle}</h3>
+            <h3 className="text-lg font-medium mb-2">
+              {isPresentation 
+                ? `Generera slides för "${courseTitle}"`
+                : `Generera slides för ${currentScript?.moduleTitle}`}
+            </h3>
             <p className="text-muted-foreground mb-6">
-              AI analyserar manuset och skapar professionella presentationsslides.
+              {isPresentation 
+                ? 'AI skapar professionella presentationsslides baserat på ditt ämne.'
+                : 'AI analyserar manuset och skapar professionella presentationsslides.'}
             </p>
             <Button onClick={handleGenerateSlides} disabled={isLoading}>
               {isLoading ? (
@@ -471,29 +531,37 @@ export function SlideStep({
             <CardContent>
               {currentSlide && (
                 <div 
-                  className="aspect-video rounded-lg border overflow-hidden relative"
+                  className="aspect-video rounded-xl border-2 border-border/50 overflow-hidden relative shadow-lg"
                   style={{ 
-                    backgroundColor: currentSlide.backgroundColor || 'hsl(var(--card))'
+                    backgroundColor: currentSlide.backgroundColor || 'hsl(var(--card))',
+                    background: currentSlide.imageUrl 
+                      ? `linear-gradient(135deg, hsl(var(--primary) / 0.9), hsl(var(--primary) / 0.7))` 
+                      : currentSlide.backgroundColor || 'linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--muted)))'
                   }}
                 >
                   {currentSlide.imageUrl && (
                     <img 
                       src={currentSlide.imageUrl} 
                       alt=""
-                      className="absolute inset-0 w-full h-full object-cover opacity-30"
+                      className="absolute inset-0 w-full h-full object-cover"
                     />
                   )}
-                  <div className="relative z-10 p-6 h-full flex flex-col">
-                    <Badge variant="outline" className="self-start mb-2 text-xs">
+                  {/* Gradient overlay for better text readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                  
+                  <div className="relative z-10 p-5 h-full flex flex-col justify-end">
+                    <Badge variant="secondary" className="self-start mb-2 text-[10px] bg-white/20 text-white backdrop-blur-sm border-0">
                       {getLayoutLabel(currentSlide.layout)}
                     </Badge>
-                    <h3 className="text-xl font-bold mb-3">{currentSlide.title}</h3>
-                    <div className="flex-1 text-sm text-muted-foreground whitespace-pre-wrap overflow-auto">
+                    <h3 className="text-lg font-bold mb-2 text-white drop-shadow-md line-clamp-2">
+                      {currentSlide.title}
+                    </h3>
+                    <div className="text-xs text-white/80 whitespace-pre-wrap overflow-hidden line-clamp-3 drop-shadow">
                       {currentSlide.content}
                     </div>
                     {currentSlide.imageAttribution && (
-                      <p className="text-xs text-muted-foreground/60 mt-2">
-                        {currentSlide.imageAttribution}
+                      <p className="text-[10px] text-white/50 mt-2 truncate">
+                        📷 {currentSlide.imageAttribution}
                       </p>
                     )}
                   </div>
@@ -665,8 +733,9 @@ export function SlideStep({
                   <CanvaTemplates
                     slides={currentModuleSlides}
                     onApplyTemplate={(templateId, styledSlides) => {
+                      if (!currentModuleId) return;
                       styledSlides.forEach((slide, index) => {
-                        onUpdateSlide(currentScript.moduleId, index, {
+                        onUpdateSlide(currentModuleId, index, {
                           backgroundColor: slide.backgroundColor,
                         });
                       });
@@ -703,7 +772,9 @@ export function SlideStep({
           Hoppa över detta steg
         </Button>
         <Button onClick={onContinue} size="lg">
-          {demoMode?.enabled ? 'Fortsätt till export' : 'Fortsätt till övningar'}
+          {projectMode === 'presentation' || demoMode?.enabled 
+            ? 'Fortsätt till export' 
+            : 'Fortsätt till övningar'}
           <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
