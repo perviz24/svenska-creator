@@ -12,14 +12,17 @@ serve(async (req) => {
   }
 
   try {
-    const BUNNY_API_KEY = Deno.env.get('BUNNY_API_KEY');
-    const BUNNY_LIBRARY_ID = Deno.env.get('BUNNY_LIBRARY_ID');
+    const body = await req.json();
+    const { action, videoUrl, title, videoId, apiKey, libraryId } = body;
+    
+    // Use user-provided credentials or fall back to environment variables
+    const BUNNY_API_KEY = apiKey || Deno.env.get('BUNNY_API_KEY');
+    const BUNNY_LIBRARY_ID = libraryId || Deno.env.get('BUNNY_LIBRARY_ID');
     
     if (!BUNNY_API_KEY || !BUNNY_LIBRARY_ID) {
-      throw new Error('Bunny.net API key or Library ID not configured');
+      throw new Error('Bunny.net API key or Library ID not configured. Please add your credentials in settings.');
     }
 
-    const { action, videoUrl, title, videoId } = await req.json();
     console.log(`Bunny.net action: ${action}`);
 
     const baseUrl = `https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}`;

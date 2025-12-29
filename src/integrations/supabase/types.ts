@@ -53,6 +53,33 @@ export type Database = {
         }
         Relationships: []
       }
+      integration_credentials: {
+        Row: {
+          created_at: string
+          credentials: Json
+          id: string
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credentials?: Json
+          id?: string
+          provider: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credentials?: Json
+          id?: string
+          provider?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       learndash_credentials: {
         Row: {
           created_at: string

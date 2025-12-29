@@ -52,6 +52,12 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
+  // Bunny.net credentials
+  const [bunnyApiKey, setBunnyApiKey] = useState('');
+  const [bunnyLibraryId, setBunnyLibraryId] = useState('');
+  const [bunnyCredentialsSaved, setBunnyCredentialsSaved] = useState(false);
+  const [isSavingBunnyCredentials, setIsSavingBunnyCredentials] = useState(false);
+  
   // LearnDash state
   const [wpUrl, setWpUrl] = useState('');
   const [wpUsername, setWpUsername] = useState('');
@@ -69,10 +75,10 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
 
   // Load saved credentials on mount
   useEffect(() => {
-    loadSavedCredentials();
+    loadAllCredentials();
   }, []);
 
-  const loadSavedCredentials = async () => {
+  const loadAllCredentials = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -80,24 +86,73 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
         return;
       }
 
-      const { data, error } = await supabase
+      // Load LearnDash credentials
+      const { data: ldData } = await supabase
         .from('learndash_credentials')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (error) throw error;
-
-      if (data) {
-        setWpUrl(data.wp_url);
-        setWpUsername(data.wp_username);
-        setWpAppPassword(data.wp_app_password);
+      if (ldData) {
+        setWpUrl(ldData.wp_url);
+        setWpUsername(ldData.wp_username);
+        setWpAppPassword(ldData.wp_app_password);
         setCredentialsSaved(true);
+      }
+
+      // Load integration credentials (Bunny.net)
+      const { data: intData } = await supabase
+        .from('integration_credentials')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (intData) {
+        const bunnyCredentials = intData.find(c => c.provider === 'bunny');
+        if (bunnyCredentials?.credentials) {
+          const creds = bunnyCredentials.credentials as { apiKey?: string; libraryId?: string };
+          setBunnyApiKey(creds.apiKey || '');
+          setBunnyLibraryId(creds.libraryId || '');
+          setBunnyCredentialsSaved(true);
+        }
       }
     } catch (error) {
       console.error('Failed to load credentials:', error);
     } finally {
       setIsLoadingCredentials(false);
+    }
+  };
+
+  const saveBunnyCredentials = async () => {
+    if (!bunnyApiKey || !bunnyLibraryId) {
+      toast({ title: 'Fill in API key and Library ID', variant: 'destructive' });
+      return;
+    }
+
+    setIsSavingBunnyCredentials(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: 'Please log in to save credentials', variant: 'destructive' });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('integration_credentials')
+        .upsert({
+          user_id: user.id,
+          provider: 'bunny',
+          credentials: { apiKey: bunnyApiKey, libraryId: bunnyLibraryId },
+        }, { onConflict: 'user_id,provider' });
+
+      if (error) throw error;
+
+      setBunnyCredentialsSaved(true);
+      toast({ title: 'Bunny.net credentials saved' });
+    } catch (error) {
+      console.error('Failed to save Bunny credentials:', error);
+      toast({ title: 'Failed to save credentials', variant: 'destructive' });
+    } finally {
+      setIsSavingBunnyCredentials(false);
     }
   };
 
@@ -136,11 +191,21 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
     }
   };
 
+  const getBunnyCredentials = () => ({
+    apiKey: bunnyApiKey || undefined,
+    libraryId: bunnyLibraryId || undefined,
+  });
+
   const loadBunnyVideos = async () => {
+    if (!bunnyApiKey || !bunnyLibraryId) {
+      toast({ title: 'Configure Bunny.net credentials first', variant: 'destructive' });
+      return;
+    }
+
     setIsLoadingVideos(true);
     try {
       const { data, error } = await supabase.functions.invoke('bunny-video', {
-        body: { action: 'list' },
+        body: { action: 'list', ...getBunnyCredentials() },
       });
 
       if (error) throw error;
@@ -163,6 +228,11 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
       return;
     }
 
+    if (!bunnyApiKey || !bunnyLibraryId) {
+      toast({ title: 'Configure Bunny.net credentials first', variant: 'destructive' });
+      return;
+    }
+
     setIsUploading(true);
     try {
       const { data, error } = await supabase.functions.invoke('bunny-video', {
@@ -170,6 +240,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
           action: 'fetch', 
           videoUrl: uploadingUrl,
           title: uploadTitle || 'Uploaded Video',
+          ...getBunnyCredentials(),
         },
       });
 
@@ -203,6 +274,11 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
       return;
     }
 
+    if (!bunnyApiKey || !bunnyLibraryId) {
+      toast({ title: 'Configure Bunny.net credentials first', variant: 'destructive' });
+      return;
+    }
+
     setIsUploading(true);
     setUploadProgress(0);
 
@@ -212,6 +288,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
         body: { 
           action: 'create', 
           title: uploadTitle || selectedFile.name,
+          ...getBunnyCredentials(),
         },
       });
 
@@ -393,18 +470,34 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
       </div>
 
       <Tabs defaultValue="bunny" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="bunny" className="flex items-center gap-2">
             <Cloud className="h-4 w-4" />
-            Bunny.net Videos
+            Bunny.net
           </TabsTrigger>
           <TabsTrigger value="learndash" className="flex items-center gap-2">
             <GraduationCap className="h-4 w-4" />
-            LearnDash Export
+            LearnDash
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center gap-2">
+            <Save className="h-4 w-4" />
+            Settings
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="bunny" className="space-y-4 mt-4">
+          {/* Bunny.net Credentials Check */}
+          {(!bunnyApiKey || !bunnyLibraryId) && (
+            <Card className="border-yellow-500/30 bg-yellow-500/5">
+              <CardContent className="pt-4">
+                <p className="text-sm text-yellow-400 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Configure your Bunny.net credentials in the Settings tab to upload videos.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Upload Options */}
           <Card>
             <CardHeader>
@@ -804,6 +897,114 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings" className="space-y-4 mt-4">
+          {/* Bunny.net Credentials */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Cloud className="h-5 w-5" />
+                Bunny.net
+                {bunnyCredentialsSaved && (
+                  <Badge variant="outline" className="text-green-500 border-green-500/30">
+                    <Check className="h-3 w-3 mr-1" />
+                    Saved
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Video hosting credentials for uploading course videos
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoadingCredentials ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>API Key</Label>
+                    <Input
+                      type="password"
+                      placeholder="Your Bunny.net API key"
+                      value={bunnyApiKey}
+                      onChange={(e) => { setBunnyApiKey(e.target.value); setBunnyCredentialsSaved(false); }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Find this in Bunny.net: Stream → Library → API → Library API Key
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Library ID</Label>
+                    <Input
+                      placeholder="Your Bunny.net Library ID"
+                      value={bunnyLibraryId}
+                      onChange={(e) => { setBunnyLibraryId(e.target.value); setBunnyCredentialsSaved(false); }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Find this in Bunny.net: Stream → Library → The number in the URL
+                    </p>
+                  </div>
+                  <Button
+                    onClick={saveBunnyCredentials}
+                    disabled={isSavingBunnyCredentials || !bunnyApiKey || !bunnyLibraryId}
+                    className="w-full"
+                  >
+                    {isSavingBunnyCredentials ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : bunnyCredentialsSaved ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Saved
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save Bunny.net Credentials
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* LearnDash info card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <GraduationCap className="h-5 w-5" />
+                LearnDash
+                {credentialsSaved && (
+                  <Badge variant="outline" className="text-green-500 border-green-500/30">
+                    <Check className="h-3 w-3 mr-1" />
+                    Saved
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                WordPress/LearnDash credentials are configured in the LearnDash tab
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {credentialsSaved ? (
+                  <span className="flex items-center gap-2 text-green-500">
+                    <Check className="h-4 w-4" />
+                    LearnDash credentials are configured for {wpUrl}
+                  </span>
+                ) : (
+                  'Go to the LearnDash tab to configure your WordPress credentials.'
+                )}
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
