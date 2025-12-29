@@ -25,10 +25,15 @@ serve(async (req) => {
       throw new Error('ElevenLabs API key not configured. Please add your API key in Settings.');
     }
 
-    console.log(`Generating voice for ${text.length} characters with voice ${voiceId || 'default'}`);
+    // ElevenLabs voice IDs are alphanumeric strings like "JBFqnCBsd6RMkjVDRZzb"
+    // Azure/Microsoft voice IDs look like "sv-SE-MattiasNeural" - these are NOT valid for ElevenLabs
+    const isValidElevenLabsVoiceId = voiceId && /^[a-zA-Z0-9]{20,}$/.test(voiceId);
+    const effectiveVoiceId = isValidElevenLabsVoiceId ? voiceId : 'JBFqnCBsd6RMkjVDRZzb';
+    
+    console.log(`Generating voice for ${text.length} characters with voice ${effectiveVoiceId} (original: ${voiceId || 'none'})`);
 
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId || 'JBFqnCBsd6RMkjVDRZzb'}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${effectiveVoiceId}`,
       {
         method: 'POST',
         headers: {

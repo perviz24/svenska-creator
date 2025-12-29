@@ -83,6 +83,10 @@ Deno.serve(async (req) => {
       console.log(`Generating video with avatar ${avatarId}, script length: ${script.length}`);
 
       // Create video generation task
+      // HeyGen requires a valid voice_id when using voice type
+      // Default to a HeyGen default voice if none provided
+      const defaultVoiceId = '1bd001e7e50f421d891986aad5158bc8'; // HeyGen default English voice
+      
       const response = await fetch('https://api.heygen.com/v2/video/generate', {
         method: 'POST',
         headers: {
@@ -97,12 +101,10 @@ Deno.serve(async (req) => {
                 avatar_id: avatarId,
                 avatar_style: 'normal',
               },
-              voice: voiceId ? {
-                type: 'voice_id',
-                voice_id: voiceId,
-              } : {
+              voice: {
                 type: 'text',
                 input_text: script,
+                voice_id: voiceId || defaultVoiceId,
               },
               background: {
                 type: 'color',
