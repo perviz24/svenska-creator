@@ -198,7 +198,7 @@ export function ModeSelectionStep({
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <GraduationCap className="w-4 h-4 text-amber-500" />
-                  <span>Max {currentDemoSettings.maxModules} moduler</span>
+                  <span>Max {currentDemoSettings.maxModules} modul{currentDemoSettings.maxModules !== 1 ? 'er' : ''}</span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Clock className="w-4 h-4 text-amber-500" />
