@@ -448,6 +448,7 @@ const Demo = () => {
             isLoading={state.isProcessing}
             courseTitle={state.title}
             demoMode={state.settings.demoMode}
+            projectMode={state.settings.projectMode}
             onGenerateSlides={generateSlides}
             onUpdateSlide={updateSlide}
             onContinue={nextStep}
