@@ -143,6 +143,15 @@ export interface AIStructurePreview {
   reasoning?: string;
 }
 
+export interface DemoModeSettings {
+  enabled: boolean;
+  maxSlides: number;
+  maxModules: number;
+  maxAudioDurationSeconds: number;
+  maxVideoDurationSeconds: number;
+  watermarkEnabled: boolean;
+}
+
 export interface CourseSettings {
   voiceId: string;
   voiceName: string;
@@ -158,6 +167,7 @@ export interface CourseSettings {
   structureLimits?: CourseStructureLimits;
   parentCourseId?: string;
   tags?: string[];
+  demoMode?: DemoModeSettings;
 }
 
 export interface ModuleAudio {

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Slide, ModuleScript, StockPhoto, CourseOutline } from '@/types/course';
+import { Slide, ModuleScript, StockPhoto, CourseOutline, DemoModeSettings } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -14,12 +14,14 @@ import { ContentUploader } from '@/components/ContentUploader';
 import { CanvaTemplates } from '@/components/CanvaTemplates';
 import { GoogleSlidesExport } from '@/components/GoogleSlidesExport';
 import { AIRefinementPanel } from '@/components/AIRefinementPanel';
+import { DemoWatermark } from '@/components/DemoWatermark';
 interface SlideStepProps {
   outline: CourseOutline | null;
   scripts: ModuleScript[];
   slides: Record<string, Slide[]>;
   isLoading: boolean;
   courseTitle: string;
+  demoMode?: DemoModeSettings;
   onGenerateSlides: (moduleId: string, script: ModuleScript) => Promise<void>;
   onUpdateSlide: (moduleId: string, slideIndex: number, updates: Partial<Slide>) => void;
   onContinue: () => void;
@@ -33,12 +35,14 @@ export function SlideStep({
   slides,
   isLoading,
   courseTitle,
+  demoMode,
   onGenerateSlides,
   onUpdateSlide,
   onContinue,
   onContentUploaded,
   onSkip,
 }: SlideStepProps) {
+  const isDemoMode = demoMode?.enabled && demoMode?.watermarkEnabled;
   const [selectedModuleIndex, setSelectedModuleIndex] = useState(0);
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
   const [isSearchingPhotos, setIsSearchingPhotos] = useState(false);
@@ -493,6 +497,9 @@ export function SlideStep({
                       </p>
                     )}
                   </div>
+                  
+                  {/* Demo Watermark */}
+                  {isDemoMode && <DemoWatermark />}
                 </div>
               )}
 
