@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Sparkles, Loader2, Wand2, Check, ArrowRight, RefreshCw } from 'lucide-react';
+import { Sparkles, Loader2, Wand2, Check, ArrowRight, RefreshCw, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -37,6 +39,25 @@ const REFINEMENT_ACTIONS = [
   },
 ];
 
+const AVAILABLE_LANGUAGES = [
+  { code: 'sv', name: 'Svenska', flag: '🇸🇪' },
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'fr', name: 'Français', flag: '🇫🇷' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+  { code: 'pt', name: 'Português', flag: '🇵🇹' },
+  { code: 'nl', name: 'Nederlands', flag: '🇳🇱' },
+  { code: 'pl', name: 'Polski', flag: '🇵🇱' },
+  { code: 'da', name: 'Dansk', flag: '🇩🇰' },
+  { code: 'no', name: 'Norsk', flag: '🇳🇴' },
+  { code: 'fi', name: 'Suomi', flag: '🇫🇮' },
+  { code: 'zh', name: '中文', flag: '🇨🇳' },
+  { code: 'ja', name: '日本語', flag: '🇯🇵' },
+  { code: 'ko', name: '한국어', flag: '🇰🇷' },
+  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+];
+
 export function AIRefinementPanel({
   content,
   contentType,
@@ -49,6 +70,8 @@ export function AIRefinementPanel({
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [customInstruction, setCustomInstruction] = useState('');
   const [refinedContent, setRefinedContent] = useState<string | null>(null);
+  const [targetLanguage, setTargetLanguage] = useState<string>('');
+  const [isTranslating, setIsTranslating] = useState(false);
 
   const contentTypeLabels: Record<string, string> = {
     outline: 'kursöversikt',
@@ -97,6 +120,48 @@ export function AIRefinementPanel({
     }
   };
 
+  const handleTranslate = async () => {
+    if (!targetLanguage) {
+      toast.error('Välj ett språk att översätta till');
+      return;
+    }
+
+    setIsTranslating(true);
+
+    try {
+      const targetLangName = AVAILABLE_LANGUAGES.find(l => l.code === targetLanguage)?.name || targetLanguage;
+      
+      const { data, error } = await supabase.functions.invoke('translate-content', {
+        body: {
+          content,
+          sourceLanguage: language === 'sv' ? 'Swedish' : 'English',
+          targetLanguage: targetLangName,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        if (data.error.includes('Rate limit')) {
+          toast.error('För många förfrågningar. Vänta en stund.');
+        } else if (data.error.includes('Payment')) {
+          toast.error('Krediter krävs för översättning.');
+        } else {
+          throw new Error(data.error);
+        }
+        return;
+      }
+
+      setRefinedContent(data.translatedContent);
+      toast.success(`Översatt till ${targetLangName}!`);
+    } catch (error) {
+      console.error('Error translating content:', error);
+      toast.error('Kunde inte översätta innehållet');
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
   const handleAcceptRefinement = () => {
     if (refinedContent) {
       onRefinedContent(refinedContent);
@@ -136,7 +201,7 @@ export function AIRefinementPanel({
                   variant="outline"
                   className="h-auto py-3 flex flex-col items-center gap-1 hover:bg-primary/10 hover:border-primary/50"
                   onClick={() => handleRefine(action.id)}
-                  disabled={isProcessing}
+                  disabled={isProcessing || isTranslating}
                 >
                   {isProcessing && selectedAction === action.id ? (
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -149,8 +214,47 @@ export function AIRefinementPanel({
               ))}
             </div>
 
+            {/* Translation Section */}
+            <div className="space-y-3">
+              <Separator />
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Languages className="h-4 w-4 text-primary" />
+                Översätt till annat språk
+              </div>
+              <div className="flex gap-2">
+                <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Välj målspråk..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    {AVAILABLE_LANGUAGES.map((lang) => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        <span className="flex items-center gap-2">
+                          <span>{lang.flag}</span>
+                          <span>{lang.name}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  onClick={handleTranslate}
+                  disabled={isTranslating || isProcessing || !targetLanguage}
+                  className="gap-2"
+                >
+                  {isTranslating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Languages className="h-4 w-4" />
+                  )}
+                  Översätt
+                </Button>
+              </div>
+            </div>
+
             {/* Custom Instruction */}
             <div className="space-y-2">
+              <Separator />
               <Textarea
                 placeholder="Eller skriv en egen instruktion för AI... t.ex. 'Gör texten mer engagerande' eller 'Lägg till fler exempel'"
                 value={customInstruction}
@@ -161,7 +265,7 @@ export function AIRefinementPanel({
                 variant="outline"
                 size="sm"
                 onClick={() => handleRefine('custom')}
-                disabled={isProcessing || !customInstruction.trim()}
+                disabled={isProcessing || isTranslating || !customInstruction.trim()}
                 className="gap-2"
               >
                 {isProcessing && selectedAction === 'custom' ? (
