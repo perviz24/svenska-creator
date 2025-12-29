@@ -1,13 +1,17 @@
-import { useState } from 'react';
-import { FileText, ExternalLink, RefreshCw, ArrowRight, BookOpen, Clock, Quote, Volume2, Loader2, Play, Square } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { FileText, ExternalLink, RefreshCw, ArrowRight, BookOpen, Clock, Quote, Volume2, Loader2, Play, Square, Upload, FileUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ModuleScript, CourseOutline } from '@/types/course';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { ModuleScript, CourseOutline, ScriptSection } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { useVoiceSynthesis } from '@/hooks/useVoiceSynthesis';
+import { toast } from 'sonner';
 
 const ELEVENLABS_VOICES = [
   { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Varm, professionell' },
@@ -27,6 +31,7 @@ interface ScriptStepProps {
   currentModuleIndex: number;
   onGenerateScript: (moduleIndex: number) => void;
   onContinue: () => void;
+  onUploadScript?: (moduleId: string, script: ModuleScript) => void;
 }
 
 export function ScriptStep({
@@ -36,9 +41,14 @@ export function ScriptStep({
   currentModuleIndex,
   onGenerateScript,
   onContinue,
+  onUploadScript,
 }: ScriptStepProps) {
   const { getState, generateVoice, playAudio, stopAudio } = useVoiceSynthesis();
   const [selectedVoice, setSelectedVoice] = useState(ELEVENLABS_VOICES[0].id);
+  const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
+  const [manualText, setManualText] = useState<Record<string, string>>({});
+  const [selectedModuleForUpload, setSelectedModuleForUpload] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!outline) {
     return (
@@ -64,13 +74,90 @@ export function ScriptStep({
     }
   };
 
+  const parseTextToScript = (text: string, moduleId: string, moduleTitle: string): ModuleScript => {
+    // Split text into sections by double newlines or headers
+    const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
+    const sections: ScriptSection[] = paragraphs.map((content, idx) => ({
+      id: `section-${idx}`,
+      title: `Avsnitt ${idx + 1}`,
+      content: content.trim(),
+      slideMarkers: [],
+    }));
+
+    const wordCount = text.split(/\s+/).filter(w => w).length;
+    const estimatedDuration = Math.ceil(wordCount / 150); // ~150 words per minute
+
+    return {
+      moduleId,
+      moduleTitle,
+      totalWords: wordCount,
+      estimatedDuration,
+      citations: [],
+      sections,
+    };
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, moduleId: string, moduleTitle: string) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const script = parseTextToScript(text, moduleId, moduleTitle);
+      
+      if (onUploadScript) {
+        onUploadScript(moduleId, script);
+        toast.success('Manus importerat!');
+      }
+    } catch (error) {
+      toast.error('Kunde inte läsa filen');
+    }
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleManualTextSubmit = (moduleId: string, moduleTitle: string) => {
+    const text = manualText[moduleId];
+    if (!text?.trim()) {
+      toast.error('Ange text för manuset');
+      return;
+    }
+
+    const script = parseTextToScript(text, moduleId, moduleTitle);
+    
+    if (onUploadScript) {
+      onUploadScript(moduleId, script);
+      setManualText(prev => ({ ...prev, [moduleId]: '' }));
+      toast.success('Manus sparat!');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="text-center space-y-3">
         <h2 className="text-3xl font-bold text-foreground">Manus</h2>
         <p className="text-muted-foreground max-w-md mx-auto">
-          Generera manus för varje modul. AI-forskning från Perplexity berikar innehållet.
+          Generera manus med AI eller ladda upp eget kursinnehåll.
         </p>
+      </div>
+
+      {/* Mode Toggle */}
+      <div className="flex justify-center">
+        <Tabs value={uploadMode} onValueChange={(v) => setUploadMode(v as 'generate' | 'upload')} className="w-full max-w-md">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="generate" className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              AI-generera
+            </TabsTrigger>
+            <TabsTrigger value="upload" className="gap-2">
+              <Upload className="w-4 h-4" />
+              Ladda upp
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Voice Selection */}
@@ -90,6 +177,22 @@ export function ScriptStep({
           </SelectContent>
         </Select>
       </div>
+
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept=".txt,.md,.doc,.docx"
+        onChange={(e) => {
+          if (selectedModuleForUpload) {
+            const module = outline?.modules.find(m => m.id === selectedModuleForUpload);
+            if (module) {
+              handleFileUpload(e, module.id, module.title);
+            }
+          }
+        }}
+      />
 
       {/* Module Scripts */}
       <div className="space-y-4">
@@ -256,7 +359,7 @@ export function ScriptStep({
                       </div>
                     )}
                   </>
-                ) : (
+                ) : uploadMode === 'generate' ? (
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">
                       {module.description}
@@ -270,6 +373,50 @@ export function ScriptStep({
                         Generera manus
                       </Button>
                     )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      {module.description}
+                    </p>
+                    
+                    {/* Upload options */}
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedModuleForUpload(module.id);
+                            fileInputRef.current?.click();
+                          }}
+                          className="gap-2"
+                        >
+                          <FileUp className="w-4 h-4" />
+                          Ladda upp fil
+                        </Button>
+                        <span className="text-xs text-muted-foreground self-center">
+                          (.txt, .md)
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label className="text-sm">Eller klistra in text:</Label>
+                        <Textarea
+                          placeholder="Klistra in ditt manus här..."
+                          value={manualText[module.id] || ''}
+                          onChange={(e) => setManualText(prev => ({ ...prev, [module.id]: e.target.value }))}
+                          className="min-h-[120px] text-sm"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => handleManualTextSubmit(module.id, module.title)}
+                          disabled={!manualText[module.id]?.trim()}
+                        >
+                          Spara manus
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>

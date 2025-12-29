@@ -19,6 +19,7 @@ const Index = () => {
     nextStep,
     generateOutline,
     generateScript,
+    uploadScript,
     generateSlides,
     updateSlide,
     updateSettings,
@@ -60,6 +61,7 @@ const Index = () => {
             isLoading={state.isProcessing}
             currentModuleIndex={state.scripts.length}
             onGenerateScript={generateScript}
+            onUploadScript={uploadScript}
             onContinue={nextStep}
           />
         );
