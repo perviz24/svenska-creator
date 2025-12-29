@@ -11,7 +11,7 @@ import { VideoStep } from '@/components/VideoStep';
 import { ExportStep } from '@/components/ExportStep';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { useCourseWorkflow } from '@/hooks/useCourseWorkflow';
-import { ProjectMode, PresentationSettings } from '@/types/course';
+import { ProjectMode, PresentationSettings, CourseStructureLimits } from '@/types/course';
 
 const Index = () => {
   const {
@@ -44,6 +44,10 @@ const Index = () => {
     updateSettings({ presentationSettings: settings });
   };
 
+  const handleStructureLimitsChange = (limits: CourseStructureLimits) => {
+    updateSettings({ structureLimits: limits });
+  };
+
   const renderCurrentStep = () => {
     switch (state.currentStep) {
       case 'mode':
@@ -51,8 +55,11 @@ const Index = () => {
           <ModeSelectionStep
             projectMode={state.settings.projectMode}
             presentationSettings={state.settings.presentationSettings}
+            structureLimits={state.settings.structureLimits}
+            courseTitle={state.title}
             onModeChange={handleModeChange}
             onPresentationSettingsChange={handlePresentationSettingsChange}
+            onStructureLimitsChange={handleStructureLimitsChange}
             onContinue={nextStep}
           />
         );

@@ -86,11 +86,30 @@ export interface StockProviderSettings {
 }
 
 export type ProjectMode = 'course' | 'presentation';
+export type ComprehensiveLevel = 'beginner' | 'intermediate' | 'advanced';
+export type CourseLengthPreset = 'short' | 'standard' | 'comprehensive';
 
 export interface PresentationSettings {
   slideCount: number;
   presentationDuration: number; // in minutes
   topic: string;
+}
+
+export interface CourseStructureLimits {
+  maxModules: number;
+  slidesPerModule: number;
+  courseLengthPreset: CourseLengthPreset;
+  comprehensiveLevel: ComprehensiveLevel;
+}
+
+export interface AIStructurePreview {
+  estimatedModules: number;
+  estimatedSubmodulesPerModule: number;
+  estimatedSlidesPerModule: number;
+  estimatedTotalSlides: number;
+  estimatedDurationMinutes: number;
+  confidence: number;
+  reasoning?: string;
 }
 
 export interface CourseSettings {
@@ -105,6 +124,9 @@ export interface CourseSettings {
   aiQualityMode: 'fast' | 'quality'; // fast = flash models, quality = pro/gpt-5 models
   projectMode: ProjectMode;
   presentationSettings?: PresentationSettings;
+  structureLimits?: CourseStructureLimits;
+  parentCourseId?: string;
+  tags?: string[];
 }
 
 export interface ModuleAudio {
