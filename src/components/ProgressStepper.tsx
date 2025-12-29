@@ -66,11 +66,20 @@ export function ProgressStepper({ currentStep, completedSteps, projectMode = 'co
         {/* Progress line background */}
         <div className="absolute left-0 right-0 top-5 h-0.5 bg-border" />
         
-        {/* Progress line filled */}
-        <div 
-          className="absolute left-0 top-5 h-0.5 bg-accent transition-all duration-500"
-          style={{ width: `${(Math.max(0, currentIndex) / (steps.length - 1)) * 100}%` }}
-        />
+        {(() => {
+          const completedIndexes = completedSteps
+            .map((id) => steps.findIndex((s) => s.id === id))
+            .filter((i) => i >= 0);
+          const furthestIndex = Math.max(currentIndex, ...completedIndexes, 0);
+          const progress = steps.length > 1 ? (furthestIndex / (steps.length - 1)) * 100 : 0;
+
+          return (
+            <div
+              className="absolute left-0 top-5 h-0.5 bg-accent transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          );
+        })()}
 
         {steps.map((step, index) => {
           const isCompleted = completedSteps.includes(step.id);

@@ -131,7 +131,12 @@ const Demo = () => {
   };
 
   const goToStep = (step: WorkflowStep) => {
-    setState(prev => ({ ...prev, currentStep: step }));
+    setState(prev => ({
+      ...prev,
+      // Mark the step we're leaving as completed so progress isn't lost when jumping around
+      completedSteps: [...new Set([...prev.completedSteps, prev.currentStep])],
+      currentStep: step,
+    }));
   };
 
   const nextStep = () => {
