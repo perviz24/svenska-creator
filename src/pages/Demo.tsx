@@ -45,8 +45,8 @@ const defaultDemoSettings: DemoModeSettings = {
 };
 
 const initialSettings: CourseSettings = {
-  voiceId: 'sv-SE-MattiasNeural',
-  voiceName: 'Mattias (Svenska, Maskulin)',
+  voiceId: 'JBFqnCBsd6RMkjVDRZzb',
+  voiceName: 'George (Auktoritativ, lugn)',
   targetDuration: 15,
   style: 'professional',
   includeQuizzes: true,

@@ -24,10 +24,16 @@ interface SettingsPanelProps {
   onPresentationSettingsChange?: (settings: PresentationSettings) => void;
 }
 
+// ElevenLabs voices - valid voice IDs for the ElevenLabs API
 const voices = [
-  { id: 'sv-SE-MattiasNeural', name: 'Mattias (Svenska, Maskulin)' },
-  { id: 'sv-SE-SofieNeural', name: 'Sofie (Svenska, Feminin)' },
-  { id: 'sv-SE-HilleniNeural', name: 'Hillevi (Svenska, Feminin)' },
+  { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George (Auktoritativ, lugn)', language: 'sv' },
+  { id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel (Berättande, mjuk)', language: 'sv' },
+  { id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda (Vänlig, energisk)', language: 'sv' },
+  { id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'Roger (Djup, resonerande)', language: 'sv' },
+  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah (Varm, professionell)', language: 'sv' },
+  { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily (Tydlig, pedagogisk)', language: 'sv' },
+  { id: 'nPczCjzI2devNBz1zQrb', name: 'Brian (Berättarröst, djup)', language: 'en' },
+  { id: 'Xb7hH8MSUJpSbSDYk0k2', name: 'Alice (Brittisk, varm)', language: 'en' },
 ];
 
 const styles = [
