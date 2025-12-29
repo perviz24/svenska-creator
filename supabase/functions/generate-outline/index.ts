@@ -120,12 +120,12 @@ serve(async (req) => {
     console.log('Cache MISS - generating new outline for:', title);
     console.log('Settings - Duration:', targetDuration, 'Modules:', maxModules, 'Level:', comprehensiveLevel, 'Demo:', demoMode);
 
-    // In demo mode: very short output (2 modules, minimal content)
-    const effectiveMaxModules = demoMode ? 2 : maxModules;
-    const effectiveDuration = demoMode ? 5 : targetDuration;
+    // In demo mode: very short output (1 module, minimal content)
+    const effectiveMaxModules = demoMode ? 1 : maxModules;
+    const effectiveDuration = demoMode ? 3 : targetDuration;
     
     // Use provided maxModules or calculate based on duration
-    const moduleCount = demoMode ? 2 : Math.max(3, Math.min(effectiveMaxModules, Math.ceil(effectiveDuration / 6)));
+    const moduleCount = demoMode ? 1 : Math.max(3, Math.min(effectiveMaxModules, Math.ceil(effectiveDuration / 6)));
     
     // Adjust detail level based on demo mode and comprehensiveness
     const detailMultiplier: Record<string, number> = {
@@ -138,7 +138,7 @@ serve(async (req) => {
     const learningObjectivesPerModule = demoMode ? 2 : Math.round(3 * multiplier);
 
     // Use effective duration for prompts
-    const promptDuration = demoMode ? 5 : effectiveDuration;
+    const promptDuration = demoMode ? 3 : effectiveDuration;
 
     const levelDescriptionsSv: Record<string, string> = {
       beginner: 'grundläggande nivå för nybörjare',
@@ -148,11 +148,11 @@ serve(async (req) => {
     const levelDescSv = levelDescriptionsSv[comprehensiveLevel] || 'mellannivå';
 
     const demoInstructionSv = demoMode 
-      ? 'VIKTIGT: Detta är en demo-version. Håll innehållet MYCKET kort och koncist. Endast 2 moduler med 2 delämnen vardera. Totalt max 5 minuter.'
+      ? 'VIKTIGT: Detta är en demo-version. Håll innehållet MYCKET kort och koncist. Endast 1 modul med 2 delämnen. Totalt max 3 minuter.'
       : '';
     
     const demoInstructionEn = demoMode
-      ? 'IMPORTANT: This is a demo version. Keep content VERY short and concise. Only 2 modules with 2 subtopics each. Total max 5 minutes.'
+      ? 'IMPORTANT: This is a demo version. Keep content VERY short and concise. Only 1 module with 2 subtopics. Total max 3 minutes.'
       : '';
 
     const systemPrompt = language === 'sv'
