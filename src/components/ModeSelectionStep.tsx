@@ -1,30 +1,51 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { GraduationCap, Presentation, Clock, Layers, ArrowRight, Sparkles, Zap } from 'lucide-react';
-import { ProjectMode, PresentationSettings } from '@/types/course';
+import { ProjectMode, PresentationSettings, CourseStructureLimits, AIStructurePreview } from '@/types/course';
 import { cn } from '@/lib/utils';
+import { CourseStructureSettings } from './CourseStructureSettings';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface ModeSelectionStepProps {
   projectMode: ProjectMode;
   presentationSettings?: PresentationSettings;
+  structureLimits?: CourseStructureLimits;
+  courseTitle?: string;
   onModeChange: (mode: ProjectMode) => void;
   onPresentationSettingsChange: (settings: PresentationSettings) => void;
+  onStructureLimitsChange: (limits: CourseStructureLimits) => void;
   onContinue: () => void;
 }
 
 export function ModeSelectionStep({
   projectMode,
   presentationSettings,
+  structureLimits,
+  courseTitle,
   onModeChange,
   onPresentationSettingsChange,
+  onStructureLimitsChange,
   onContinue,
 }: ModeSelectionStepProps) {
   const [slideCount, setSlideCount] = useState(presentationSettings?.slideCount || 10);
   const [duration, setDuration] = useState(presentationSettings?.presentationDuration || 15);
+  const [aiPreview, setAiPreview] = useState<AIStructurePreview | undefined>();
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+
+  // Default structure limits
+  const defaultLimits: CourseStructureLimits = {
+    maxModules: 10,
+    slidesPerModule: 15,
+    courseLengthPreset: 'standard',
+    comprehensiveLevel: 'intermediate',
+  };
+
+  const currentLimits = structureLimits || defaultLimits;
 
   const handleModeChange = (mode: ProjectMode) => {
     onModeChange(mode);
@@ -58,6 +79,42 @@ export function ModeSelectionStep({
         presentationDuration: value[0],
         topic: presentationSettings?.topic || '',
       });
+    }
+  };
+
+  const handleRequestAIPreview = async () => {
+    if (!courseTitle && projectMode === 'course') {
+      toast.info('Ange en kurstitel först för AI-rekommendation');
+      return;
+    }
+
+    setIsLoadingPreview(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-course-structure', {
+        body: {
+          title: courseTitle || '',
+          comprehensiveLevel: currentLimits.comprehensiveLevel,
+          courseLengthPreset: currentLimits.courseLengthPreset,
+          language: 'sv',
+        },
+      });
+
+      if (error) throw error;
+      if (data?.preview) {
+        setAiPreview(data.preview);
+        // Auto-apply AI recommendations
+        onStructureLimitsChange({
+          ...currentLimits,
+          maxModules: data.preview.estimatedModules,
+          slidesPerModule: data.preview.estimatedSlidesPerModule,
+        });
+        toast.success('AI-rekommendation mottagen');
+      }
+    } catch (err) {
+      console.error('Error getting AI preview:', err);
+      toast.error('Kunde inte hämta AI-rekommendation');
+    } finally {
+      setIsLoadingPreview(false);
     }
   };
 
@@ -218,6 +275,17 @@ export function ModeSelectionStep({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Course Structure Settings */}
+      {projectMode === 'course' && (
+        <CourseStructureSettings
+          limits={currentLimits}
+          aiPreview={aiPreview}
+          isLoadingPreview={isLoadingPreview}
+          onLimitsChange={onStructureLimitsChange}
+          onRequestAIPreview={handleRequestAIPreview}
+        />
       )}
 
       {/* Continue Button */}

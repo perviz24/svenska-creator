@@ -16,42 +16,71 @@ export type Database = {
     Tables: {
       courses: {
         Row: {
+          comprehensive_level: string | null
+          course_length_preset: string | null
+          course_level_order: number | null
           created_at: string
           current_step: string
           id: string
+          max_modules: number | null
           outline: Json | null
+          parent_course_id: string | null
           selected_title_id: string | null
           settings: Json
+          slides_per_module: number | null
+          tags: string[] | null
           title: string
           title_suggestions: Json | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          comprehensive_level?: string | null
+          course_length_preset?: string | null
+          course_level_order?: number | null
           created_at?: string
           current_step?: string
           id?: string
+          max_modules?: number | null
           outline?: Json | null
+          parent_course_id?: string | null
           selected_title_id?: string | null
           settings?: Json
+          slides_per_module?: number | null
+          tags?: string[] | null
           title: string
           title_suggestions?: Json | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          comprehensive_level?: string | null
+          course_length_preset?: string | null
+          course_level_order?: number | null
           created_at?: string
           current_step?: string
           id?: string
+          max_modules?: number | null
           outline?: Json | null
+          parent_course_id?: string | null
           selected_title_id?: string | null
           settings?: Json
+          slides_per_module?: number | null
+          tags?: string[] | null
           title?: string
           title_suggestions?: Json | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "courses_parent_course_id_fkey"
+            columns: ["parent_course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       integration_credentials: {
         Row: {

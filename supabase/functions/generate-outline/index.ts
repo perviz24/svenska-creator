@@ -11,7 +11,17 @@ serve(async (req) => {
   }
 
   try {
-    const { title, targetDuration = 60, style = 'professional', language = 'sv' } = await req.json();
+    const { 
+      title, 
+      targetDuration = 60, 
+      style = 'professional', 
+      language = 'sv',
+      maxModules = 10,
+      slidesPerModule = 15,
+      comprehensiveLevel = 'intermediate',
+      courseLengthPreset = 'standard'
+    } = await req.json();
+    
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
@@ -22,13 +32,33 @@ serve(async (req) => {
       throw new Error('Course title is required');
     }
 
-    console.log('Generating course outline for:', title, 'Duration:', targetDuration, 'minutes');
+    console.log('Generating course outline for:', title);
+    console.log('Settings - Duration:', targetDuration, 'Modules:', maxModules, 'Level:', comprehensiveLevel);
 
-    const moduleCount = Math.max(4, Math.min(10, Math.floor(targetDuration / 8)));
+    // Use provided maxModules or calculate based on duration
+    const moduleCount = Math.max(3, Math.min(maxModules, Math.ceil(targetDuration / 6)));
+    
+    // Adjust detail level based on comprehensiveness
+    const detailMultiplier: Record<string, number> = {
+      beginner: 0.7,
+      intermediate: 1.0,
+      advanced: 1.3,
+    };
+    const multiplier = detailMultiplier[comprehensiveLevel] || 1.0;
+    const subTopicsPerModule = Math.round(3 * multiplier);
+    const learningObjectivesPerModule = Math.round(3 * multiplier);
+
+    const levelDescriptionsSv: Record<string, string> = {
+      beginner: 'grundläggande nivå för nybörjare',
+      intermediate: 'mellannivå med balanserat djup',
+      advanced: 'avancerad nivå med djupgående innehåll',
+    };
+    const levelDescSv = levelDescriptionsSv[comprehensiveLevel] || 'mellannivå';
 
     const systemPrompt = language === 'sv'
       ? `Du är en expert på att skapa kursplaner för vårdutbildning.
          Skapa en detaljerad kursöversikt med ${moduleCount} moduler för en kurs som är cirka ${targetDuration} minuter lång.
+         Kursen ska vara på ${levelDescSv}.
          Stilen ska vara ${style === 'professional' ? 'professionell' : style === 'conversational' ? 'konversationell' : 'akademisk'}.
          
          Svara ENDAST med giltig JSON i detta format:
@@ -57,10 +87,11 @@ serve(async (req) => {
            }
          }
          
-         Varje modul ska ha 2-4 lärandemål och 2-4 delteman.
+         Varje modul ska ha ${learningObjectivesPerModule}-${learningObjectivesPerModule + 1} lärandemål och ${subTopicsPerModule}-${subTopicsPerModule + 1} delteman.
          Summan av alla modulers längd ska vara ungefär ${targetDuration} minuter.`
       : `You are an expert at creating course outlines for healthcare education.
          Create a detailed course outline with ${moduleCount} modules for a course that is approximately ${targetDuration} minutes long.
+         The course should be at ${comprehensiveLevel} level.
          The style should be ${style}.
          
          Respond ONLY with valid JSON in this format:
@@ -89,7 +120,7 @@ serve(async (req) => {
            }
          }
          
-         Each module should have 2-4 learning objectives and 2-4 subtopics.
+         Each module should have ${learningObjectivesPerModule}-${learningObjectivesPerModule + 1} learning objectives and ${subTopicsPerModule}-${subTopicsPerModule + 1} subtopics.
          The sum of all module durations should be approximately ${targetDuration} minutes.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
