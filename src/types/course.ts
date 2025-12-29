@@ -94,6 +94,7 @@ export interface CourseSettings {
   enableResearch: boolean;
   language: 'sv' | 'en';
   stockProviders?: StockProviderSettings;
+  aiQualityMode: 'fast' | 'quality'; // fast = flash models, quality = pro/gpt-5 models
 }
 
 export interface ModuleAudio {

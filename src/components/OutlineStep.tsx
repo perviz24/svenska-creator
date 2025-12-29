@@ -1,15 +1,18 @@
-import { useState } from 'react';
-import { ChevronDown, ChevronRight, Clock, Target, ArrowRight, Loader2, RefreshCw, Edit2, Check, X, Wand2, Search } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { ChevronDown, ChevronRight, Clock, Target, ArrowRight, Loader2, RefreshCw, Edit2, Check, X, Wand2, Search, Upload, FileUp, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CourseOutline, Module, LearningObjective, SubTopic } from '@/types/course';
 import { AIReviewEditor } from '@/components/AIReviewEditor';
 import { ResearchHub } from '@/components/ResearchHub';
+import { ContentUploader } from '@/components/ContentUploader';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface OutlineStepProps {
   outline: CourseOutline | null;
@@ -19,6 +22,7 @@ interface OutlineStepProps {
   onRegenerateOutline: () => void;
   onUpdateOutline: (outline: CourseOutline) => void;
   onContinue: () => void;
+  onUploadOutline?: (outline: CourseOutline) => void;
 }
 
 function ModuleCard({ 
@@ -308,38 +312,221 @@ export function OutlineStep({
   onRegenerateOutline,
   onUpdateOutline,
   onContinue,
+  onUploadOutline,
 }: OutlineStepProps) {
   const [showResearch, setShowResearch] = useState(false);
+  const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [manualOutlineText, setManualOutlineText] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const parseTextToOutline = (text: string): CourseOutline | null => {
+    try {
+      // Try to parse as JSON first
+      const parsed = JSON.parse(text);
+      if (parsed.outline) return parsed.outline;
+      if (parsed.modules) return parsed as CourseOutline;
+      return null;
+    } catch {
+      // Parse as plain text - create modules from sections
+      const lines = text.split('\n').filter(l => l.trim());
+      const modules: Module[] = [];
+      let currentModule: Partial<Module> | null = null;
+      let moduleNumber = 0;
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        
+        // Detect module headers (lines starting with numbers or "Module")
+        if (/^(\d+[\.\)]|Modul|Module)\s*/i.test(trimmed)) {
+          if (currentModule && currentModule.title) {
+            modules.push(currentModule as Module);
+          }
+          moduleNumber++;
+          currentModule = {
+            id: `module-${moduleNumber}`,
+            number: moduleNumber,
+            title: trimmed.replace(/^(\d+[\.\)]|Modul|Module)\s*/i, '').trim(),
+            description: '',
+            duration: 10,
+            learningObjectives: [],
+            subTopics: [],
+          };
+        } else if (currentModule && trimmed.startsWith('-')) {
+          // Bullet points become learning objectives or subtopics
+          const content = trimmed.substring(1).trim();
+          if (currentModule.learningObjectives && currentModule.learningObjectives.length < 3) {
+            currentModule.learningObjectives.push({
+              id: `lo-${moduleNumber}-${currentModule.learningObjectives.length + 1}`,
+              text: content,
+            });
+          } else {
+            currentModule.subTopics = currentModule.subTopics || [];
+            currentModule.subTopics.push({
+              id: `st-${moduleNumber}-${currentModule.subTopics.length + 1}`,
+              title: content,
+              duration: 3,
+            });
+          }
+        } else if (currentModule && !currentModule.description && trimmed.length > 10) {
+          currentModule.description = trimmed;
+        }
+      }
+
+      if (currentModule && currentModule.title) {
+        modules.push(currentModule as Module);
+      }
+
+      if (modules.length === 0) {
+        toast.error('Kunde inte tolka kursstrukturen. Försök med JSON-format.');
+        return null;
+      }
+
+      return {
+        title: courseTitle || 'Importerad kurs',
+        description: 'Kursöversikt importerad från textfil',
+        totalDuration: modules.reduce((acc, m) => acc + m.duration, 0),
+        modules,
+      };
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const outline = parseTextToOutline(text);
+      
+      if (outline && onUploadOutline) {
+        onUploadOutline(outline);
+        toast.success('Kursöversikt importerad!');
+      }
+    } catch (error) {
+      toast.error('Kunde inte läsa filen');
+    }
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleManualSubmit = () => {
+    if (!manualOutlineText.trim()) {
+      toast.error('Ange kursstruktur');
+      return;
+    }
+
+    const outline = parseTextToOutline(manualOutlineText);
+    if (outline && onUploadOutline) {
+      onUploadOutline(outline);
+      setManualOutlineText('');
+      toast.success('Kursöversikt importerad!');
+    }
+  };
 
   if (!outline && !isLoading) {
     return (
       <div className="space-y-8 animate-fade-in">
-        <div className="flex flex-col items-center justify-center py-16 space-y-6">
+        <div className="flex flex-col items-center justify-center py-12 space-y-6">
           <div className="text-center space-y-3">
             <h2 className="text-3xl font-bold text-foreground">
-              Generera kursöversikt
+              Kursöversikt
             </h2>
             <p className="text-muted-foreground max-w-md">
-              AI kommer att skapa en detaljerad kursöversikt baserad på din valda titel
+              Generera en kursöversikt med AI eller ladda upp din egen struktur
             </p>
           </div>
-          <div className="flex gap-3">
-            <Button
-              onClick={() => setShowResearch(!showResearch)}
-              variant="outline"
-              size="lg"
-            >
-              <Search className="w-4 h-4 mr-2" />
-              Forskningshub
-            </Button>
-            <Button
-              onClick={onGenerateOutline}
-              variant="gradient"
-              size="xl"
-            >
-              Generera kursöversikt
-            </Button>
-          </div>
+
+          {/* Mode Toggle */}
+          <Tabs value={uploadMode} onValueChange={(v) => setUploadMode(v as 'generate' | 'upload')} className="w-full max-w-md">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="generate" className="gap-2">
+                <Wand2 className="w-4 h-4" />
+                AI-generera
+              </TabsTrigger>
+              <TabsTrigger value="upload" className="gap-2">
+                <Upload className="w-4 h-4" />
+                Ladda upp
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="generate" className="mt-6">
+              <div className="flex flex-col items-center gap-4">
+                <Button
+                  onClick={() => setShowResearch(!showResearch)}
+                  variant="outline"
+                  size="lg"
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  Forskningshub
+                </Button>
+                <Button
+                  onClick={onGenerateOutline}
+                  variant="gradient"
+                  size="xl"
+                >
+                  Generera kursöversikt
+                </Button>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="upload" className="mt-6 space-y-4">
+              {/* Hidden file input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".txt,.md,.json"
+                onChange={handleFileUpload}
+              />
+
+              <Card>
+                <CardContent className="pt-6 space-y-4">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1 gap-2"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <FileUp className="w-4 h-4" />
+                      Välj fil (.txt, .md, .json)
+                    </Button>
+                  </div>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">eller klistra in</span>
+                    </div>
+                  </div>
+
+                  <Textarea
+                    value={manualOutlineText}
+                    onChange={(e) => setManualOutlineText(e.target.value)}
+                    placeholder={`Klistra in kursstruktur här...\n\nExempel:\n1. Introduktion till ämnet\n- Lärandemål 1\n- Lärandemål 2\n\n2. Grundläggande koncept\n- Viktiga begrepp\n- Praktiska exempel`}
+                    className="min-h-[200px] font-mono text-sm"
+                  />
+
+                  <Button
+                    onClick={handleManualSubmit}
+                    className="w-full"
+                    disabled={!manualOutlineText.trim()}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Importera kursöversikt
+                  </Button>
+
+                  <p className="text-xs text-muted-foreground text-center">
+                    Stöder JSON-format eller enkel text med numrerade moduler och punktlistor
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
         
         {showResearch && (

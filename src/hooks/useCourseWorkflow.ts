@@ -13,6 +13,7 @@ const initialSettings: CourseSettings = {
   includeQuizzes: true,
   enableResearch: true,
   language: 'sv',
+  aiQualityMode: 'quality',
 };
 
 const initialVideoSettings: VideoSettings = {

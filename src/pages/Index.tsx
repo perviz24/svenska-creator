@@ -61,6 +61,7 @@ const Index = () => {
             onRegenerateOutline={generateOutline}
             onUpdateOutline={updateOutline}
             onContinue={nextStep}
+            onUploadOutline={updateOutline}
           />
         );
       case 'script':

@@ -11,7 +11,10 @@ import {
   FileText,
   Video,
   ChevronDown,
-  ExternalLink
+  ExternalLink,
+  Zap,
+  Sparkles,
+  Info
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +26,7 @@ import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { VoiceControlPanel, defaultVoiceSettings } from '@/components/VoiceControlPanel';
 import { UserInvitePanel } from '@/components/UserInvitePanel';
 import { FreelancerExportPanel } from '@/components/FreelancerExportPanel';
@@ -34,8 +38,11 @@ import { useAuth } from '@/contexts/AuthContext';
 const Settings = () => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('voice');
+  const [activeTab, setActiveTab] = useState('ai');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  
+  // AI Quality Mode state
+  const [aiQualityMode, setAiQualityMode] = useState<'fast' | 'quality'>('quality');
   
   // Voice settings state
   const [voiceSettings, setVoiceSettings] = useState(defaultVoiceSettings);
@@ -169,7 +176,11 @@ const Settings = () => {
 
           {/* Main Settings Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="ai" className="gap-2">
+                <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">AI</span>
+              </TabsTrigger>
               <TabsTrigger value="voice" className="gap-2">
                 <Volume2 className="w-4 h-4" />
                 <span className="hidden sm:inline">Röst</span>
@@ -187,6 +198,111 @@ const Settings = () => {
                 <span className="hidden sm:inline">Export</span>
               </TabsTrigger>
             </TabsList>
+
+            {/* AI Quality Mode Tab */}
+            <TabsContent value="ai" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                    AI-kvalitetsläge
+                  </CardTitle>
+                  <CardDescription>
+                    Välj mellan snabb generering eller högsta kvalitet
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <RadioGroup 
+                    value={aiQualityMode} 
+                    onValueChange={(v) => setAiQualityMode(v as 'fast' | 'quality')}
+                    className="space-y-4"
+                  >
+                    {/* Fast Mode */}
+                    <div className={`relative flex items-start space-x-4 p-4 rounded-lg border-2 transition-all cursor-pointer ${aiQualityMode === 'fast' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
+                      <RadioGroupItem value="fast" id="fast" className="mt-1" />
+                      <div className="flex-1">
+                        <Label htmlFor="fast" className="text-base font-semibold flex items-center gap-2 cursor-pointer">
+                          <Zap className="w-5 h-5 text-yellow-500" />
+                          Snabbläge
+                          <Badge variant="secondary" className="ml-2">Gemini Flash</Badge>
+                        </Label>
+                        <div className="mt-2 space-y-2 text-sm text-muted-foreground">
+                          <p className="flex items-center gap-2">
+                            <span className="text-green-500">✓</span>
+                            2-3x snabbare generering
+                          </p>
+                          <p className="flex items-center gap-2">
+                            <span className="text-green-500">✓</span>
+                            Lägre kostnad per generering
+                          </p>
+                          <p className="flex items-center gap-2">
+                            <span className="text-green-500">✓</span>
+                            Bra för snabb prototyping
+                          </p>
+                          <p className="flex items-center gap-2">
+                            <span className="text-amber-500">–</span>
+                            Något mindre precision i komplexa uppgifter
+                          </p>
+                          <p className="flex items-center gap-2">
+                            <span className="text-amber-500">–</span>
+                            Enklare bildförslag
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quality Mode */}
+                    <div className={`relative flex items-start space-x-4 p-4 rounded-lg border-2 transition-all cursor-pointer ${aiQualityMode === 'quality' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
+                      <RadioGroupItem value="quality" id="quality" className="mt-1" />
+                      <div className="flex-1">
+                        <Label htmlFor="quality" className="text-base font-semibold flex items-center gap-2 cursor-pointer">
+                          <Sparkles className="w-5 h-5 text-primary" />
+                          Kvalitetsläge
+                          <Badge variant="default" className="ml-2">Gemini Pro + GPT-5</Badge>
+                        </Label>
+                        <div className="mt-2 space-y-2 text-sm text-muted-foreground">
+                          <p className="flex items-center gap-2">
+                            <span className="text-green-500">✓</span>
+                            Bästa möjliga resultat
+                          </p>
+                          <p className="flex items-center gap-2">
+                            <span className="text-green-500">✓</span>
+                            GPT-5 för manusskrivning (naturligt, engagerande)
+                          </p>
+                          <p className="flex items-center gap-2">
+                            <span className="text-green-500">✓</span>
+                            Gemini Pro för struktur (outline, slides)
+                          </p>
+                          <p className="flex items-center gap-2">
+                            <span className="text-green-500">✓</span>
+                            Mer träffsäkra bildförslag
+                          </p>
+                          <p className="flex items-center gap-2">
+                            <span className="text-amber-500">–</span>
+                            Längre genereringstid
+                          </p>
+                          <p className="flex items-center gap-2">
+                            <span className="text-amber-500">–</span>
+                            Högre kostnad
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </RadioGroup>
+
+                  <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg">
+                    <Info className="w-5 h-5 text-muted-foreground mt-0.5" />
+                    <div className="text-sm text-muted-foreground">
+                      <p className="font-medium text-foreground mb-1">Rekommendation</p>
+                      <p>
+                        Använd <strong>Kvalitetsläge</strong> för slutgiltigt kursinnehåll som ska publiceras.
+                        Använd <strong>Snabbläge</strong> för att snabbt testa idéer och strukturer.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             {/* Voice Settings Tab */}
             <TabsContent value="voice" className="space-y-6">
