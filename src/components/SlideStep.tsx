@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage, Upload, ChevronDown, ChevronUp, Palette, SkipForward, Layers } from 'lucide-react';
+import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage, Upload, ChevronDown, ChevronUp, Palette, SkipForward, Layers, FileSpreadsheet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ContentUploader } from '@/components/ContentUploader';
 import { CanvaTemplates } from '@/components/CanvaTemplates';
-
+import { GoogleSlidesExport } from '@/components/GoogleSlidesExport';
 interface SlideStepProps {
   outline: CourseOutline | null;
   scripts: ModuleScript[];
@@ -498,12 +498,16 @@ export function SlideStep({
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="stock" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 mb-4">
+                <TabsList className="grid w-full grid-cols-4 mb-4">
                   <TabsTrigger value="stock">Stockfoton</TabsTrigger>
                   <TabsTrigger value="ai">AI-genererad</TabsTrigger>
                   <TabsTrigger value="canva" className="flex items-center gap-1">
                     <Layers className="h-3 w-3" />
                     Canva
+                  </TabsTrigger>
+                  <TabsTrigger value="google" className="flex items-center gap-1">
+                    <FileSpreadsheet className="h-3 w-3" />
+                    Google
                   </TabsTrigger>
                 </TabsList>
 
@@ -625,6 +629,14 @@ export function SlideStep({
                     onExportToCanva={() => {
                       toast.info('Öppna den nedladdade filen i Canva för att redigera');
                     }}
+                  />
+                </TabsContent>
+
+                <TabsContent value="google" className="space-y-4">
+                  <GoogleSlidesExport
+                    slides={currentModuleSlides}
+                    courseTitle={courseTitle}
+                    moduleTitle={currentScript?.moduleTitle || ''}
                   />
                 </TabsContent>
               </Tabs>
