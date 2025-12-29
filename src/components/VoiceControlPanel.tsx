@@ -191,40 +191,27 @@ export function VoiceControlPanel({
             </Card>
 
             {/* Voice Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-1">
               {sortedVoices.map((voice) => (
                 <Card
                   key={voice.id}
                   className={cn(
-                    "cursor-pointer transition-all hover:shadow-md",
+                    "cursor-pointer transition-all hover:shadow-md overflow-hidden",
                     settings.voiceId === voice.id
                       ? "border-primary bg-primary/5"
-                      : "border-border/50 hover:border-primary/30"
+                      : "border-border hover:border-primary/30"
                   )}
                   onClick={() => {
                     onSettingsChange({ voiceId: voice.id, voiceName: voice.name });
                   }}
                 >
                   <CardContent className="p-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{voice.name}</span>
-                          <Badge variant="outline" className="text-[10px]">
-                            {voice.gender === 'male' ? '♂' : voice.gender === 'female' ? '♀' : '⚧'}
-                          </Badge>
-                          {voice.naturalness === 5 && (
-                            <Badge className="bg-green-500/10 text-green-600 text-[10px]">
-                              Naturlig
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">{voice.description}</p>
-                      </div>
+                    <div className="flex items-center gap-3">
+                      {/* Play Button */}
                       <Button
                         size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
+                        variant="outline"
+                        className="h-9 w-9 shrink-0 rounded-full bg-background hover:bg-primary hover:text-primary-foreground"
                         onClick={(e) => {
                           e.stopPropagation();
                           handlePreviewVoice(voice.id);
@@ -237,9 +224,25 @@ export function VoiceControlPanel({
                             <Square className="w-4 h-4" />
                           )
                         ) : (
-                          <Play className="w-4 h-4" />
+                          <Play className="w-4 h-4 ml-0.5" />
                         )}
                       </Button>
+                      
+                      {/* Voice Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-medium text-sm truncate">{voice.name}</span>
+                          <Badge variant="outline" className="text-[10px] shrink-0 px-1">
+                            {voice.gender === 'male' ? '♂' : voice.gender === 'female' ? '♀' : '⚧'}
+                          </Badge>
+                          {voice.naturalness === 5 && (
+                            <Badge className="bg-green-500/10 text-green-600 text-[10px] shrink-0 px-1">
+                              ★
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{voice.description}</p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

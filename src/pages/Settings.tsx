@@ -14,7 +14,9 @@ import {
   ExternalLink,
   Zap,
   Sparkles,
-  Info
+  Info,
+  Film,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,9 +33,11 @@ import { VoiceControlPanel, defaultVoiceSettings } from '@/components/VoiceContr
 import { UserInvitePanel } from '@/components/UserInvitePanel';
 import { FreelancerExportPanel } from '@/components/FreelancerExportPanel';
 import { SystemDiagnostics } from '@/components/SystemDiagnostics';
+import { StockVideoProviderSettings } from '@/components/StockVideoProviderSettings';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { StockVideoProvider } from '@/types/course';
 
 const Settings = () => {
   const { toast } = useToast();
@@ -74,6 +78,9 @@ const Settings = () => {
     libraryId: '',
     enabled: false,
   });
+  
+  // Stock video provider state
+  const [selectedVideoProvider, setSelectedVideoProvider] = useState<StockVideoProvider>('pexels');
 
   const testLearnDashConnection = async () => {
     if (!learnDashCredentials.wpUrl || !learnDashCredentials.wpUsername || !learnDashCredentials.wpAppPassword) {
@@ -534,8 +541,26 @@ const Settings = () => {
                   </CardContent>
                 )}
               </Card>
-            </TabsContent>
 
+              {/* Stock Video Providers Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Film className="w-5 h-5 text-primary" />
+                    Stockvideoleverantörer
+                  </CardTitle>
+                  <CardDescription>
+                    Konfigurera API-nycklar för premium stockvideotjänster
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <StockVideoProviderSettings
+                    selectedProvider={selectedVideoProvider}
+                    onProviderChange={setSelectedVideoProvider}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
             {/* Export Tab */}
             <TabsContent value="export" className="space-y-6">
               <Card>
