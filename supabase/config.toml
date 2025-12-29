@@ -47,3 +47,12 @@ verify_jwt = false
 
 [functions.translate-content]
 verify_jwt = false
+
+[functions.generate-exercises]
+verify_jwt = false
+
+[functions.generate-summary]
+verify_jwt = false
+
+[functions.heygen-assets]
+verify_jwt = false
