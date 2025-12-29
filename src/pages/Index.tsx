@@ -1,5 +1,6 @@
 import { Header } from '@/components/Header';
 import { ProgressStepper } from '@/components/ProgressStepper';
+import { ModeSelectionStep } from '@/components/ModeSelectionStep';
 import { TitleStep } from '@/components/TitleStep';
 import { OutlineStep } from '@/components/OutlineStep';
 import { ScriptStep } from '@/components/ScriptStep';
@@ -10,6 +11,7 @@ import { VideoStep } from '@/components/VideoStep';
 import { ExportStep } from '@/components/ExportStep';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { useCourseWorkflow } from '@/hooks/useCourseWorkflow';
+import { ProjectMode, PresentationSettings } from '@/types/course';
 
 const Index = () => {
   const {
@@ -34,8 +36,26 @@ const Index = () => {
     handleContentUploaded,
   } = useCourseWorkflow();
 
+  const handleModeChange = (mode: ProjectMode) => {
+    updateSettings({ projectMode: mode });
+  };
+
+  const handlePresentationSettingsChange = (settings: PresentationSettings) => {
+    updateSettings({ presentationSettings: settings });
+  };
+
   const renderCurrentStep = () => {
     switch (state.currentStep) {
+      case 'mode':
+        return (
+          <ModeSelectionStep
+            projectMode={state.settings.projectMode}
+            presentationSettings={state.settings.presentationSettings}
+            onModeChange={handleModeChange}
+            onPresentationSettingsChange={handlePresentationSettingsChange}
+            onContinue={nextStep}
+          />
+        );
       case 'title':
         return (
           <TitleStep
@@ -49,6 +69,7 @@ const Index = () => {
             onContinue={nextStep}
             onContentUploaded={handleContentUploaded}
             onSkip={nextStep}
+            projectMode={state.settings.projectMode}
           />
         );
       case 'outline':
@@ -163,6 +184,7 @@ const Index = () => {
             <ProgressStepper
               currentStep={state.currentStep}
               completedSteps={state.completedSteps}
+              projectMode={state.settings.projectMode}
               onStepClick={goToStep}
             />
           </div>

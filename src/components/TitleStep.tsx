@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { TitleSuggestion } from '@/types/course';
+import { TitleSuggestion, ProjectMode } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { ContentUploader } from '@/components/ContentUploader';
 
@@ -21,6 +21,7 @@ interface TitleStepProps {
   onContinue: () => void;
   onContentUploaded?: (content: string) => void;
   onSkip?: () => void;
+  projectMode?: ProjectMode;
 }
 
 export function TitleStep({
@@ -34,9 +35,12 @@ export function TitleStep({
   onContinue,
   onContentUploaded,
   onSkip,
+  projectMode = 'course',
 }: TitleStepProps) {
   const [inputValue, setInputValue] = useState(initialTitle);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+
+  const isPresentation = projectMode === 'presentation';
 
   const handleInputChange = (value: string) => {
     setInputValue(value);
@@ -47,10 +51,12 @@ export function TitleStep({
     <div className="space-y-8 animate-fade-in">
       <div className="text-center space-y-3">
         <h2 className="text-3xl font-bold text-foreground">
-          Skapa din kurs
+          {isPresentation ? 'Skapa din presentation' : 'Skapa din kurs'}
         </h2>
         <p className="text-muted-foreground max-w-md mx-auto">
-          Ange en kurstitel så genererar AI alternativa förslag med förklaringar
+          {isPresentation 
+            ? 'Ange ett ämne så genererar AI alternativa titelförslag'
+            : 'Ange en kurstitel så genererar AI alternativa förslag med förklaringar'}
         </p>
       </div>
 
@@ -58,12 +64,14 @@ export function TitleStep({
         <CardContent className="p-6 space-y-6">
           <div className="space-y-3">
             <Label htmlFor="title" className="text-sm font-medium">
-              Kurstitel
+              {isPresentation ? 'Presentationsämne' : 'Kurstitel'}
             </Label>
             <div className="flex gap-3">
               <Input
                 id="title"
-                placeholder="T.ex. Grundläggande patientvård inom hemtjänst"
+                placeholder={isPresentation 
+                  ? 'T.ex. AI inom sjukvården - möjligheter och utmaningar'
+                  : 'T.ex. Grundläggande patientvård inom hemtjänst'}
                 value={inputValue}
                 onChange={(e) => handleInputChange(e.target.value)}
                 className="flex-1 h-12 text-base"
@@ -92,7 +100,7 @@ export function TitleStep({
               <Button variant="ghost" size="sm" className="w-full justify-between text-muted-foreground hover:text-foreground">
                 <span className="flex items-center gap-2">
                   <Upload className="w-4 h-4" />
-                  Ladda upp eget kursunderlag
+                  {isPresentation ? 'Ladda upp eget presentationsunderlag' : 'Ladda upp eget kursunderlag'}
                 </span>
                 {isUploadOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </Button>
@@ -100,9 +108,13 @@ export function TitleStep({
             <CollapsibleContent className="pt-3">
               <ContentUploader
                 onContentUploaded={(content) => onContentUploaded?.(content)}
-                label="Importera kursunderlag"
-                description="Ladda upp dokument, ange URL:er eller klistra in text som grund för kursen."
-                placeholder="Klistra in kursinnehåll eller beskrivning här..."
+                label={isPresentation ? 'Importera presentationsunderlag' : 'Importera kursunderlag'}
+                description={isPresentation 
+                  ? 'Ladda upp dokument, ange URL:er eller klistra in text som grund för presentationen.'
+                  : 'Ladda upp dokument, ange URL:er eller klistra in text som grund för kursen.'}
+                placeholder={isPresentation 
+                  ? 'Klistra in presentationsinnehåll eller beskrivning här...'
+                  : 'Klistra in kursinnehåll eller beskrivning här...'}
               />
             </CollapsibleContent>
           </Collapsible>
@@ -169,7 +181,7 @@ export function TitleStep({
             size="xl"
             className="min-w-[200px]"
           >
-            Fortsätt till kursöversikt
+            {isPresentation ? 'Fortsätt till slides' : 'Fortsätt till kursöversikt'}
             <ArrowRight className="w-5 h-5" />
           </Button>
         )}

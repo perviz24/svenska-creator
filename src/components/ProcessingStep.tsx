@@ -53,6 +53,7 @@ const getTasksForStep = (step: WorkflowStep): ProcessingTask[] => {
 };
 
 const stepTitles: Record<WorkflowStep, string> = {
+  mode: 'Välj läge',
   title: 'Kurstitel',
   outline: 'Kursöversikt',
   script: 'Genererar manus',
