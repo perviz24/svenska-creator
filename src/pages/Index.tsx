@@ -5,7 +5,7 @@ import { OutlineStep } from '@/components/OutlineStep';
 import { ScriptStep } from '@/components/ScriptStep';
 import { SlideStep } from '@/components/SlideStep';
 import { VideoStep } from '@/components/VideoStep';
-import { ProcessingStep } from '@/components/ProcessingStep';
+import { ExportStep } from '@/components/ExportStep';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { useCourseWorkflow } from '@/hooks/useCourseWorkflow';
 
@@ -94,7 +94,13 @@ const Index = () => {
           />
         );
       case 'upload':
-        return <ProcessingStep currentStep={state.currentStep} />;
+        return (
+          <ExportStep
+            outline={state.outline}
+            moduleAudio={state.moduleAudio}
+            courseTitle={state.title}
+          />
+        );
       default:
         return null;
     }

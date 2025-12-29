@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.heygen-video]
 verify_jwt = false
+
+[functions.bunny-video]
+verify_jwt = false
+
+[functions.learndash-export]
+verify_jwt = false
