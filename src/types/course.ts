@@ -123,18 +123,30 @@ export interface ModuleQuiz {
   questions: QuizQuestion[];
 }
 
+export interface ExerciseSection {
+  sectionTitle: string;
+  sectionType: 'checkbox-list' | 'numbered-list' | 'free-text' | 'ranking' | 'description';
+  description?: string;
+  items?: string[];
+  includeOther?: boolean;
+}
+
+export interface ExercisePart {
+  partNumber: number;
+  partTitle: string;
+  sections: ExerciseSection[];
+}
+
 export interface Exercise {
   id: string;
   title: string;
-  description: string;
-  type: 'individual' | 'group' | 'reflection' | 'practical' | 'case-study';
+  purpose: string;
+  type: 'checklist' | 'reflection' | 'practical' | 'case-study' | 'self-assessment';
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   estimatedTime: number;
-  instructions: string[];
+  parts: ExercisePart[];
   learningObjectives: string[];
-  materials?: string[];
-  assessmentCriteria?: string[];
-  sampleSolution?: string;
+  footer?: string;
 }
 
 export interface ModuleExercises {
