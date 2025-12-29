@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { FileText, ExternalLink, RefreshCw, ArrowRight, BookOpen, Clock, Quote, Volume2, Loader2, Play, Square, Upload, FileUp, Sparkles, Wand2, Edit3, ArrowUpRight } from 'lucide-react';
+import { FileText, ExternalLink, RefreshCw, ArrowRight, BookOpen, Clock, Quote, Volume2, Loader2, Play, Square, Upload, FileUp, Sparkles, Wand2, Edit3, ArrowUpRight, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import { useVoiceSynthesis } from '@/hooks/useVoiceSynthesis';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { AIReviewEditor } from '@/components/AIReviewEditor';
+import { ResearchHub } from '@/components/ResearchHub';
 
 const ELEVENLABS_VOICES = [
   { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Varm, professionell' },

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Clock, Target, ArrowRight, Loader2, RefreshCw, Edit2, Check, X, Wand2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, Target, ArrowRight, Loader2, RefreshCw, Edit2, Check, X, Wand2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CourseOutline, Module, LearningObjective, SubTopic } from '@/types/course';
 import { AIReviewEditor } from '@/components/AIReviewEditor';
+import { ResearchHub } from '@/components/ResearchHub';
 import { cn } from '@/lib/utils';
 
 interface OutlineStepProps {
@@ -308,24 +309,47 @@ export function OutlineStep({
   onUpdateOutline,
   onContinue,
 }: OutlineStepProps) {
+  const [showResearch, setShowResearch] = useState(false);
+
   if (!outline && !isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 space-y-6 animate-fade-in">
-        <div className="text-center space-y-3">
-          <h2 className="text-3xl font-bold text-foreground">
-            Generera kursöversikt
-          </h2>
-          <p className="text-muted-foreground max-w-md">
-            AI kommer att skapa en detaljerad kursöversikt baserad på din valda titel
-          </p>
+      <div className="space-y-8 animate-fade-in">
+        <div className="flex flex-col items-center justify-center py-16 space-y-6">
+          <div className="text-center space-y-3">
+            <h2 className="text-3xl font-bold text-foreground">
+              Generera kursöversikt
+            </h2>
+            <p className="text-muted-foreground max-w-md">
+              AI kommer att skapa en detaljerad kursöversikt baserad på din valda titel
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => setShowResearch(!showResearch)}
+              variant="outline"
+              size="lg"
+            >
+              <Search className="w-4 h-4 mr-2" />
+              Forskningshub
+            </Button>
+            <Button
+              onClick={onGenerateOutline}
+              variant="gradient"
+              size="xl"
+            >
+              Generera kursöversikt
+            </Button>
+          </div>
         </div>
-        <Button
-          onClick={onGenerateOutline}
-          variant="gradient"
-          size="xl"
-        >
-          Generera kursöversikt
-        </Button>
+        
+        {showResearch && (
+          <ResearchHub 
+            context={courseTitle}
+            onResearchComplete={(content, citations) => {
+              console.log('Research complete:', { content, citations });
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -364,15 +388,34 @@ export function OutlineStep({
             </Badge>
           </div>
         </div>
-        <Button
-          onClick={onRegenerateOutline}
-          variant="outline"
-          size="lg"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Generera om
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setShowResearch(!showResearch)}
+            variant="outline"
+            size="lg"
+          >
+            <Search className="w-4 h-4" />
+            Forskning
+          </Button>
+          <Button
+            onClick={onRegenerateOutline}
+            variant="outline"
+            size="lg"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Generera om
+          </Button>
+        </div>
       </div>
+
+      {showResearch && (
+        <ResearchHub 
+          context={`${courseTitle} - ${outline!.title}`}
+          onResearchComplete={(content, citations) => {
+            console.log('Research complete:', { content, citations });
+          }}
+        />
+      )}
 
       <div className="space-y-4">
         {outline!.modules.map((module, index) => (
