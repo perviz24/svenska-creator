@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { Video, Play, Sparkles, Loader2, ChevronRight, User, Settings, ExternalLink } from 'lucide-react';
+import { Video, Play, Sparkles, Loader2, ChevronRight, User, Settings, ExternalLink, Upload, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Slide, ModuleScript, CourseOutline, ModuleAudio, VideoSettings } from '@/types/course';
 import { PresentationPlayer } from '@/components/PresentationPlayer';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ContentUploader } from '@/components/ContentUploader';
 
 interface VideoStepProps {
   outline: CourseOutline | null;
@@ -23,6 +25,7 @@ interface VideoStepProps {
   onGenerateAudio: (moduleId: string, script: ModuleScript) => Promise<void>;
   onUpdateVideoSettings: (settings: Partial<VideoSettings>) => void;
   onContinue: () => void;
+  onContentUploaded?: (content: string) => void;
 }
 
 interface HeyGenAvatar {
@@ -44,6 +47,7 @@ export function VideoStep({
   onGenerateAudio,
   onUpdateVideoSettings,
   onContinue,
+  onContentUploaded,
 }: VideoStepProps) {
   const [selectedModuleIndex, setSelectedModuleIndex] = useState(0);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
@@ -51,6 +55,7 @@ export function VideoStep({
   const [isLoadingAvatars, setIsLoadingAvatars] = useState(false);
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>([]);
   const [isGeneratingHeyGenVideo, setIsGeneratingHeyGenVideo] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
 
   if (!outline || scripts.length === 0 || Object.keys(slides).length === 0) {
     return (
@@ -207,6 +212,28 @@ export function VideoStep({
           </Button>
         ))}
       </div>
+
+      {/* Upload Own Content */}
+      <Collapsible open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" size="sm" className="w-full justify-between">
+            <span className="flex items-center gap-2">
+              <Upload className="w-4 h-4" />
+              Ladda upp eget manus/ljud
+            </span>
+            {isUploadOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <ContentUploader
+            onContentUploaded={(content) => onContentUploaded?.(content)}
+            label="Importera manus för röstberättelse"
+            description="Ladda upp textfiler eller klistra in manus som ska läsas upp."
+            placeholder="Klistra in manus för röstsyntes här..."
+            compact
+          />
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Video Options */}
       <Tabs 

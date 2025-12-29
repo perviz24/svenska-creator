@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { HelpCircle, RefreshCw, ArrowRight, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { HelpCircle, RefreshCw, ArrowRight, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp, Trash2, Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { ModuleScript, CourseOutline, ModuleQuiz, QuizQuestion } from '@/types/c
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ContentUploader } from '@/components/ContentUploader';
 
 interface QuizStepProps {
   outline: CourseOutline | null;
@@ -19,6 +20,7 @@ interface QuizStepProps {
   language?: 'sv' | 'en';
   onQuizGenerated: (moduleId: string, quiz: ModuleQuiz) => void;
   onContinue: () => void;
+  onContentUploaded?: (content: string) => void;
 }
 
 export function QuizStep({
@@ -29,12 +31,13 @@ export function QuizStep({
   language = 'sv',
   onQuizGenerated,
   onContinue,
+  onContentUploaded,
 }: QuizStepProps) {
   const [generatingModule, setGeneratingModule] = useState<string | null>(null);
   const [expandedQuiz, setExpandedQuiz] = useState<string | null>(null);
   const [testAnswers, setTestAnswers] = useState<Record<string, string>>({});
   const [showResults, setShowResults] = useState<Record<string, boolean>>({});
-
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
   if (!outline) {
     return (
       <div className="text-center py-12">
@@ -114,6 +117,28 @@ export function QuizStep({
           Generera automatiska quiz-frågor från kursinnehållet för att testa deltagarnas förståelse.
         </p>
       </div>
+
+      {/* Upload Own Content */}
+      <Collapsible open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" size="sm" className="w-full justify-between">
+            <span className="flex items-center gap-2">
+              <Upload className="w-4 h-4" />
+              Ladda upp egna quiz-frågor
+            </span>
+            {isUploadOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <ContentUploader
+            onContentUploaded={(content) => onContentUploaded?.(content)}
+            label="Importera quiz-frågor"
+            description="Ladda upp frågor i textformat eller klistra in manuellt."
+            placeholder="Ange frågor med svarsalternativ här..."
+            compact
+          />
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Module Quizzes */}
       <div className="space-y-4">
