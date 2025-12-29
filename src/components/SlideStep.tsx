@@ -510,7 +510,7 @@ export function SlideStep({
                     key={index}
                     onClick={() => setSelectedSlideIndex(index)}
                     className={cn(
-                      "flex-shrink-0 w-20 h-12 rounded border-2 overflow-hidden transition-all",
+                      "relative flex-shrink-0 w-20 h-12 rounded border-2 overflow-hidden transition-all",
                       selectedSlideIndex === index 
                         ? "border-primary ring-2 ring-primary/20" 
                         : "border-border hover:border-primary/50"
@@ -524,8 +524,8 @@ export function SlideStep({
                         className="w-full h-full object-cover opacity-50"
                       />
                     )}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xs font-medium">{index + 1}</span>
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/40">
+                      <span className="text-xs font-bold text-foreground">{index + 1}</span>
                     </div>
                   </button>
                 ))}
@@ -703,7 +703,7 @@ export function SlideStep({
           Hoppa över detta steg
         </Button>
         <Button onClick={onContinue} size="lg">
-          Fortsätt till övningar
+          {demoMode?.enabled ? 'Fortsätt till export' : 'Fortsätt till övningar'}
           <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
       </div>

@@ -139,13 +139,17 @@ const Demo = () => {
     }));
   };
 
+  // Demo step configuration - centralized
+  const getDemoStepFlow = (mode: ProjectMode): WorkflowStep[] => {
+    // Demo uses simplified flow: no exercises, quiz, voice, video
+    return mode === 'presentation' 
+      ? ['mode', 'title', 'slides', 'upload']
+      : ['mode', 'title', 'outline', 'script', 'slides', 'upload'];
+  };
+
   const nextStep = () => {
     setState(prev => {
-      // Demo uses full course workflow with short content
-      const courseSteps: WorkflowStep[] = ['mode', 'title', 'outline', 'script', 'slides', 'upload'];
-      const presentationSteps: WorkflowStep[] = ['mode', 'title', 'slides', 'upload'];
-      
-      const steps = prev.settings.projectMode === 'presentation' ? presentationSteps : courseSteps;
+      const steps = getDemoStepFlow(prev.settings.projectMode);
       const currentIndex = steps.indexOf(prev.currentStep);
       
       if (currentIndex < steps.length - 1) {
@@ -465,12 +469,7 @@ const Demo = () => {
     }
   };
 
-  // Demo steps based on project mode
-  const getDemoSteps = (): WorkflowStep[] => {
-    return state.settings.projectMode === 'presentation' 
-      ? ['mode', 'title', 'slides', 'upload']
-      : ['mode', 'title', 'outline', 'script', 'slides', 'upload'];
-  };
+  // getDemoSteps is now replaced by getDemoStepFlow defined above
 
   return (
     <div className="min-h-screen bg-background">
