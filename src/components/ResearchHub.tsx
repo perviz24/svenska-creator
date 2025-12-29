@@ -7,8 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useResearchHub } from '@/hooks/useResearchHub';
 import { RESEARCH_MODES, ResearchMode } from '@/types/research';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Search, 
   Globe, 
@@ -21,7 +23,10 @@ import {
   BookOpen,
   Link2,
   Plus,
-  X
+  X,
+  Sparkles,
+  Lightbulb,
+  CheckCircle2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -29,9 +34,21 @@ interface ResearchHubProps {
   onResearchComplete?: (content: string, citations: string[]) => void;
   context?: string;
   language?: 'sv' | 'en';
+  courseTitle?: string;
+  courseOutline?: string;
 }
 
-export function ResearchHub({ onResearchComplete, context, language = 'sv' }: ResearchHubProps) {
+interface AIRecommendation {
+  mode: ResearchMode;
+  modeName: string;
+  modelUsed: string;
+  confidence: number;
+  reasoning: string;
+  alternativeMode?: ResearchMode;
+  alternativeReasoning?: string;
+}
+
+export function ResearchHub({ onResearchComplete, context, language = 'sv', courseTitle, courseOutline }: ResearchHubProps) {
   const [topic, setTopic] = useState('');
   const [selectedMode, setSelectedMode] = useState<ResearchMode>('general');
   const [scrapeUrl, setScrapeUrl] = useState('');
@@ -39,6 +56,8 @@ export function ResearchHub({ onResearchComplete, context, language = 'sv' }: Re
   const [manualCitationTitle, setManualCitationTitle] = useState('');
   const [domainFilter, setDomainFilter] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isRecommending, setIsRecommending] = useState(false);
+  const [aiRecommendation, setAiRecommendation] = useState<AIRecommendation | null>(null);
   
   const {
     isResearching,
@@ -52,6 +71,47 @@ export function ResearchHub({ onResearchComplete, context, language = 'sv' }: Re
     clearCitations,
     exportCitations,
   } = useResearchHub();
+
+  const handleAIRecommend = async () => {
+    if (!courseTitle && !courseOutline) {
+      toast.error('Ingen kurskontext tillgänglig. Skapa först en titel eller disposition.');
+      return;
+    }
+
+    setIsRecommending(true);
+    setAiRecommendation(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('recommend-research-mode', {
+        body: {
+          courseTitle,
+          courseOutline,
+          language,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.recommendation) {
+        const rec = data.recommendation as AIRecommendation;
+        setAiRecommendation(rec);
+        setSelectedMode(rec.mode);
+        toast.success(`AI rekommenderar: ${rec.modeName}`);
+      } else {
+        throw new Error(data?.error || 'Could not get recommendation');
+      }
+    } catch (error) {
+      console.error('AI recommendation error:', error);
+      toast.error('Kunde inte få AI-rekommendation');
+    } finally {
+      setIsRecommending(false);
+    }
+  };
+
+  const applyRecommendation = (mode: ResearchMode) => {
+    setSelectedMode(mode);
+    toast.success(`Forskningsläge ändrat till: ${RESEARCH_MODES.find(m => m.id === mode)?.name}`);
+  };
 
   const handleResearch = async () => {
     const domains = domainFilter.trim() 
@@ -130,18 +190,47 @@ export function ResearchHub({ onResearchComplete, context, language = 'sv' }: Re
           <TabsContent value="search" className="space-y-4 mt-4">
             {/* Research Mode Selector */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Forskningsläge</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Forskningsläge</label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAIRecommend}
+                  disabled={isRecommending || (!courseTitle && !courseOutline)}
+                  className="gap-2 border-primary/50 hover:bg-primary/10"
+                >
+                  {isRecommending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Analyserar...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      Välj åt mig
+                    </>
+                  )}
+                </Button>
+              </div>
               <div className="grid grid-cols-5 gap-2">
                 {RESEARCH_MODES.map((mode) => (
                   <Button
                     key={mode.id}
                     variant={selectedMode === mode.id ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setSelectedMode(mode.id)}
-                    className="flex flex-col items-center gap-1 h-auto py-2"
+                    onClick={() => {
+                      setSelectedMode(mode.id);
+                      setAiRecommendation(null);
+                    }}
+                    className={`flex flex-col items-center gap-1 h-auto py-2 ${
+                      aiRecommendation?.mode === mode.id ? 'ring-2 ring-primary ring-offset-2' : ''
+                    }`}
                   >
                     <span className="text-lg">{mode.icon}</span>
                     <span className="text-xs">{mode.name}</span>
+                    {aiRecommendation?.mode === mode.id && (
+                      <CheckCircle2 className="h-3 w-3 text-primary absolute -top-1 -right-1" />
+                    )}
                   </Button>
                 ))}
               </div>
@@ -152,6 +241,38 @@ export function ResearchHub({ onResearchComplete, context, language = 'sv' }: Re
                 </span>
               </p>
             </div>
+
+            {/* AI Recommendation Display */}
+            {aiRecommendation && (
+              <Alert className="border-primary/30 bg-primary/5">
+                <Lightbulb className="h-4 w-4 text-primary" />
+                <AlertTitle className="flex items-center gap-2">
+                  AI-rekommendation: {aiRecommendation.modeName}
+                  <Badge variant="secondary" className="text-xs">
+                    {Math.round(aiRecommendation.confidence * 100)}% säkerhet
+                  </Badge>
+                </AlertTitle>
+                <AlertDescription className="mt-2 space-y-2">
+                  <p className="text-sm">{aiRecommendation.reasoning}</p>
+                  {aiRecommendation.alternativeMode && (
+                    <div className="pt-2 border-t border-border/50">
+                      <p className="text-xs text-muted-foreground mb-1">
+                        <strong>Alternativ:</strong> {RESEARCH_MODES.find(m => m.id === aiRecommendation.alternativeMode)?.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{aiRecommendation.alternativeReasoning}</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => applyRecommendation(aiRecommendation.alternativeMode!)}
+                        className="mt-1 text-xs h-7"
+                      >
+                        Använd alternativet istället
+                      </Button>
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
 
             {/* Search Input */}
             <div className="space-y-2">

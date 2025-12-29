@@ -345,6 +345,7 @@ export function OutlineStep({
         {showResearch && (
           <ResearchHub 
             context={courseTitle}
+            courseTitle={courseTitle}
             onResearchComplete={(content, citations) => {
               console.log('Research complete:', { content, citations });
             }}
@@ -411,6 +412,8 @@ export function OutlineStep({
       {showResearch && (
         <ResearchHub 
           context={`${courseTitle} - ${outline!.title}`}
+          courseTitle={courseTitle}
+          courseOutline={JSON.stringify(outline!.modules.map(m => ({ title: m.title, description: m.description })))}
           onResearchComplete={(content, citations) => {
             console.log('Research complete:', { content, citations });
           }}
