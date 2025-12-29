@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.parse-document]
 verify_jwt = false
+
+[functions.ai-review-edit]
+verify_jwt = false

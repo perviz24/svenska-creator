@@ -309,6 +309,16 @@ export function useCourseWorkflow() {
     });
   }, [courseId]);
 
+  const updateOutline = useCallback((outline: CourseOutline) => {
+    setState(prev => ({
+      ...prev,
+      outline,
+    }));
+    
+    // Persist to database
+    saveCourse({ outline });
+  }, [courseId]);
+
   const addQuiz = useCallback((moduleId: string, quiz: ModuleQuiz) => {
     setState(prev => ({
       ...prev,
@@ -596,6 +606,7 @@ export function useCourseWorkflow() {
     completeStep,
     nextStep,
     generateOutline,
+    updateOutline,
     generateScript,
     uploadScript,
     generateSlides,
