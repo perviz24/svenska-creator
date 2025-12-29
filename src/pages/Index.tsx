@@ -60,6 +60,8 @@ const Index = () => {
             scripts={state.scripts}
             isLoading={state.isProcessing}
             currentModuleIndex={state.scripts.length}
+            courseTitle={state.title}
+            language={state.settings.language}
             onGenerateScript={generateScript}
             onUploadScript={uploadScript}
             onContinue={nextStep}

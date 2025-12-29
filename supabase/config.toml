@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.learndash-export]
 verify_jwt = false
+
+[functions.analyze-manuscript]
+verify_jwt = false
