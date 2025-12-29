@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage, Upload, ChevronDown, ChevronUp, Palette, SkipForward, Layers, FileSpreadsheet } from 'lucide-react';
+import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage, Upload, Palette, SkipForward, Layers, FileSpreadsheet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Slide, ModuleScript, StockPhoto, CourseOutline } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,7 +45,6 @@ export function SlideStep({
   const [isExporting, setIsExporting] = useState(false);
   const [stockPhotos, setStockPhotos] = useState<StockPhoto[]>([]);
   const [customSearchQuery, setCustomSearchQuery] = useState('');
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhanceType, setEnhanceType] = useState<'design' | 'content' | 'full'>('full');
   const [isCanvaOpen, setIsCanvaOpen] = useState(false);
@@ -252,6 +250,8 @@ export function SlideStep({
     return labels[layout] || layout;
   };
 
+  const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -266,27 +266,39 @@ export function SlideStep({
         </p>
       </div>
 
-      {/* Upload Own Content */}
-      <Collapsible open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-        <CollapsibleTrigger asChild>
-          <Button variant="outline" size="sm" className="w-full justify-between">
-            <span className="flex items-center gap-2">
+      {/* Mode Toggle */}
+      <div className="flex justify-center">
+        <Tabs value={uploadMode} onValueChange={(v) => setUploadMode(v as 'generate' | 'upload')} className="w-full max-w-md">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="generate" className="gap-2">
+              <Sparkles className="w-4 h-4" />
+              AI-generera
+            </TabsTrigger>
+            <TabsTrigger value="upload" className="gap-2">
               <Upload className="w-4 h-4" />
-              Ladda upp eget slide-innehåll
-            </span>
-            {isUploadOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-3">
-          <ContentUploader
-            onContentUploaded={(content) => onContentUploaded?.(content)}
-            label="Importera slide-innehåll"
-            description="Ladda upp presentationer eller dokument som bas för slides."
-            placeholder="Klistra in slide-text eller bullet points här..."
-            compact
-          />
-        </CollapsibleContent>
-      </Collapsible>
+              Ladda upp
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {/* Upload Mode Content */}
+      {uploadMode === 'upload' && (
+        <Card>
+          <CardContent className="pt-6">
+            <ContentUploader
+              onContentUploaded={(content) => onContentUploaded?.(content)}
+              label="Importera slide-innehåll"
+              description="Ladda upp presentationer eller dokument som bas för slides."
+              placeholder="Klistra in slide-text eller bullet points här..."
+              compact
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {uploadMode === 'generate' && (
+        <>
 
       {/* Module Selector with Export */}
       <div className="flex items-center justify-between gap-4">
@@ -643,6 +655,8 @@ export function SlideStep({
             </CardContent>
           </Card>
         </div>
+      )}
+      </>
       )}
 
       {/* Action Buttons */}

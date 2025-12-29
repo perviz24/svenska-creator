@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Video, Play, Sparkles, Loader2, ChevronRight, User, Settings, ExternalLink, Upload, ChevronDown, ChevronUp, SkipForward } from 'lucide-react';
+import { Video, Play, Sparkles, Loader2, ChevronRight, User, Settings, ExternalLink, Upload, SkipForward } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Slide, ModuleScript, CourseOutline, ModuleAudio, VideoSettings } from '@/types/course';
 import { PresentationPlayer } from '@/components/PresentationPlayer';
 import { supabase } from '@/integrations/supabase/client';
@@ -57,7 +56,6 @@ export function VideoStep({
   const [isLoadingAvatars, setIsLoadingAvatars] = useState(false);
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>([]);
   const [isGeneratingHeyGenVideo, setIsGeneratingHeyGenVideo] = useState(false);
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
 
   if (!outline || scripts.length === 0 || Object.keys(slides).length === 0) {
     return (
@@ -181,6 +179,8 @@ export function VideoStep({
     moduleAudio[script.moduleId]?.audioUrl
   );
 
+  const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -195,6 +195,39 @@ export function VideoStep({
         </p>
       </div>
 
+      {/* Mode Toggle */}
+      <div className="flex justify-center">
+        <Tabs value={uploadMode} onValueChange={(v) => setUploadMode(v as 'generate' | 'upload')} className="w-full max-w-md">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="generate" className="gap-2">
+              <Sparkles className="w-4 h-4" />
+              AI-generera
+            </TabsTrigger>
+            <TabsTrigger value="upload" className="gap-2">
+              <Upload className="w-4 h-4" />
+              Ladda upp
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {/* Upload Mode Content */}
+      {uploadMode === 'upload' && (
+        <Card>
+          <CardContent className="pt-6">
+            <ContentUploader
+              onContentUploaded={(content) => onContentUploaded?.(content)}
+              label="Importera manus för röstberättelse"
+              description="Ladda upp textfiler eller klistra in manus som ska läsas upp."
+              placeholder="Klistra in manus för röstsyntes här..."
+              compact
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {uploadMode === 'generate' && (
+      <>
       {/* Module Selector */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {scripts.map((script, index) => (
@@ -214,28 +247,6 @@ export function VideoStep({
           </Button>
         ))}
       </div>
-
-      {/* Upload Own Content */}
-      <Collapsible open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-        <CollapsibleTrigger asChild>
-          <Button variant="outline" size="sm" className="w-full justify-between">
-            <span className="flex items-center gap-2">
-              <Upload className="w-4 h-4" />
-              Ladda upp eget manus/ljud
-            </span>
-            {isUploadOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-3">
-          <ContentUploader
-            onContentUploaded={(content) => onContentUploaded?.(content)}
-            label="Importera manus för röstberättelse"
-            description="Ladda upp textfiler eller klistra in manus som ska läsas upp."
-            placeholder="Klistra in manus för röstsyntes här..."
-            compact
-          />
-        </CollapsibleContent>
-      </Collapsible>
 
       {/* Video Options */}
       <Tabs 
@@ -458,6 +469,8 @@ export function VideoStep({
           </Card>
         </TabsContent>
       </Tabs>
+      </>
+      )}
 
       {/* Action Buttons */}
       <div className="flex justify-between items-center">
