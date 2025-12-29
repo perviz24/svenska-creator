@@ -171,9 +171,13 @@ ${scriptContent}
 
 Skapa en JSON-array med slides. Varje slide ska ha:
 - slideNumber: Löpnummer (börja med 1)
-- title: Kort, engagerande rubrik (max 8 ord)
-- content: Huvudinnehåll (markdown-format, max 3-4 punkter eller ett kort stycke)
-- speakerNotes: Detaljerade anteckningar för presentatören
+- title: Kort, engagerande rubrik (max 8 ord, REN TEXT utan markdown)
+- content: Huvudinnehåll i REN TEXT (max 3-4 punkter). VIKTIGT:
+  * Använd INTE markdown-syntax (inga **, ***, ##, -, etc.)
+  * Varje punkt separeras med nyrad
+  * Kort och koncist språk
+  * Exempel: "Första punkten\\nAndra punkten\\nTredje punkten"
+- speakerNotes: Detaljerade anteckningar för presentatören (ren text)
 - layout: En av 'title', 'title-content', 'two-column', 'image-focus', 'quote', 'bullet-points'
 - suggestedImageQuery: KONKRET sökord på ENGELSKA för stockfoto (max 4-5 ord). Exempel:
   * BRA: "team meeting whiteboard office"
@@ -182,7 +186,7 @@ Skapa en JSON-array med slides. Varje slide ska ha:
 - suggestedBackgroundColor: Valfri HEX-färgkod för bakgrund
 
 Skapa ${demoMode ? effectiveMaxSlides : '5-10'} slides${demoMode ? '' : ' beroende på innehållets längd'}. Första sliden ska vara en titelslide.
-VIKTIGT: suggestedImageQuery MÅSTE vara specifik och sökbar - inga abstrakta koncept!`
+KRITISKT: Använd ALDRIG markdown-formatering i title eller content! Enbart ren text.`
       : `Analyze this script for the module "${effectiveModuleTitle}" in the course "${courseTitle}" and create presentation slides.
 ${demoInstruction}
 
@@ -191,9 +195,13 @@ ${scriptContent}
 
 Create a JSON array of slides. Each slide should have:
 - slideNumber: Sequential number (start with 1)
-- title: Short, engaging headline (max 8 words)
-- content: Main content (markdown format, max 3-4 bullet points or a short paragraph)
-- speakerNotes: Detailed notes for the presenter
+- title: Short, engaging headline (max 8 words, PLAIN TEXT no markdown)
+- content: Main content in PLAIN TEXT (max 3-4 bullet points). IMPORTANT:
+  * Do NOT use markdown syntax (no **, ***, ##, -, etc.)
+  * Separate each point with newline
+  * Use short and concise language
+  * Example: "First point\\nSecond point\\nThird point"
+- speakerNotes: Detailed notes for the presenter (plain text)
 - layout: One of 'title', 'title-content', 'two-column', 'image-focus', 'quote', 'bullet-points'
 - suggestedImageQuery: CONCRETE search terms in ENGLISH for stock photo (max 4-5 words). Examples:
   * GOOD: "team meeting whiteboard office"
@@ -202,7 +210,7 @@ Create a JSON array of slides. Each slide should have:
 - suggestedBackgroundColor: Optional HEX color code for background
 
 Create ${demoMode ? effectiveMaxSlides : '5-10'} slides${demoMode ? '' : ' depending on content length'}. First slide should be a title slide.
-IMPORTANT: suggestedImageQuery MUST be specific and searchable - no abstract concepts!`;
+CRITICAL: NEVER use markdown formatting in title or content! Plain text only.`;
 
     console.log('Generating slides for module:', effectiveModuleTitle, 'demo:', demoMode);
 
