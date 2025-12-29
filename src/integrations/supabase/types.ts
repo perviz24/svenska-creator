@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_response_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          expires_at: string
+          function_name: string
+          hit_count: number
+          id: string
+          request_hash: string
+          response: Json
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          expires_at?: string
+          function_name: string
+          hit_count?: number
+          id?: string
+          request_hash: string
+          response: Json
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          expires_at?: string
+          function_name?: string
+          hit_count?: number
+          id?: string
+          request_hash?: string
+          response?: Json
+        }
+        Relationships: []
+      }
       courses: {
         Row: {
           comprehensive_level: string | null
@@ -361,6 +394,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      clean_expired_ai_cache: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
