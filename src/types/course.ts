@@ -103,6 +103,26 @@ export interface ModuleAudio {
   slideTiming: number[]; // timestamps for each slide transition
 }
 
+export interface QuizOption {
+  id: string;
+  text: string;
+}
+
+export interface QuizQuestion {
+  id: string;
+  question: string;
+  options: QuizOption[];
+  correctOptionId: string;
+  explanation: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+}
+
+export interface ModuleQuiz {
+  moduleId: string;
+  moduleTitle: string;
+  questions: QuizQuestion[];
+}
+
 export interface VideoSettings {
   avatarId?: string;
   avatarName?: string;
@@ -114,6 +134,7 @@ export type WorkflowStep =
   | 'outline'
   | 'script'
   | 'slides'
+  | 'quiz'
   | 'voice'
   | 'video'
   | 'upload';
@@ -127,6 +148,7 @@ export interface WorkflowState {
   outline: CourseOutline | null;
   scripts: ModuleScript[];
   slides: Record<string, Slide[]>; // moduleId -> slides
+  quizzes: Record<string, ModuleQuiz>; // moduleId -> quiz
   moduleAudio: Record<string, ModuleAudio>; // moduleId -> audio
   videoSettings: VideoSettings;
   settings: CourseSettings;

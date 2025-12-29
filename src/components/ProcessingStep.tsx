@@ -57,6 +57,7 @@ const stepTitles: Record<WorkflowStep, string> = {
   outline: 'Kursöversikt',
   script: 'Genererar manus',
   slides: 'Skapar slides',
+  quiz: 'Genererar quiz',
   voice: 'Genererar röst',
   video: 'Monterar video',
   upload: 'Laddar upp',
