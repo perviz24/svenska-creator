@@ -16,7 +16,12 @@ import {
   Sparkles,
   Info,
   Film,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Mic,
+  Presentation,
+  Search,
+  Globe,
+  Camera
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,6 +86,42 @@ const Settings = () => {
   
   // Stock video provider state
   const [selectedVideoProvider, setSelectedVideoProvider] = useState<StockVideoProvider>('pexels');
+  
+  // ElevenLabs settings state
+  const [elevenlabsSettings, setElevenlabsSettings] = useState({
+    apiKey: '',
+    enabled: false,
+  });
+  
+  // Google Slides settings state
+  const [googleSlidesSettings, setGoogleSlidesSettings] = useState({
+    clientId: '',
+    enabled: false,
+  });
+  
+  // Pexels settings state
+  const [pexelsSettings, setPexelsSettings] = useState({
+    apiKey: '',
+    enabled: true, // Pre-configured in system
+  });
+  
+  // Unsplash settings state
+  const [unsplashSettings, setUnsplashSettings] = useState({
+    accessKey: '',
+    enabled: false,
+  });
+  
+  // Perplexity settings state
+  const [perplexitySettings, setPerplexitySettings] = useState({
+    apiKey: '',
+    enabled: false,
+  });
+  
+  // Firecrawl settings state
+  const [firecrawlSettings, setFirecrawlSettings] = useState({
+    apiKey: '',
+    enabled: false,
+  });
 
   const testLearnDashConnection = async () => {
     if (!learnDashCredentials.wpUrl || !learnDashCredentials.wpUsername || !learnDashCredentials.wpAppPassword) {
@@ -538,6 +579,277 @@ const Settings = () => {
                         onChange={(e) => setBunnySettings(prev => ({ ...prev, libraryId: e.target.value }))}
                       />
                     </div>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* ElevenLabs Integration */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Mic className="w-5 h-5 text-primary" />
+                        ElevenLabs
+                      </CardTitle>
+                      <CardDescription>
+                        AI-röstgenerering och text-till-tal
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                        Ansluten
+                      </Badge>
+                      <Switch
+                        checked={elevenlabsSettings.enabled}
+                        onCheckedChange={(checked) => setElevenlabsSettings(prev => ({ ...prev, enabled: checked }))}
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
+                {elevenlabsSettings.enabled && (
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="elevenlabs-api">API-nyckel (valfritt - systemet har fördefinierad)</Label>
+                      <Input
+                        id="elevenlabs-api"
+                        type="password"
+                        placeholder="Din egen ElevenLabs API-nyckel"
+                        value={elevenlabsSettings.apiKey}
+                        onChange={(e) => setElevenlabsSettings(prev => ({ ...prev, apiKey: e.target.value }))}
+                      />
+                    </div>
+                    <Button variant="outline" size="sm" asChild>
+                      <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener noreferrer" className="gap-2">
+                        Hämta API-nyckel
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </Button>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Google Slides Integration */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Presentation className="w-5 h-5 text-primary" />
+                        Google Slides
+                      </CardTitle>
+                      <CardDescription>
+                        Exportera presentationer direkt till Google Slides
+                      </CardDescription>
+                    </div>
+                    <Switch
+                      checked={googleSlidesSettings.enabled}
+                      onCheckedChange={(checked) => setGoogleSlidesSettings(prev => ({ ...prev, enabled: checked }))}
+                    />
+                  </div>
+                </CardHeader>
+                {googleSlidesSettings.enabled && (
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="google-client-id">Google OAuth Client ID</Label>
+                      <Input
+                        id="google-client-id"
+                        type="password"
+                        placeholder="Din Google OAuth Client ID"
+                        value={googleSlidesSettings.clientId}
+                        onChange={(e) => setGoogleSlidesSettings(prev => ({ ...prev, clientId: e.target.value }))}
+                      />
+                    </div>
+                    <Button variant="outline" size="sm" asChild>
+                      <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="gap-2">
+                        Google Cloud Console
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </Button>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Pexels Integration */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Camera className="w-5 h-5 text-primary" />
+                        Pexels
+                      </CardTitle>
+                      <CardDescription>
+                        Gratis stockbilder och stockvideor
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                        Ansluten
+                      </Badge>
+                      <Switch
+                        checked={pexelsSettings.enabled}
+                        onCheckedChange={(checked) => setPexelsSettings(prev => ({ ...prev, enabled: checked }))}
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
+                {pexelsSettings.enabled && (
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="pexels-api">API-nyckel (systemet har fördefinierad)</Label>
+                      <Input
+                        id="pexels-api"
+                        type="password"
+                        placeholder="Din egen Pexels API-nyckel"
+                        value={pexelsSettings.apiKey}
+                        onChange={(e) => setPexelsSettings(prev => ({ ...prev, apiKey: e.target.value }))}
+                      />
+                    </div>
+                    <Button variant="outline" size="sm" asChild>
+                      <a href="https://www.pexels.com/api/new/" target="_blank" rel="noopener noreferrer" className="gap-2">
+                        Hämta API-nyckel
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </Button>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Unsplash Integration */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <ImageIcon className="w-5 h-5 text-primary" />
+                        Unsplash
+                      </CardTitle>
+                      <CardDescription>
+                        Högkvalitativa gratis stockfoton
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                        Ansluten
+                      </Badge>
+                      <Switch
+                        checked={unsplashSettings.enabled}
+                        onCheckedChange={(checked) => setUnsplashSettings(prev => ({ ...prev, enabled: checked }))}
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
+                {unsplashSettings.enabled && (
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="unsplash-key">Access Key (valfritt)</Label>
+                      <Input
+                        id="unsplash-key"
+                        type="password"
+                        placeholder="Din Unsplash Access Key"
+                        value={unsplashSettings.accessKey}
+                        onChange={(e) => setUnsplashSettings(prev => ({ ...prev, accessKey: e.target.value }))}
+                      />
+                    </div>
+                    <Button variant="outline" size="sm" asChild>
+                      <a href="https://unsplash.com/developers" target="_blank" rel="noopener noreferrer" className="gap-2">
+                        Unsplash Developers
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </Button>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Perplexity Integration */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Search className="w-5 h-5 text-primary" />
+                        Perplexity
+                      </CardTitle>
+                      <CardDescription>
+                        AI-driven sökning och research
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                        Ansluten
+                      </Badge>
+                      <Switch
+                        checked={perplexitySettings.enabled}
+                        onCheckedChange={(checked) => setPerplexitySettings(prev => ({ ...prev, enabled: checked }))}
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
+                {perplexitySettings.enabled && (
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="perplexity-api">API-nyckel (systemet har fördefinierad)</Label>
+                      <Input
+                        id="perplexity-api"
+                        type="password"
+                        placeholder="Din Perplexity API-nyckel"
+                        value={perplexitySettings.apiKey}
+                        onChange={(e) => setPerplexitySettings(prev => ({ ...prev, apiKey: e.target.value }))}
+                      />
+                    </div>
+                    <Button variant="outline" size="sm" asChild>
+                      <a href="https://www.perplexity.ai/settings/api" target="_blank" rel="noopener noreferrer" className="gap-2">
+                        Perplexity API
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </Button>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Firecrawl Integration */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Globe className="w-5 h-5 text-primary" />
+                        Firecrawl
+                      </CardTitle>
+                      <CardDescription>
+                        AI-driven webbskrapning och innehållsextraktion
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                        Ansluten
+                      </Badge>
+                      <Switch
+                        checked={firecrawlSettings.enabled}
+                        onCheckedChange={(checked) => setFirecrawlSettings(prev => ({ ...prev, enabled: checked }))}
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
+                {firecrawlSettings.enabled && (
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firecrawl-api">API-nyckel (systemet har fördefinierad)</Label>
+                      <Input
+                        id="firecrawl-api"
+                        type="password"
+                        placeholder="Din Firecrawl API-nyckel"
+                        value={firecrawlSettings.apiKey}
+                        onChange={(e) => setFirecrawlSettings(prev => ({ ...prev, apiKey: e.target.value }))}
+                      />
+                    </div>
+                    <Button variant="outline" size="sm" asChild>
+                      <a href="https://www.firecrawl.dev/app/api-keys" target="_blank" rel="noopener noreferrer" className="gap-2">
+                        Firecrawl Dashboard
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </Button>
                   </CardContent>
                 )}
               </Card>
