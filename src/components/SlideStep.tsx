@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { ContentUploader } from '@/components/ContentUploader';
 import { CanvaTemplates } from '@/components/CanvaTemplates';
 import { GoogleSlidesExport } from '@/components/GoogleSlidesExport';
+import { AIRefinementPanel } from '@/components/AIRefinementPanel';
 interface SlideStepProps {
   outline: CourseOutline | null;
   scripts: ModuleScript[];
@@ -251,6 +252,8 @@ export function SlideStep({
   };
 
   const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
+  const [showSlideRefinement, setShowSlideRefinement] = useState(false);
+  const [uploadedSlideContent, setUploadedSlideContent] = useState('');
 
   return (
     <div className="space-y-6">
@@ -286,13 +289,37 @@ export function SlideStep({
       {uploadMode === 'upload' && (
         <Card>
           <CardContent className="pt-6">
-            <ContentUploader
-              onContentUploaded={(content) => onContentUploaded?.(content)}
-              label="Importera slide-innehåll"
-              description="Ladda upp presentationer eller dokument som bas för slides."
-              placeholder="Klistra in slide-text eller bullet points här..."
-              compact
-            />
+            {showSlideRefinement && uploadedSlideContent ? (
+              <AIRefinementPanel
+                content={uploadedSlideContent}
+                contentType="slides"
+                context={courseTitle}
+                onRefinedContent={(refined) => {
+                  onContentUploaded?.(refined);
+                  setShowSlideRefinement(false);
+                  setUploadedSlideContent('');
+                  toast.success('Förfinat slide-innehåll importerat!');
+                }}
+                onSkipRefinement={() => {
+                  onContentUploaded?.(uploadedSlideContent);
+                  setShowSlideRefinement(false);
+                  setUploadedSlideContent('');
+                  toast.success('Slide-innehåll importerat!');
+                }}
+              />
+            ) : (
+              <ContentUploader
+                onContentUploaded={(content) => {
+                  setUploadedSlideContent(content);
+                  setShowSlideRefinement(true);
+                  toast.success('Innehåll uppladdad! Du kan nu förfina med AI.');
+                }}
+                label="Importera slide-innehåll"
+                description="Ladda upp presentationer eller dokument som bas för slides."
+                placeholder="Klistra in slide-text eller bullet points här..."
+                compact
+              />
+            )}
           </CardContent>
         </Card>
       )}

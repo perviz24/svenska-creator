@@ -11,6 +11,7 @@ import { PresentationPlayer } from '@/components/PresentationPlayer';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ContentUploader } from '@/components/ContentUploader';
+import { AIRefinementPanel } from '@/components/AIRefinementPanel';
 
 interface VideoStepProps {
   outline: CourseOutline | null;
@@ -180,6 +181,8 @@ export function VideoStep({
   );
 
   const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
+  const [showNarrationRefinement, setShowNarrationRefinement] = useState(false);
+  const [uploadedNarrationContent, setUploadedNarrationContent] = useState('');
 
   return (
     <div className="space-y-6">
@@ -215,13 +218,37 @@ export function VideoStep({
       {uploadMode === 'upload' && (
         <Card>
           <CardContent className="pt-6">
-            <ContentUploader
-              onContentUploaded={(content) => onContentUploaded?.(content)}
-              label="Importera manus för röstberättelse"
-              description="Ladda upp textfiler eller klistra in manus som ska läsas upp."
-              placeholder="Klistra in manus för röstsyntes här..."
-              compact
-            />
+            {showNarrationRefinement && uploadedNarrationContent ? (
+              <AIRefinementPanel
+                content={uploadedNarrationContent}
+                contentType="narration"
+                context={courseTitle}
+                onRefinedContent={(refined) => {
+                  onContentUploaded?.(refined);
+                  setShowNarrationRefinement(false);
+                  setUploadedNarrationContent('');
+                  toast.success('Förfinat manus importerat!');
+                }}
+                onSkipRefinement={() => {
+                  onContentUploaded?.(uploadedNarrationContent);
+                  setShowNarrationRefinement(false);
+                  setUploadedNarrationContent('');
+                  toast.success('Manus importerat!');
+                }}
+              />
+            ) : (
+              <ContentUploader
+                onContentUploaded={(content) => {
+                  setUploadedNarrationContent(content);
+                  setShowNarrationRefinement(true);
+                  toast.success('Manus uppladdad! Du kan nu förfina med AI.');
+                }}
+                label="Importera manus för röstberättelse"
+                description="Ladda upp textfiler eller klistra in manus som ska läsas upp."
+                placeholder="Klistra in manus för röstsyntes här..."
+                compact
+              />
+            )}
           </CardContent>
         </Card>
       )}

@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { AIReviewEditor } from '@/components/AIReviewEditor';
 import { ResearchHub } from '@/components/ResearchHub';
+import { AIRefinementPanel } from '@/components/AIRefinementPanel';
 
 const ELEVENLABS_VOICES = [
   { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Varm, professionell' },
@@ -59,6 +60,8 @@ export function ScriptStep({
   const [editingModule, setEditingModule] = useState<string | null>(null);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [editedSections, setEditedSections] = useState<Record<string, ScriptSection[]>>({});
+  const [showRefinement, setShowRefinement] = useState<Record<string, boolean>>({});
+  const [uploadedRawContent, setUploadedRawContent] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!outline) {
@@ -114,12 +117,9 @@ export function ScriptStep({
 
     try {
       const text = await file.text();
-      const script = parseTextToScript(text, moduleId, moduleTitle);
-      
-      if (onUploadScript) {
-        onUploadScript(moduleId, script);
-        toast.success('Manus importerat!');
-      }
+      setUploadedRawContent(prev => ({ ...prev, [moduleId]: text }));
+      setShowRefinement(prev => ({ ...prev, [moduleId]: true }));
+      toast.success('Fil uppladdad! Du kan nu förfina innehållet med AI.');
     } catch (error) {
       toast.error('Kunde inte läsa filen');
     }
@@ -137,11 +137,34 @@ export function ScriptStep({
       return;
     }
 
+    setUploadedRawContent(prev => ({ ...prev, [moduleId]: text }));
+    setShowRefinement(prev => ({ ...prev, [moduleId]: true }));
+    toast.success('Text inlagd! Du kan nu förfina innehållet med AI.');
+  };
+
+  const handleRefinedScriptContent = (moduleId: string, moduleTitle: string, refinedText: string) => {
+    const script = parseTextToScript(refinedText, moduleId, moduleTitle);
+    
+    if (onUploadScript) {
+      onUploadScript(moduleId, script);
+      setManualText(prev => ({ ...prev, [moduleId]: '' }));
+      setShowRefinement(prev => ({ ...prev, [moduleId]: false }));
+      setUploadedRawContent(prev => ({ ...prev, [moduleId]: '' }));
+      toast.success('Förfinat manus sparat!');
+    }
+  };
+
+  const handleSkipScriptRefinement = (moduleId: string, moduleTitle: string) => {
+    const text = uploadedRawContent[moduleId];
+    if (!text) return;
+    
     const script = parseTextToScript(text, moduleId, moduleTitle);
     
     if (onUploadScript) {
       onUploadScript(moduleId, script);
       setManualText(prev => ({ ...prev, [moduleId]: '' }));
+      setShowRefinement(prev => ({ ...prev, [moduleId]: false }));
+      setUploadedRawContent(prev => ({ ...prev, [moduleId]: '' }));
       toast.success('Manus sparat!');
     }
   };
@@ -588,43 +611,55 @@ export function ScriptStep({
                       {module.description}
                     </p>
                     
-                    {/* Upload options */}
-                    <div className="space-y-3">
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedModuleForUpload(module.id);
-                            fileInputRef.current?.click();
-                          }}
-                          className="gap-2"
-                        >
-                          <FileUp className="w-4 h-4" />
-                          Ladda upp fil
-                        </Button>
-                        <span className="text-xs text-muted-foreground self-center">
-                          (.txt, .md)
-                        </span>
+                    {/* Show refinement panel if content was uploaded */}
+                    {showRefinement[module.id] && uploadedRawContent[module.id] ? (
+                      <AIRefinementPanel
+                        content={uploadedRawContent[module.id]}
+                        contentType="script"
+                        context={`${courseTitle} - ${module.title}`}
+                        language={language}
+                        onRefinedContent={(refined) => handleRefinedScriptContent(module.id, module.title, refined)}
+                        onSkipRefinement={() => handleSkipScriptRefinement(module.id, module.title)}
+                      />
+                    ) : (
+                      /* Upload options */
+                      <div className="space-y-3">
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedModuleForUpload(module.id);
+                              fileInputRef.current?.click();
+                            }}
+                            className="gap-2"
+                          >
+                            <FileUp className="w-4 h-4" />
+                            Ladda upp fil
+                          </Button>
+                          <span className="text-xs text-muted-foreground self-center">
+                            (.txt, .md)
+                          </span>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label className="text-sm">Eller klistra in text:</Label>
+                          <Textarea
+                            placeholder="Klistra in ditt manus här..."
+                            value={manualText[module.id] || ''}
+                            onChange={(e) => setManualText(prev => ({ ...prev, [module.id]: e.target.value }))}
+                            className="min-h-[120px] text-sm"
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => handleManualTextSubmit(module.id, module.title)}
+                            disabled={!manualText[module.id]?.trim()}
+                          >
+                            Spara manus
+                          </Button>
+                        </div>
                       </div>
-                      
-                      <div className="space-y-2">
-                        <Label className="text-sm">Eller klistra in text:</Label>
-                        <Textarea
-                          placeholder="Klistra in ditt manus här..."
-                          value={manualText[module.id] || ''}
-                          onChange={(e) => setManualText(prev => ({ ...prev, [module.id]: e.target.value }))}
-                          className="min-h-[120px] text-sm"
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => handleManualTextSubmit(module.id, module.title)}
-                          disabled={!manualText[module.id]?.trim()}
-                        >
-                          Spara manus
-                        </Button>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </CardContent>
