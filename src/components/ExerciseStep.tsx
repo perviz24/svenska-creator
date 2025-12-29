@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { BookOpen, RefreshCw, ArrowRight, Loader2, ChevronDown, ChevronUp, Clock, FileText, Upload, CheckSquare, Edit, Download, GraduationCap, Search, Globe, Database, Link, File, X, Check } from 'lucide-react';
+import { BookOpen, RefreshCw, ArrowRight, Loader2, ChevronDown, ChevronUp, Clock, FileText, Upload, CheckSquare, Edit, Download, GraduationCap, Search, Globe, Database, Link, File, X, Check, Wand2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import { ModuleScript, CourseOutline, ModuleExercises, Exercise, ExercisePart, E
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { AIReviewEditor } from '@/components/AIReviewEditor';
 
 interface ExerciseStepProps {
   outline: CourseOutline | null;
@@ -76,6 +77,10 @@ export function ExerciseStep({
   // URL scraping state
   const [scrapedUrls, setScrapedUrls] = useState<ScrapedUrl[]>([]);
   const [isScraping, setIsScraping] = useState(false);
+  
+  // AI editing state
+  const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<'title' | 'purpose' | null>(null);
 
   if (!outline) {
     return (
@@ -409,6 +414,24 @@ export function ExerciseStep({
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Övning exporterad!');
+  };
+
+  const handleUpdateExercise = (moduleId: string, exerciseId: string, field: 'title' | 'purpose', newValue: string) => {
+    const moduleExercises = exercises[moduleId];
+    if (!moduleExercises) return;
+
+    const updatedExercises = moduleExercises.exercises.map(ex =>
+      ex.id === exerciseId ? { ...ex, [field]: newValue } : ex
+    );
+    
+    onExercisesGenerated(moduleId, {
+      ...moduleExercises,
+      exercises: updatedExercises,
+    });
+    
+    setEditingExerciseId(null);
+    setEditingField(null);
+    toast.success('Övning uppdaterad!');
   };
 
   return (
@@ -787,8 +810,26 @@ export function ExerciseStep({
                             <div key={exercise.id} className="p-4 bg-secondary/30 rounded-lg space-y-4 border border-border/30">
                               {/* Exercise Header */}
                               <div className="flex items-start justify-between gap-4">
-                                <div>
-                                  <h4 className="font-semibold text-lg">{exercise.title}</h4>
+                                <div className="flex-1">
+                                  {editingExerciseId === exercise.id && editingField === 'title' ? (
+                                    <AIReviewEditor
+                                      content={exercise.title}
+                                      contentType="description"
+                                      context={`Övning för ${script.moduleTitle}`}
+                                      onSave={(newValue) => handleUpdateExercise(script.moduleId, exercise.id, 'title', newValue)}
+                                      onCancel={() => { setEditingExerciseId(null); setEditingField(null); }}
+                                      showInline
+                                      minHeight="40px"
+                                    />
+                                  ) : (
+                                    <h4 
+                                      className="font-semibold text-lg group cursor-pointer flex items-center gap-2"
+                                      onClick={() => { setEditingExerciseId(exercise.id); setEditingField('title'); }}
+                                    >
+                                      {exercise.title}
+                                      <Wand2 className="w-3 h-3 opacity-0 group-hover:opacity-100 text-muted-foreground transition-opacity" />
+                                    </h4>
+                                  )}
                                   <div className="flex gap-2 mt-2 flex-wrap">
                                     <Badge variant="outline" className="gap-1">
                                       <Clock className="w-3 h-3" />
@@ -817,7 +858,24 @@ export function ExerciseStep({
                               {/* Purpose */}
                               <div className="space-y-1">
                                 <h5 className="font-medium text-sm">Syfte</h5>
-                                <p className="text-sm text-muted-foreground">{exercise.purpose}</p>
+                                {editingExerciseId === exercise.id && editingField === 'purpose' ? (
+                                  <AIReviewEditor
+                                    content={exercise.purpose}
+                                    contentType="description"
+                                    context={`Övning: ${exercise.title}`}
+                                    onSave={(newValue) => handleUpdateExercise(script.moduleId, exercise.id, 'purpose', newValue)}
+                                    onCancel={() => { setEditingExerciseId(null); setEditingField(null); }}
+                                    showInline
+                                  />
+                                ) : (
+                                  <p 
+                                    className="text-sm text-muted-foreground group cursor-pointer flex items-center gap-2"
+                                    onClick={() => { setEditingExerciseId(exercise.id); setEditingField('purpose'); }}
+                                  >
+                                    {exercise.purpose}
+                                    <Wand2 className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  </p>
+                                )}
                               </div>
 
                               {/* Parts */}

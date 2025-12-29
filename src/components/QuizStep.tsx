@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { HelpCircle, RefreshCw, ArrowRight, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp, Trash2, Upload, SkipForward } from 'lucide-react';
+import { HelpCircle, RefreshCw, ArrowRight, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp, Trash2, Upload, SkipForward, Wand2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ContentUploader } from '@/components/ContentUploader';
+import { AIReviewEditor } from '@/components/AIReviewEditor';
 
 interface QuizStepProps {
   outline: CourseOutline | null;
@@ -40,6 +41,8 @@ export function QuizStep({
   const [testAnswers, setTestAnswers] = useState<Record<string, string>>({});
   const [showResults, setShowResults] = useState<Record<string, boolean>>({});
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+  
   if (!outline) {
     return (
       <div className="text-center py-12">
@@ -109,6 +112,16 @@ export function QuizStep({
       }
     });
     return correct;
+  };
+
+  const handleUpdateQuestion = (quiz: ModuleQuiz, questionId: string, newQuestionText: string) => {
+    const updatedQuestions = quiz.questions.map(q =>
+      q.id === questionId ? { ...q, question: newQuestionText } : q
+    );
+    const updatedQuiz: ModuleQuiz = { ...quiz, questions: updatedQuestions };
+    onQuizGenerated(quiz.moduleId, updatedQuiz);
+    setEditingQuestionId(null);
+    toast.success('Fråga uppdaterad!');
   };
 
   return (
@@ -214,9 +227,24 @@ export function QuizStep({
                       {quiz.questions.map((question, qIdx) => (
                         <div key={question.id} className="space-y-3 p-4 bg-secondary/30 rounded-lg">
                           <div className="flex items-start justify-between gap-4">
-                            <p className="font-medium">
-                              {qIdx + 1}. {question.question}
-                            </p>
+                            {editingQuestionId === question.id ? (
+                              <div className="flex-1">
+                                <AIReviewEditor
+                                  content={question.question}
+                                  contentType="description"
+                                  context={`Quiz för ${quiz.moduleTitle}`}
+                                  onSave={(newText) => handleUpdateQuestion(quiz, question.id, newText)}
+                                  onCancel={() => setEditingQuestionId(null)}
+                                  showInline
+                                  minHeight="60px"
+                                />
+                              </div>
+                            ) : (
+                              <p className="font-medium group cursor-pointer flex items-center gap-2" onClick={() => setEditingQuestionId(question.id)}>
+                                {qIdx + 1}. {question.question}
+                                <Wand2 className="w-3 h-3 opacity-0 group-hover:opacity-100 text-muted-foreground transition-opacity" />
+                              </p>
+                            )}
                             <Badge variant="outline" className={getDifficultyColor(question.difficulty)}>
                               {question.difficulty}
                             </Badge>
