@@ -11,6 +11,7 @@ import { CourseOutline, Module, LearningObjective, SubTopic } from '@/types/cour
 import { AIReviewEditor } from '@/components/AIReviewEditor';
 import { ResearchHub } from '@/components/ResearchHub';
 import { ContentUploader } from '@/components/ContentUploader';
+import { AIRefinementPanel } from '@/components/AIRefinementPanel';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -318,6 +319,8 @@ export function OutlineStep({
   const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [manualOutlineText, setManualOutlineText] = useState('');
+  const [showRefinement, setShowRefinement] = useState(false);
+  const [uploadedRawContent, setUploadedRawContent] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const parseTextToOutline = (text: string): CourseOutline | null => {
@@ -397,12 +400,9 @@ export function OutlineStep({
 
     try {
       const text = await file.text();
-      const outline = parseTextToOutline(text);
-      
-      if (outline && onUploadOutline) {
-        onUploadOutline(outline);
-        toast.success('Kursöversikt importerad!');
-      }
+      setUploadedRawContent(text);
+      setShowRefinement(true);
+      toast.success('Fil uppladdad! Du kan nu förfina innehållet med AI.');
     } catch (error) {
       toast.error('Kunde inte läsa filen');
     }
@@ -418,10 +418,29 @@ export function OutlineStep({
       return;
     }
 
-    const outline = parseTextToOutline(manualOutlineText);
+    setUploadedRawContent(manualOutlineText);
+    setShowRefinement(true);
+    toast.success('Text inlagd! Du kan nu förfina innehållet med AI.');
+  };
+
+  const handleRefinedContent = (refinedText: string) => {
+    const outline = parseTextToOutline(refinedText);
     if (outline && onUploadOutline) {
       onUploadOutline(outline);
       setManualOutlineText('');
+      setShowRefinement(false);
+      setUploadedRawContent('');
+      toast.success('Förfinad kursöversikt importerad!');
+    }
+  };
+
+  const handleSkipRefinement = () => {
+    const outline = parseTextToOutline(uploadedRawContent);
+    if (outline && onUploadOutline) {
+      onUploadOutline(outline);
+      setManualOutlineText('');
+      setShowRefinement(false);
+      setUploadedRawContent('');
       toast.success('Kursöversikt importerad!');
     }
   };
@@ -473,58 +492,71 @@ export function OutlineStep({
             </TabsContent>
 
             <TabsContent value="upload" className="mt-6 space-y-4">
-              {/* Hidden file input */}
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".txt,.md,.json"
-                onChange={handleFileUpload}
-              />
-
-              <Card>
-                <CardContent className="pt-6 space-y-4">
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="flex-1 gap-2"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <FileUp className="w-4 h-4" />
-                      Välj fil (.txt, .md, .json)
-                    </Button>
-                  </div>
-
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-background px-2 text-muted-foreground">eller klistra in</span>
-                    </div>
-                  </div>
-
-                  <Textarea
-                    value={manualOutlineText}
-                    onChange={(e) => setManualOutlineText(e.target.value)}
-                    placeholder={`Klistra in kursstruktur här...\n\nExempel:\n1. Introduktion till ämnet\n- Lärandemål 1\n- Lärandemål 2\n\n2. Grundläggande koncept\n- Viktiga begrepp\n- Praktiska exempel`}
-                    className="min-h-[200px] font-mono text-sm"
+              {/* Show refinement panel if content was uploaded */}
+              {showRefinement && uploadedRawContent ? (
+                <AIRefinementPanel
+                  content={uploadedRawContent}
+                  contentType="outline"
+                  context={courseTitle}
+                  onRefinedContent={handleRefinedContent}
+                  onSkipRefinement={handleSkipRefinement}
+                />
+              ) : (
+                <>
+                  {/* Hidden file input */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept=".txt,.md,.json"
+                    onChange={handleFileUpload}
                   />
 
-                  <Button
-                    onClick={handleManualSubmit}
-                    className="w-full"
-                    disabled={!manualOutlineText.trim()}
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Importera kursöversikt
-                  </Button>
+                  <Card>
+                    <CardContent className="pt-6 space-y-4">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          className="flex-1 gap-2"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <FileUp className="w-4 h-4" />
+                          Välj fil (.txt, .md, .json)
+                        </Button>
+                      </div>
 
-                  <p className="text-xs text-muted-foreground text-center">
-                    Stöder JSON-format eller enkel text med numrerade moduler och punktlistor
-                  </p>
-                </CardContent>
-              </Card>
+                      <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                          <span className="w-full border-t" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                          <span className="bg-background px-2 text-muted-foreground">eller klistra in</span>
+                        </div>
+                      </div>
+
+                      <Textarea
+                        value={manualOutlineText}
+                        onChange={(e) => setManualOutlineText(e.target.value)}
+                        placeholder={`Klistra in kursstruktur här...\n\nExempel:\n1. Introduktion till ämnet\n- Lärandemål 1\n- Lärandemål 2\n\n2. Grundläggande koncept\n- Viktiga begrepp\n- Praktiska exempel`}
+                        className="min-h-[200px] font-mono text-sm"
+                      />
+
+                      <Button
+                        onClick={handleManualSubmit}
+                        className="w-full"
+                        disabled={!manualOutlineText.trim()}
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Importera kursöversikt
+                      </Button>
+
+                      <p className="text-xs text-muted-foreground text-center">
+                        Stöder JSON-format eller enkel text med numrerade moduler och punktlistor
+                      </p>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </TabsContent>
           </Tabs>
         </div>
