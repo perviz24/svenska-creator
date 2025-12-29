@@ -89,10 +89,23 @@ export type ProjectMode = 'course' | 'presentation';
 export type ComprehensiveLevel = 'beginner' | 'intermediate' | 'advanced';
 export type CourseLengthPreset = 'short' | 'standard' | 'comprehensive';
 
-export type PresentationStyle = 'modern' | 'classic' | 'minimal' | 'creative' | 'corporate';
+export type PresentationStyle = 'modern' | 'classic' | 'minimal' | 'creative' | 'corporate' | 'custom';
 export type PresentationTone = 'formal' | 'professional' | 'friendly' | 'casual' | 'inspirational';
 export type ImageRichness = 'minimal' | 'moderate' | 'rich' | 'visual-heavy';
 export type ProfessionalityLevel = 'very-casual' | 'casual' | 'balanced' | 'professional' | 'very-formal';
+
+export interface CustomTemplate {
+  id: string;
+  name: string;
+  logoUrl?: string;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  fontFamily?: string;
+  headingFontFamily?: string;
+  templateFileUrl?: string; // For uploaded PPT template
+  createdAt: string;
+}
 
 export interface PresentationSettings {
   slideCount: number;
@@ -106,6 +119,9 @@ export interface PresentationSettings {
   professionalityLevel: ProfessionalityLevel;
   includeAnimations: boolean;
   includeCharts: boolean;
+  customTemplate?: CustomTemplate;
+  includeStockVideos: boolean;
+  stockVideoProvider: 'pexels' | 'pixabay' | 'storyblocks' | 'shutterstock';
 }
 
 export interface CourseStructureLimits {

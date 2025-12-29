@@ -62,6 +62,8 @@ export function ModeSelectionStep({
         professionalityLevel: presentationSettings?.professionalityLevel || 'professional',
         includeAnimations: presentationSettings?.includeAnimations ?? true,
         includeCharts: presentationSettings?.includeCharts ?? false,
+        includeStockVideos: presentationSettings?.includeStockVideos ?? false,
+        stockVideoProvider: presentationSettings?.stockVideoProvider || 'pexels',
       });
     }
   };
