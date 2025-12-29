@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { useVoiceSynthesis } from '@/hooks/useVoiceSynthesis';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { AIReviewEditor } from '@/components/AIReviewEditor';
 
 const ELEVENLABS_VOICES = [
   { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Varm, professionell' },
@@ -55,6 +56,7 @@ export function ScriptStep({
   const [selectedModuleForUpload, setSelectedModuleForUpload] = useState<string | null>(null);
   const [analyzingModule, setAnalyzingModule] = useState<string | null>(null);
   const [editingModule, setEditingModule] = useState<string | null>(null);
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [editedSections, setEditedSections] = useState<Record<string, ScriptSection[]>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -235,6 +237,25 @@ export function ScriptStep({
       }
       return { ...prev, [moduleId]: sections };
     });
+  };
+
+  const handleAISectionSave = (script: ModuleScript, sectionIndex: number, newContent: string) => {
+    const sections = [...script.sections];
+    sections[sectionIndex] = { ...sections[sectionIndex], content: newContent };
+    
+    const totalWords = sections.reduce((acc, s) => acc + s.content.split(/\s+/).filter(w => w).length, 0);
+    const updatedScript: ModuleScript = {
+      ...script,
+      sections,
+      totalWords,
+      estimatedDuration: Math.ceil(totalWords / 150),
+    };
+
+    if (onUploadScript) {
+      onUploadScript(script.moduleId, updatedScript);
+      toast.success('Sektion uppdaterad!');
+    }
+    setEditingSectionId(null);
   };
 
   return (
@@ -477,8 +498,28 @@ export function ScriptStep({
                                 onChange={(e) => updateSectionContent(script.moduleId, sIdx, e.target.value)}
                                 className="min-h-[150px] text-sm"
                               />
+                            ) : editingSectionId === section.id ? (
+                              <AIReviewEditor
+                                content={section.content}
+                                contentType="script"
+                                context={`${courseTitle} - ${script.moduleTitle}`}
+                                onSave={(newContent) => handleAISectionSave(script, sIdx, newContent)}
+                                onCancel={() => setEditingSectionId(null)}
+                                showInline
+                              />
                             ) : (
                               <div className="prose prose-sm dark:prose-invert max-w-none">
+                                <div className="flex justify-end mb-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setEditingSectionId(section.id)}
+                                    className="gap-1 text-xs"
+                                  >
+                                    <Wand2 className="w-3 h-3" />
+                                    AI-redigera
+                                  </Button>
+                                </div>
                                 <p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">
                                   {section.content}
                                 </p>
