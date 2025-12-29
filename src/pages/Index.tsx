@@ -20,6 +20,7 @@ const Index = () => {
     goToStep,
     nextStep,
     generateOutline,
+    updateOutline,
     generateScript,
     uploadScript,
     generateSlides,
@@ -52,8 +53,10 @@ const Index = () => {
           <OutlineStep
             outline={state.outline}
             isLoading={state.isProcessing}
+            courseTitle={state.title}
             onGenerateOutline={generateOutline}
             onRegenerateOutline={generateOutline}
+            onUpdateOutline={updateOutline}
             onContinue={nextStep}
           />
         );

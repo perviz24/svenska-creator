@@ -1,22 +1,65 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Clock, Target, ArrowRight, Loader2, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, Target, ArrowRight, Loader2, RefreshCw, Edit2, Check, X, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { CourseOutline, Module } from '@/types/course';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { CourseOutline, Module, LearningObjective, SubTopic } from '@/types/course';
+import { AIReviewEditor } from '@/components/AIReviewEditor';
 import { cn } from '@/lib/utils';
 
 interface OutlineStepProps {
   outline: CourseOutline | null;
   isLoading: boolean;
+  courseTitle: string;
   onGenerateOutline: () => void;
   onRegenerateOutline: () => void;
+  onUpdateOutline: (outline: CourseOutline) => void;
   onContinue: () => void;
 }
 
-function ModuleCard({ module, index }: { module: Module; index: number }) {
+function ModuleCard({ 
+  module, 
+  index, 
+  courseTitle,
+  onUpdateModule 
+}: { 
+  module: Module; 
+  index: number; 
+  courseTitle: string;
+  onUpdateModule: (updates: Partial<Module>) => void;
+}) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(module.title);
+  const [editedDescription, setEditedDescription] = useState(module.description);
+
+  const handleSaveTitle = () => {
+    onUpdateModule({ title: editedTitle });
+    setIsEditingTitle(false);
+  };
+
+  const handleSaveDescription = (newDescription: string) => {
+    onUpdateModule({ description: newDescription });
+    setIsEditingDescription(false);
+  };
+
+  const handleUpdateObjective = (objId: string, newText: string) => {
+    const updated = module.learningObjectives.map(obj =>
+      obj.id === objId ? { ...obj, text: newText } : obj
+    );
+    onUpdateModule({ learningObjectives: updated });
+  };
+
+  const handleUpdateSubTopic = (topicId: string, newTitle: string) => {
+    const updated = module.subTopics.map(topic =>
+      topic.id === topicId ? { ...topic, title: newTitle } : topic
+    );
+    onUpdateModule({ subTopics: updated });
+  };
 
   return (
     <Card 
@@ -34,10 +77,34 @@ function ModuleCard({ module, index }: { module: Module; index: number }) {
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary font-bold">
                   {module.number}
                 </div>
-                <div>
-                  <CardTitle className="text-lg font-semibold">
-                    {module.title}
-                  </CardTitle>
+                <div className="flex-1">
+                  {isEditingTitle ? (
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Input
+                        value={editedTitle}
+                        onChange={(e) => setEditedTitle(e.target.value)}
+                        className="text-lg font-semibold"
+                        onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()}
+                      />
+                      <Button size="sm" variant="ghost" onClick={handleSaveTitle}>
+                        <Check className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setIsEditingTitle(false)}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <CardTitle 
+                      className="text-lg font-semibold group flex items-center gap-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEditingTitle(true);
+                      }}
+                    >
+                      {module.title}
+                      <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-100 text-muted-foreground transition-opacity" />
+                    </CardTitle>
+                  )}
                   <div className="flex items-center gap-3 mt-1">
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Clock className="w-4 h-4" />
@@ -60,10 +127,37 @@ function ModuleCard({ module, index }: { module: Module; index: number }) {
 
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-4">
-            <p className="text-muted-foreground">
-              {module.description}
-            </p>
+            {/* Editable Description */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-foreground">Beskrivning</span>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="gap-1 text-xs"
+                  onClick={() => setIsEditingDescription(!isEditingDescription)}
+                >
+                  <Edit2 className="w-3 h-3" />
+                  {isEditingDescription ? 'Avbryt' : 'Redigera'}
+                </Button>
+              </div>
+              {isEditingDescription ? (
+                <AIReviewEditor
+                  content={module.description}
+                  contentType="description"
+                  context={courseTitle}
+                  onSave={handleSaveDescription}
+                  onCancel={() => setIsEditingDescription(false)}
+                  showInline
+                />
+              ) : (
+                <p className="text-muted-foreground">
+                  {module.description}
+                </p>
+              )}
+            </div>
 
+            {/* Editable Learning Objectives */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <Target className="w-4 h-4 text-accent" />
@@ -71,31 +165,30 @@ function ModuleCard({ module, index }: { module: Module; index: number }) {
               </div>
               <ul className="space-y-2 pl-6">
                 {module.learningObjectives.map((obj) => (
-                  <li
+                  <EditableListItem
                     key={obj.id}
-                    className="text-sm text-muted-foreground list-disc"
-                  >
-                    {obj.text}
-                  </li>
+                    value={obj.text}
+                    onSave={(newText) => handleUpdateObjective(obj.id, newText)}
+                    courseTitle={courseTitle}
+                    contentType="outline"
+                  />
                 ))}
               </ul>
             </div>
 
+            {/* Editable SubTopics */}
             <div className="space-y-3">
               <div className="text-sm font-medium text-foreground">
                 Delmoment
               </div>
               <div className="grid gap-2">
                 {module.subTopics.map((topic) => (
-                  <div
+                  <EditableSubTopic
                     key={topic.id}
-                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                  >
-                    <span className="text-sm">{topic.title}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {topic.duration} min
-                    </span>
-                  </div>
+                    topic={topic}
+                    onSave={(newTitle) => handleUpdateSubTopic(topic.id, newTitle)}
+                    courseTitle={courseTitle}
+                  />
                 ))}
               </div>
             </div>
@@ -106,11 +199,113 @@ function ModuleCard({ module, index }: { module: Module; index: number }) {
   );
 }
 
+function EditableListItem({
+  value,
+  onSave,
+  courseTitle,
+  contentType,
+}: {
+  value: string;
+  onSave: (newValue: string) => void;
+  courseTitle: string;
+  contentType: 'outline' | 'script';
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+
+  if (isEditing) {
+    return (
+      <li className="list-disc">
+        <AIReviewEditor
+          content={value}
+          contentType={contentType}
+          context={courseTitle}
+          onSave={(newValue) => {
+            onSave(newValue);
+            setIsEditing(false);
+          }}
+          onCancel={() => setIsEditing(false)}
+          showInline
+          minHeight="60px"
+        />
+      </li>
+    );
+  }
+
+  return (
+    <li
+      className="text-sm text-muted-foreground list-disc group cursor-pointer hover:text-foreground transition-colors"
+      onClick={() => setIsEditing(true)}
+    >
+      <span className="flex items-center gap-1">
+        {value}
+        <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </span>
+    </li>
+  );
+}
+
+function EditableSubTopic({
+  topic,
+  onSave,
+  courseTitle,
+}: {
+  topic: SubTopic;
+  onSave: (newTitle: string) => void;
+  courseTitle: string;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(topic.title);
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg gap-2">
+        <Input
+          value={editedTitle}
+          onChange={(e) => setEditedTitle(e.target.value)}
+          className="flex-1 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              onSave(editedTitle);
+              setIsEditing(false);
+            }
+          }}
+        />
+        <div className="flex gap-1">
+          <Button size="sm" variant="ghost" onClick={() => { onSave(editedTitle); setIsEditing(false); }}>
+            <Check className="w-4 h-4" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+        <span className="text-xs text-muted-foreground">{topic.duration} min</span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg group cursor-pointer hover:bg-muted transition-colors"
+      onClick={() => setIsEditing(true)}
+    >
+      <span className="text-sm flex items-center gap-1">
+        {topic.title}
+        <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-100 text-muted-foreground transition-opacity" />
+      </span>
+      <span className="text-xs text-muted-foreground">
+        {topic.duration} min
+      </span>
+    </div>
+  );
+}
+
 export function OutlineStep({
   outline,
   isLoading,
+  courseTitle,
   onGenerateOutline,
   onRegenerateOutline,
+  onUpdateOutline,
   onContinue,
 }: OutlineStepProps) {
   if (!outline && !isLoading) {
@@ -181,7 +376,18 @@ export function OutlineStep({
 
       <div className="space-y-4">
         {outline!.modules.map((module, index) => (
-          <ModuleCard key={module.id} module={module} index={index} />
+          <ModuleCard 
+            key={module.id} 
+            module={module} 
+            index={index} 
+            courseTitle={courseTitle}
+            onUpdateModule={(updates) => {
+              const updatedModules = outline!.modules.map(m =>
+                m.id === module.id ? { ...m, ...updates } : m
+              );
+              onUpdateOutline({ ...outline!, modules: updatedModules });
+            }}
+          />
         ))}
       </div>
 
