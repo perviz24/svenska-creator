@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { GraduationCap, Presentation, Clock, Layers, ArrowRight, Sparkles, Zap } from 'lucide-react';
-import { ProjectMode, PresentationSettings, CourseStructureLimits, AIStructurePreview } from '@/types/course';
+import { Switch } from '@/components/ui/switch';
+import { GraduationCap, Presentation, Clock, Layers, ArrowRight, Sparkles, Zap, FlaskConical, Eye } from 'lucide-react';
+import { ProjectMode, PresentationSettings, CourseStructureLimits, AIStructurePreview, DemoModeSettings } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { CourseStructureSettings } from './CourseStructureSettings';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,26 +17,51 @@ interface ModeSelectionStepProps {
   presentationSettings?: PresentationSettings;
   structureLimits?: CourseStructureLimits;
   courseTitle?: string;
+  demoMode?: DemoModeSettings;
   onModeChange: (mode: ProjectMode) => void;
   onPresentationSettingsChange: (settings: PresentationSettings) => void;
   onStructureLimitsChange: (limits: CourseStructureLimits) => void;
+  onDemoModeChange: (settings: DemoModeSettings) => void;
   onContinue: () => void;
 }
+
+const defaultDemoSettings: DemoModeSettings = {
+  enabled: false,
+  maxSlides: 5,
+  maxModules: 2,
+  maxAudioDurationSeconds: 60,
+  maxVideoDurationSeconds: 30,
+  watermarkEnabled: true,
+};
 
 export function ModeSelectionStep({
   projectMode,
   presentationSettings,
   structureLimits,
   courseTitle,
+  demoMode,
   onModeChange,
   onPresentationSettingsChange,
   onStructureLimitsChange,
+  onDemoModeChange,
   onContinue,
 }: ModeSelectionStepProps) {
   const [slideCount, setSlideCount] = useState(presentationSettings?.slideCount || 10);
   const [duration, setDuration] = useState(presentationSettings?.presentationDuration || 15);
   const [aiPreview, setAiPreview] = useState<AIStructurePreview | undefined>();
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+
+  const currentDemoSettings = demoMode || defaultDemoSettings;
+
+  const handleDemoToggle = (enabled: boolean) => {
+    onDemoModeChange({
+      ...currentDemoSettings,
+      enabled,
+    });
+    if (enabled) {
+      toast.info('Demoläge aktiverat - begränsad output med vattenstämpel');
+    }
+  };
 
   // Default structure limits
   const defaultLimits: CourseStructureLimits = {
@@ -126,6 +152,68 @@ export function ModeSelectionStep({
 
   return (
     <div className="space-y-6">
+      {/* Demo Mode Toggle - At the top */}
+      <Card className={cn(
+        "border-2 transition-all",
+        currentDemoSettings.enabled 
+          ? "border-amber-500 bg-amber-500/5" 
+          : "border-dashed border-muted-foreground/30"
+      )}>
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "p-2 rounded-lg",
+                currentDemoSettings.enabled ? "bg-amber-500 text-white" : "bg-muted"
+              )}>
+                <FlaskConical className="w-5 h-5" />
+              </div>
+              <div>
+                <Label htmlFor="demo-toggle" className="text-base font-medium cursor-pointer flex items-center gap-2">
+                  Demoläge
+                  {currentDemoSettings.enabled && (
+                    <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full">
+                      Aktivt
+                    </span>
+                  )}
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Testa hela arbetsflödet med begränsad output och vattenstämpel
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="demo-toggle"
+              checked={currentDemoSettings.enabled}
+              onCheckedChange={handleDemoToggle}
+            />
+          </div>
+          
+          {currentDemoSettings.enabled && (
+            <div className="mt-4 pt-4 border-t border-amber-500/20">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Layers className="w-4 h-4 text-amber-500" />
+                  <span>Max {currentDemoSettings.maxSlides} slides</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <GraduationCap className="w-4 h-4 text-amber-500" />
+                  <span>Max {currentDemoSettings.maxModules} moduler</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Clock className="w-4 h-4 text-amber-500" />
+                  <span>Max {currentDemoSettings.maxAudioDurationSeconds}s ljud</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Eye className="w-4 h-4 text-amber-500" />
+                  <span>Vattenstämpel på</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold text-foreground">Vad vill du skapa?</h1>
         <p className="text-muted-foreground">

@@ -1,6 +1,6 @@
-import { Check, FileText, Layers, Mic, Video, Upload, Sparkles, HelpCircle, BookOpen, LayoutGrid } from 'lucide-react';
+import { Check, FileText, Layers, Mic, Video, Upload, Sparkles, HelpCircle, BookOpen, LayoutGrid, FlaskConical } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { WorkflowStep, ProjectMode } from '@/types/course';
+import { WorkflowStep, ProjectMode, DemoModeSettings } from '@/types/course';
 
 interface Step {
   id: WorkflowStep;
@@ -28,10 +28,11 @@ interface ProgressStepperProps {
   currentStep: WorkflowStep;
   completedSteps: WorkflowStep[];
   projectMode?: ProjectMode;
+  demoMode?: DemoModeSettings;
   onStepClick?: (step: WorkflowStep) => void;
 }
 
-export function ProgressStepper({ currentStep, completedSteps, projectMode = 'course', onStepClick }: ProgressStepperProps) {
+export function ProgressStepper({ currentStep, completedSteps, projectMode = 'course', demoMode, onStepClick }: ProgressStepperProps) {
   // Filter steps based on project mode
   const stepIds = projectMode === 'presentation' ? presentationStepIds : courseStepIds;
   const steps = allSteps.filter(step => stepIds.includes(step.id));
@@ -40,6 +41,16 @@ export function ProgressStepper({ currentStep, completedSteps, projectMode = 'co
 
   return (
     <div className="w-full py-6">
+      {/* Demo Mode Banner */}
+      {demoMode?.enabled && (
+        <div className="flex items-center justify-center gap-2 mb-4 py-2 px-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+          <FlaskConical className="w-4 h-4 text-amber-500" />
+          <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+            Demoläge aktivt - Begränsad output med vattenstämpel
+          </span>
+        </div>
+      )}
+      
       <div className="flex items-center justify-between relative">
         {/* Progress line background */}
         <div className="absolute left-0 right-0 top-5 h-0.5 bg-border" />

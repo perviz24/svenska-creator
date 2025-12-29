@@ -11,7 +11,7 @@ import { VideoStep } from '@/components/VideoStep';
 import { ExportStep } from '@/components/ExportStep';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { useCourseWorkflow } from '@/hooks/useCourseWorkflow';
-import { ProjectMode, PresentationSettings, CourseStructureLimits } from '@/types/course';
+import { ProjectMode, PresentationSettings, CourseStructureLimits, DemoModeSettings } from '@/types/course';
 
 const Index = () => {
   const {
@@ -48,6 +48,10 @@ const Index = () => {
     updateSettings({ structureLimits: limits });
   };
 
+  const handleDemoModeChange = (demoMode: DemoModeSettings) => {
+    updateSettings({ demoMode });
+  };
+
   const renderCurrentStep = () => {
     switch (state.currentStep) {
       case 'mode':
@@ -57,9 +61,11 @@ const Index = () => {
             presentationSettings={state.settings.presentationSettings}
             structureLimits={state.settings.structureLimits}
             courseTitle={state.title}
+            demoMode={state.settings.demoMode}
             onModeChange={handleModeChange}
             onPresentationSettingsChange={handlePresentationSettingsChange}
             onStructureLimitsChange={handleStructureLimitsChange}
+            onDemoModeChange={handleDemoModeChange}
             onContinue={nextStep}
           />
         );
@@ -114,6 +120,7 @@ const Index = () => {
             slides={state.slides}
             isLoading={state.isProcessing}
             courseTitle={state.title}
+            demoMode={state.settings.demoMode}
             onGenerateSlides={generateSlides}
             onUpdateSlide={updateSlide}
             onContinue={nextStep}
@@ -192,6 +199,7 @@ const Index = () => {
               currentStep={state.currentStep}
               completedSteps={state.completedSteps}
               projectMode={state.settings.projectMode}
+              demoMode={state.settings.demoMode}
               onStepClick={goToStep}
             />
           </div>
