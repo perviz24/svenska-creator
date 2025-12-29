@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.export-google-slides]
 verify_jwt = false
+
+[functions.search-stock-videos]
+verify_jwt = false

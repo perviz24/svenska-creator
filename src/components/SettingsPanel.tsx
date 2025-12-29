@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, Mic, Clock, BookOpen, Languages, Search, ChevronDown, Users, Volume2, Palette, Image, Sparkles, Briefcase, Eye } from 'lucide-react';
+import { Settings, Mic, Clock, BookOpen, Languages, Search, ChevronDown, Users, Volume2, Palette, Image, Sparkles, Briefcase, Eye, Film, Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,11 +9,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { CourseSettings, ProjectMode, PresentationSettings, PresentationStyle, PresentationTone, ImageRichness, ProfessionalityLevel } from '@/types/course';
+import { CourseSettings, ProjectMode, PresentationSettings, PresentationStyle, PresentationTone, ImageRichness, ProfessionalityLevel, CustomTemplate } from '@/types/course';
 import { SystemDiagnostics } from '@/components/SystemDiagnostics';
 import { UserInvitePanel } from '@/components/UserInvitePanel';
 import { VoiceControlPanel } from '@/components/VoiceControlPanel';
 import { PresentationPreviewCard } from '@/components/PresentationPreviewCard';
+import { CustomTemplateUpload } from '@/components/CustomTemplateUpload';
 
 interface SettingsPanelProps {
   settings: CourseSettings;
@@ -40,6 +41,7 @@ const presentationStyles: { value: PresentationStyle; label: string }[] = [
   { value: 'minimal', label: 'Minimalistisk' },
   { value: 'creative', label: 'Kreativ' },
   { value: 'corporate', label: 'Företag' },
+  { value: 'custom', label: 'Egen mall' },
 ];
 
 const presentationTones: { value: PresentationTone; label: string }[] = [
@@ -106,18 +108,22 @@ export function SettingsPanel({ settings, onSettingsChange, projectMode, onPrese
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-4">
-                <TabsTrigger value="style" className="text-xs">
-                  <Palette className="w-3 h-3 mr-1" />
+              <TabsList className="grid w-full grid-cols-4 mb-4">
+                <TabsTrigger value="style" className="text-xs px-1">
+                  <Palette className="w-3 h-3 mr-0.5" />
                   Stil
                 </TabsTrigger>
-                <TabsTrigger value="visuals" className="text-xs">
-                  <Image className="w-3 h-3 mr-1" />
-                  Visuellt
+                <TabsTrigger value="visuals" className="text-xs px-1">
+                  <Image className="w-3 h-3 mr-0.5" />
+                  Media
                 </TabsTrigger>
-                <TabsTrigger value="tone" className="text-xs">
-                  <Briefcase className="w-3 h-3 mr-1" />
+                <TabsTrigger value="tone" className="text-xs px-1">
+                  <Briefcase className="w-3 h-3 mr-0.5" />
                   Ton
+                </TabsTrigger>
+                <TabsTrigger value="template" className="text-xs px-1">
+                  <Upload className="w-3 h-3 mr-0.5" />
+                  Mall
                 </TabsTrigger>
               </TabsList>
 
@@ -325,6 +331,40 @@ export function SettingsPanel({ settings, onSettingsChange, projectMode, onPrese
                   <p className="text-xs text-muted-foreground">
                     Påverkar språkval, struktur och innehållsdjup
                   </p>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="template" className="space-y-4 mt-0">
+                <CustomTemplateUpload
+                  template={presentationSettings?.customTemplate}
+                  onTemplateChange={(template) => {
+                    updatePresentationSettings({ 
+                      customTemplate: template,
+                      style: template ? 'custom' : (presentationSettings?.style || 'modern'),
+                      primaryColor: template?.primaryColor || presentationSettings?.primaryColor || '#6366f1',
+                      accentColor: template?.accentColor || presentationSettings?.accentColor || '#f59e0b',
+                    });
+                  }}
+                />
+                
+                {/* Stock Videos Option */}
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor="stockvideos" className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                      <Film className="w-4 h-4 text-muted-foreground" />
+                      Inkludera stockvideor
+                    </Label>
+                    <span className="text-xs text-muted-foreground">
+                      Sök och lägg till videor från Pexels
+                    </span>
+                  </div>
+                  <Switch
+                    id="stockvideos"
+                    checked={presentationSettings?.includeStockVideos ?? false}
+                    onCheckedChange={(checked) => 
+                      updatePresentationSettings({ includeStockVideos: checked })
+                    }
+                  />
                 </div>
               </TabsContent>
             </Tabs>
