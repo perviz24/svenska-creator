@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { ProgressStepper } from '@/components/ProgressStepper';
 import { ModeSelectionStep } from '@/components/ModeSelectionStep';
@@ -7,8 +8,13 @@ import { TitleStep } from '@/components/TitleStep';
 import { OutlineStep } from '@/components/OutlineStep';
 import { ScriptStep } from '@/components/ScriptStep';
 import { SlideStep } from '@/components/SlideStep';
+import { ExerciseStep } from '@/components/ExerciseStep';
+import { QuizStep } from '@/components/QuizStep';
+import { VoiceControlPanel } from '@/components/VoiceControlPanel';
+import { VideoStep } from '@/components/VideoStep';
 import { ExportStep } from '@/components/ExportStep';
 import { SettingsPanel } from '@/components/SettingsPanel';
+import { Button } from '@/components/ui/button';
 import { 
   ProjectMode, 
   PresentationSettings, 
@@ -21,10 +27,13 @@ import {
   TitleSuggestion,
   CourseOutline,
   ModuleScript,
-  Slide
+  Slide,
+  ModuleExercises,
+  ModuleQuiz
 } from '@/types/course';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { VoiceSettings } from '@/components/VoiceControlPanel';
 
 const defaultDemoSettings: DemoModeSettings = {
   enabled: true,
@@ -139,12 +148,11 @@ const Demo = () => {
     }));
   };
 
-  // Demo step configuration - centralized
+  // Demo step configuration - uses all course steps with limited content
   const getDemoStepFlow = (mode: ProjectMode): WorkflowStep[] => {
-    // Demo uses simplified flow: no exercises, quiz, voice, video
     return mode === 'presentation' 
       ? ['mode', 'title', 'slides', 'upload']
-      : ['mode', 'title', 'outline', 'script', 'slides', 'upload'];
+      : ['mode', 'title', 'outline', 'script', 'slides', 'exercises', 'quiz', 'voice', 'video', 'upload'];
   };
 
   const nextStep = () => {
@@ -375,6 +383,53 @@ const Demo = () => {
     toast.info('Innehåll importerat (Demo-läge)');
   };
 
+  const addExercises = (moduleId: string, exercises: ModuleExercises) => {
+    setState(prev => ({
+      ...prev,
+      exercises: {
+        ...prev.exercises,
+        [moduleId]: exercises,
+      },
+    }));
+  };
+
+  const addQuiz = (moduleId: string, quiz: ModuleQuiz) => {
+    setState(prev => ({
+      ...prev,
+      quizzes: {
+        ...prev.quizzes,
+        [moduleId]: quiz,
+      },
+    }));
+  };
+
+  const updateVideoSettings = (updates: Partial<VideoSettings>) => {
+    setState(prev => ({
+      ...prev,
+      videoSettings: {
+        ...prev.videoSettings,
+        ...updates,
+      },
+    }));
+  };
+
+  const generateModuleAudio = async (moduleId: string, script: ModuleScript) => {
+    // Demo mode - just simulate audio generation
+    toast.info('Ljudgenerering är begränsad i demoläge');
+    setState(prev => ({
+      ...prev,
+      moduleAudio: {
+        ...prev.moduleAudio,
+        [moduleId]: {
+          moduleId,
+          audioUrl: '',
+          duration: script.estimatedDuration * 60,
+          slideTiming: [],
+        },
+      },
+    }));
+  };
+
   const startNewDemo = () => {
     setState(initialState);
     toast.success('Ny demo startad!');
@@ -451,6 +506,82 @@ const Demo = () => {
             projectMode={state.settings.projectMode}
             onGenerateSlides={generateSlides}
             onUpdateSlide={updateSlide}
+            onContinue={nextStep}
+            onContentUploaded={handleContentUploaded}
+            onSkip={nextStep}
+          />
+        );
+      case 'exercises':
+        return (
+          <ExerciseStep
+            outline={state.outline}
+            scripts={state.scripts}
+            exercises={state.exercises}
+            isLoading={state.isProcessing}
+            courseTitle={state.title}
+            language={state.settings.language}
+            onExercisesGenerated={addExercises}
+            onContinue={nextStep}
+          />
+        );
+      case 'quiz':
+        return (
+          <QuizStep
+            outline={state.outline}
+            scripts={state.scripts}
+            quizzes={state.quizzes}
+            isLoading={state.isProcessing}
+            language={state.settings.language}
+            onQuizGenerated={addQuiz}
+            onContinue={nextStep}
+            onContentUploaded={handleContentUploaded}
+            onSkip={nextStep}
+          />
+        );
+      case 'voice':
+        return (
+          <div className="space-y-6">
+            <VoiceControlPanel
+              settings={{
+                voiceId: state.settings.voiceId,
+                voiceName: state.settings.voiceName,
+                stability: 0.5,
+                similarityBoost: 0.75,
+                style: 0,
+                speed: 1,
+                useCustomVoice: false,
+              }}
+              onSettingsChange={(newSettings) => {
+                if (newSettings.voiceId) {
+                  updateSettings({ voiceId: newSettings.voiceId });
+                }
+                if (newSettings.voiceName) {
+                  updateSettings({ voiceName: newSettings.voiceName });
+                }
+              }}
+              language={state.settings.language}
+            />
+            <div className="flex justify-end">
+              <Button onClick={nextStep} size="lg">
+                Fortsätt till video
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+        );
+      case 'video':
+        return (
+          <VideoStep
+            outline={state.outline}
+            scripts={state.scripts}
+            slides={state.slides}
+            moduleAudio={state.moduleAudio}
+            videoSettings={state.videoSettings}
+            courseTitle={state.title}
+            voiceId={state.settings.voiceId}
+            isLoading={state.isProcessing}
+            onGenerateAudio={generateModuleAudio}
+            onUpdateVideoSettings={updateVideoSettings}
             onContinue={nextStep}
             onContentUploaded={handleContentUploaded}
             onSkip={nextStep}
