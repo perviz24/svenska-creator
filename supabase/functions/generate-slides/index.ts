@@ -13,6 +13,93 @@ interface SlideContent {
   layout: 'title' | 'title-content' | 'two-column' | 'image-focus' | 'quote' | 'bullet-points';
   suggestedImageQuery: string;
   suggestedBackgroundColor?: string;
+  imageUrl?: string;
+  imageSource?: string;
+  imageAttribution?: string;
+}
+
+interface StockPhoto {
+  id: string;
+  url: string;
+  thumbnailUrl: string;
+  width: number;
+  height: number;
+  photographer: string;
+  photographerUrl: string;
+  source: string;
+  attribution: string;
+}
+
+// Search stock photos from Unsplash and Pexels
+async function searchStockPhotos(query: string): Promise<StockPhoto | null> {
+  const photos: StockPhoto[] = [];
+  
+  // Search Unsplash
+  const unsplashKey = Deno.env.get('UNSPLASH_ACCESS_KEY');
+  if (unsplashKey) {
+    try {
+      const unsplashUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=3&orientation=landscape`;
+      const unsplashResponse = await fetch(unsplashUrl, {
+        headers: { 'Authorization': `Client-ID ${unsplashKey}` }
+      });
+      
+      if (unsplashResponse.ok) {
+        const unsplashData = await unsplashResponse.json();
+        const unsplashPhotos = (unsplashData.results || []).map((photo: any) => ({
+          id: photo.id,
+          url: photo.urls?.regular || photo.urls?.small,
+          thumbnailUrl: photo.urls?.thumb,
+          width: photo.width,
+          height: photo.height,
+          photographer: photo.user?.name || 'Unknown',
+          photographerUrl: photo.user?.links?.html || '',
+          source: 'unsplash',
+          attribution: `Photo by ${photo.user?.name || 'Unknown'} on Unsplash`,
+        }));
+        photos.push(...unsplashPhotos);
+      }
+    } catch (e) {
+      console.error('Unsplash search error:', e);
+    }
+  }
+  
+  // Search Pexels
+  const pexelsKey = Deno.env.get('PEXELS_API_KEY');
+  if (pexelsKey) {
+    try {
+      const pexelsUrl = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=3&orientation=landscape`;
+      const pexelsResponse = await fetch(pexelsUrl, {
+        headers: { 'Authorization': pexelsKey }
+      });
+      
+      if (pexelsResponse.ok) {
+        const pexelsData = await pexelsResponse.json();
+        const pexelsPhotos = (pexelsData.photos || []).map((photo: any) => ({
+          id: String(photo.id),
+          url: photo.src?.large || photo.src?.medium,
+          thumbnailUrl: photo.src?.tiny,
+          width: photo.width,
+          height: photo.height,
+          photographer: photo.photographer || 'Unknown',
+          photographerUrl: photo.photographer_url || '',
+          source: 'pexels',
+          attribution: `Photo by ${photo.photographer || 'Unknown'} on Pexels`,
+        }));
+        photos.push(...pexelsPhotos);
+      }
+    } catch (e) {
+      console.error('Pexels search error:', e);
+    }
+  }
+  
+  // Return the best match (first result, prioritizing landscape images)
+  if (photos.length > 0) {
+    // Prefer images with good aspect ratio for slides (landscape)
+    const landscapePhotos = photos.filter(p => p.width > p.height);
+    return landscapePhotos.length > 0 ? landscapePhotos[0] : photos[0];
+  }
+  
+  return null;
 }
 
 serve(async (req) => {
@@ -21,7 +108,7 @@ serve(async (req) => {
   }
 
   try {
-    const { script, moduleTitle, courseTitle, language = 'sv' } = await req.json();
+    const { script, moduleTitle, courseTitle, language = 'sv', autoFetchImages = true } = await req.json();
 
     if (!script) {
       return new Response(
@@ -46,7 +133,8 @@ serve(async (req) => {
          - Använd beskrivande fraser som "professional business meeting in modern office"
          - För tekniska ämnen, föreslå bilder på verkliga föremål eller situationer
          - Bildförslaget ska matcha slide-innehållet EXAKT, inte vara en tolkning
-         - Prioritera bilder med människor, arbetsplatser, konkreta objekt över abstrakta illustrationer`
+         - Prioritera bilder med människor, arbetsplatser, konkreta objekt över abstrakta illustrationer
+         - Använd max 4-5 ord för bildförslag för bättre sökresultat`
       : `You are an expert at creating professional presentation slides from course scripts.
          Create visually appealing and pedagogically effective slides.
          Each slide should have a clear structure and be easy to follow.
@@ -57,7 +145,8 @@ serve(async (req) => {
          - Use descriptive phrases like "professional business meeting in modern office"
          - For technical topics, suggest images of real objects or situations
          - Image suggestion must match slide content EXACTLY, not be an interpretation
-         - Prioritize images with people, workplaces, concrete objects over abstract illustrations`;
+         - Prioritize images with people, workplaces, concrete objects over abstract illustrations
+         - Use max 4-5 words for image suggestions for better search results`;
 
     const userPrompt = language === 'sv'
       ? `Analysera detta manus för modulen "${moduleTitle}" i kursen "${courseTitle}" och skapa presentationsslides.
@@ -71,14 +160,14 @@ Skapa en JSON-array med slides. Varje slide ska ha:
 - content: Huvudinnehåll (markdown-format, max 3-4 punkter eller ett kort stycke)
 - speakerNotes: Detaljerade anteckningar för presentatören
 - layout: En av 'title', 'title-content', 'two-column', 'image-focus', 'quote', 'bullet-points'
-- suggestedImageQuery: KONKRET sökord på ENGELSKA för stockfoto. Exempel:
-  * BRA: "professional team collaborating at whiteboard in bright office"
-  * BRA: "laptop showing analytics dashboard on wooden desk"
-  * DÅLIGT: "success concept" eller "growth metaphor" eller "abstract business"
+- suggestedImageQuery: KONKRET sökord på ENGELSKA för stockfoto (max 4-5 ord). Exempel:
+  * BRA: "team meeting whiteboard office"
+  * BRA: "laptop analytics dashboard desk"
+  * DÅLIGT: "success concept" eller "growth metaphor"
 - suggestedBackgroundColor: Valfri HEX-färgkod för bakgrund
 
 Skapa 5-10 slides beroende på innehållets längd. Första sliden ska vara en titelslide.
-VIKTIGT: suggestedImageQuery MÅSTE vara specifik och sökbar på Unsplash/Pexels - inga abstrakta koncept!`
+VIKTIGT: suggestedImageQuery MÅSTE vara specifik och sökbar - inga abstrakta koncept!`
       : `Analyze this script for the module "${moduleTitle}" in the course "${courseTitle}" and create presentation slides.
 
 SCRIPT:
@@ -90,14 +179,14 @@ Create a JSON array of slides. Each slide should have:
 - content: Main content (markdown format, max 3-4 bullet points or a short paragraph)
 - speakerNotes: Detailed notes for the presenter
 - layout: One of 'title', 'title-content', 'two-column', 'image-focus', 'quote', 'bullet-points'
-- suggestedImageQuery: CONCRETE search terms in ENGLISH for stock photo. Examples:
-  * GOOD: "professional team collaborating at whiteboard in bright office"
-  * GOOD: "laptop showing analytics dashboard on wooden desk"
-  * BAD: "success concept" or "growth metaphor" or "abstract business"
+- suggestedImageQuery: CONCRETE search terms in ENGLISH for stock photo (max 4-5 words). Examples:
+  * GOOD: "team meeting whiteboard office"
+  * GOOD: "laptop analytics dashboard desk"
+  * BAD: "success concept" or "growth metaphor"
 - suggestedBackgroundColor: Optional HEX color code for background
 
 Create 5-10 slides depending on content length. First slide should be a title slide.
-IMPORTANT: suggestedImageQuery MUST be specific and searchable on Unsplash/Pexels - no abstract concepts!`;
+IMPORTANT: suggestedImageQuery MUST be specific and searchable - no abstract concepts!`;
 
     console.log('Generating slides for module:', moduleTitle);
 
@@ -180,9 +269,41 @@ IMPORTANT: suggestedImageQuery MUST be specific and searchable on Unsplash/Pexel
     }
 
     const slidesData = JSON.parse(toolCall.function.arguments);
-    const slides: SlideContent[] = slidesData.slides;
+    let slides: SlideContent[] = slidesData.slides;
 
     console.log(`Generated ${slides.length} slides for module "${moduleTitle}"`);
+
+    // Auto-fetch images for each slide if enabled
+    if (autoFetchImages) {
+      console.log('Auto-fetching stock photos for slides...');
+      
+      const slidesWithImages = await Promise.all(
+        slides.map(async (slide) => {
+          if (slide.suggestedImageQuery) {
+            try {
+              const photo = await searchStockPhotos(slide.suggestedImageQuery);
+              if (photo) {
+                console.log(`Found image for slide ${slide.slideNumber}: ${photo.source}`);
+                return {
+                  ...slide,
+                  imageUrl: photo.url,
+                  imageSource: photo.source,
+                  imageAttribution: photo.attribution,
+                };
+              }
+            } catch (e) {
+              console.error(`Error fetching image for slide ${slide.slideNumber}:`, e);
+            }
+          }
+          return slide;
+        })
+      );
+      
+      slides = slidesWithImages;
+      
+      const slidesWithImages_count = slides.filter(s => s.imageUrl).length;
+      console.log(`Successfully fetched images for ${slidesWithImages_count}/${slides.length} slides`);
+    }
 
     return new Response(
       JSON.stringify({ slides }),

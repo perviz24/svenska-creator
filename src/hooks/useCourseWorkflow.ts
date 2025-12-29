@@ -519,6 +519,10 @@ export function useCourseWorkflow() {
         layout: slide.layout,
         suggestedImageQuery: slide.suggestedImageQuery,
         backgroundColor: slide.suggestedBackgroundColor,
+        // Auto-assigned images from stock photo search
+        imageUrl: slide.imageUrl,
+        imageSource: slide.imageSource,
+        imageAttribution: slide.imageAttribution,
       }));
 
       setState(prev => ({
