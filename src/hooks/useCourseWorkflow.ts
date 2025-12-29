@@ -99,6 +99,33 @@ export function useCourseWorkflow() {
           ...((s.content as Record<string, unknown>) || {}),
         })) as ModuleScript[];
 
+        // Load slides for this course
+        const { data: slidesData } = await supabase
+          .from('slides')
+          .select('*')
+          .eq('course_id', course.id)
+          .order('slide_number', { ascending: true });
+
+        // Group slides by module
+        const slidesMap: Record<string, Slide[]> = {};
+        (slidesData || []).forEach((s) => {
+          if (!slidesMap[s.module_id]) {
+            slidesMap[s.module_id] = [];
+          }
+          slidesMap[s.module_id].push({
+            moduleId: s.module_id,
+            slideNumber: s.slide_number,
+            title: s.title,
+            content: s.content || '',
+            speakerNotes: s.speaker_notes || '',
+            layout: s.layout as Slide['layout'],
+            backgroundColor: s.background_color || undefined,
+            imageUrl: s.image_url || undefined,
+            imageSource: s.image_source as Slide['imageSource'] || undefined,
+            imageAttribution: s.image_attribution || undefined,
+          });
+        });
+
         // Parse the JSONB fields properly
         const titleSuggestions = Array.isArray(course.title_suggestions) 
           ? course.title_suggestions as unknown as TitleSuggestion[]
@@ -116,6 +143,7 @@ export function useCourseWorkflow() {
           outline,
           currentStep: course.current_step as WorkflowStep,
           scripts,
+          slides: slidesMap,
           completedSteps: getCompletedSteps(course.current_step as WorkflowStep),
         }));
       }
@@ -202,6 +230,42 @@ export function useCourseWorkflow() {
         });
     } catch (error) {
       console.error('Error saving script:', error);
+    }
+  };
+
+  const saveSlides = async (moduleId: string, slides: Slide[]) => {
+    if (!user || !courseId) return;
+
+    try {
+      // Delete existing slides for this module first
+      await supabase
+        .from('slides')
+        .delete()
+        .eq('course_id', courseId)
+        .eq('module_id', moduleId);
+
+      // Insert new slides
+      const insertData = slides.map((slide) => ({
+        course_id: courseId,
+        module_id: moduleId,
+        slide_number: slide.slideNumber,
+        title: slide.title,
+        content: slide.content,
+        speaker_notes: slide.speakerNotes,
+        layout: slide.layout,
+        background_color: slide.backgroundColor || null,
+        image_url: slide.imageUrl || null,
+        image_source: slide.imageSource || null,
+        image_attribution: slide.imageAttribution || null,
+      }));
+
+      if (insertData.length > 0) {
+        await supabase.from('slides').insert(insertData);
+      }
+      
+      console.log(`Saved ${slides.length} slides for module ${moduleId}`);
+    } catch (error) {
+      console.error('Error saving slides:', error);
     }
   };
 
@@ -562,6 +626,10 @@ export function useCourseWorkflow() {
         isProcessing: false,
       }));
 
+      // Save slides to database
+      await saveSlides(moduleId, slides);
+      await saveCourse({ current_step: 'slides' });
+
       toast.success(`Slides för "${script.moduleTitle}" skapade!`);
     } catch (error) {
       console.error('Error generating slides:', error);
@@ -581,6 +649,10 @@ export function useCourseWorkflow() {
       if (moduleSlides[slideIndex]) {
         moduleSlides[slideIndex] = { ...moduleSlides[slideIndex], ...updates };
       }
+      
+      // Save all slides for this module to database
+      saveSlides(moduleId, moduleSlides);
+      
       return {
         ...prev,
         slides: {
@@ -589,7 +661,7 @@ export function useCourseWorkflow() {
         },
       };
     });
-  }, []);
+  }, [courseId]);
 
   const generateModuleAudio = useCallback(async (moduleId: string, script: ModuleScript) => {
     // This would store audio metadata - in a full implementation,
