@@ -10,6 +10,8 @@ interface HeyGenRequest {
   avatarId?: string;
   voiceId?: string;
   title?: string;
+  // User-provided API key
+  apiKey?: string;
 }
 
 interface Avatar {
@@ -26,13 +28,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const HEYGEN_API_KEY = Deno.env.get('HEYGEN_API_KEY');
+    const body: HeyGenRequest = await req.json();
+    const { action, script, avatarId, voiceId, title, apiKey } = body;
+
+    // Use user-provided API key or fall back to environment variable
+    const HEYGEN_API_KEY = apiKey || Deno.env.get('HEYGEN_API_KEY');
     
     if (!HEYGEN_API_KEY) {
-      throw new Error('HeyGen API key not configured. Please add HEYGEN_API_KEY to your secrets.');
+      throw new Error('HeyGen API key not configured. Please add your API key in Settings.');
     }
-
-    const { action, script, avatarId, voiceId, title }: HeyGenRequest = await req.json();
 
     console.log(`HeyGen action: ${action}`);
 
