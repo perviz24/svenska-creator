@@ -77,3 +77,9 @@ verify_jwt = false
 
 [functions.recommend-research-mode]
 verify_jwt = false
+
+[functions.recommend-model]
+verify_jwt = false
+
+[functions.export-word]
+verify_jwt = false
