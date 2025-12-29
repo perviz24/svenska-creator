@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { WorkflowState, WorkflowStep, TitleSuggestion, CourseOutline, CourseSettings, ModuleScript, Slide, ModuleAudio, VideoSettings } from '@/types/course';
+import { WorkflowState, WorkflowStep, TitleSuggestion, CourseOutline, CourseSettings, ModuleScript, Slide, ModuleAudio, VideoSettings, ModuleQuiz } from '@/types/course';
 import { supabase } from '@/integrations/supabase/client';
 import { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
@@ -28,6 +28,7 @@ const initialState: WorkflowState = {
   outline: null,
   scripts: [],
   slides: {},
+  quizzes: {},
   moduleAudio: {},
   videoSettings: initialVideoSettings,
   settings: initialSettings,
@@ -287,7 +288,7 @@ export function useCourseWorkflow() {
   }, []);
 
   const nextStep = useCallback(() => {
-    const steps: WorkflowStep[] = ['title', 'outline', 'script', 'slides', 'voice', 'video', 'upload'];
+    const steps: WorkflowStep[] = ['title', 'outline', 'script', 'slides', 'quiz', 'voice', 'video', 'upload'];
     setState(prev => {
       const currentIndex = steps.indexOf(prev.currentStep);
       if (currentIndex < steps.length - 1) {
@@ -305,6 +306,16 @@ export function useCourseWorkflow() {
       return prev;
     });
   }, [courseId]);
+
+  const addQuiz = useCallback((moduleId: string, quiz: ModuleQuiz) => {
+    setState(prev => ({
+      ...prev,
+      quizzes: {
+        ...prev.quizzes,
+        [moduleId]: quiz,
+      },
+    }));
+  }, []);
 
   const generateOutline = useCallback(async () => {
     if (!state.title.trim()) {
@@ -570,6 +581,7 @@ export function useCourseWorkflow() {
     updateSettings,
     generateModuleAudio,
     updateVideoSettings,
+    addQuiz,
     startNewCourse,
   };
 }

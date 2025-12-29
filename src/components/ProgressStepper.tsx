@@ -1,4 +1,4 @@
-import { Check, FileText, Layers, Mic, Video, Upload, Sparkles } from 'lucide-react';
+import { Check, FileText, Layers, Mic, Video, Upload, Sparkles, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WorkflowStep } from '@/types/course';
 
@@ -13,6 +13,7 @@ const steps: Step[] = [
   { id: 'outline', label: 'Kursöversikt', icon: <FileText className="w-4 h-4" /> },
   { id: 'script', label: 'Manus', icon: <FileText className="w-4 h-4" /> },
   { id: 'slides', label: 'Slides', icon: <Layers className="w-4 h-4" /> },
+  { id: 'quiz', label: 'Quiz', icon: <HelpCircle className="w-4 h-4" /> },
   { id: 'voice', label: 'Röst', icon: <Mic className="w-4 h-4" /> },
   { id: 'video', label: 'Video', icon: <Video className="w-4 h-4" /> },
   { id: 'upload', label: 'Ladda upp', icon: <Upload className="w-4 h-4" /> },
