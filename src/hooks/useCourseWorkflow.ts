@@ -281,9 +281,13 @@ export function useCourseWorkflow() {
 
   const goToStep = useCallback((step: WorkflowStep) => {
     setState(prev => {
-      // Allow navigation to any step freely
+      // Mark the step we're leaving as completed so progress isn't lost when jumping around
       saveCourse({ current_step: step });
-      return { ...prev, currentStep: step };
+      return {
+        ...prev,
+        completedSteps: [...new Set([...prev.completedSteps, prev.currentStep])],
+        currentStep: step,
+      };
     });
   }, []);
 
