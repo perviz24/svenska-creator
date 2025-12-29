@@ -68,3 +68,9 @@ verify_jwt = false
 
 [functions.enhance-slides]
 verify_jwt = false
+
+[functions.canva-integration]
+verify_jwt = false
+
+[functions.system-diagnostics]
+verify_jwt = false
