@@ -15,6 +15,14 @@ const initialSettings: CourseSettings = {
   language: 'sv',
   aiQualityMode: 'quality',
   projectMode: 'course',
+  demoMode: {
+    enabled: false,
+    maxSlides: 5,
+    maxModules: 2,
+    maxAudioDurationSeconds: 60,
+    maxVideoDurationSeconds: 30,
+    watermarkEnabled: true,
+  },
 };
 
 const initialVideoSettings: VideoSettings = {
