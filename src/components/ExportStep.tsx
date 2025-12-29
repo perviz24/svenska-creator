@@ -58,6 +58,11 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
   const [bunnyCredentialsSaved, setBunnyCredentialsSaved] = useState(false);
   const [isSavingBunnyCredentials, setIsSavingBunnyCredentials] = useState(false);
   
+  // HeyGen credentials
+  const [heygenApiKey, setHeygenApiKey] = useState('');
+  const [heygenCredentialsSaved, setHeygenCredentialsSaved] = useState(false);
+  const [isSavingHeygenCredentials, setIsSavingHeygenCredentials] = useState(false);
+  
   // LearnDash state
   const [wpUrl, setWpUrl] = useState('');
   const [wpUsername, setWpUsername] = useState('');
@@ -100,7 +105,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
         setCredentialsSaved(true);
       }
 
-      // Load integration credentials (Bunny.net)
+      // Load integration credentials (Bunny.net, HeyGen)
       const { data: intData } = await supabase
         .from('integration_credentials')
         .select('*')
@@ -113,6 +118,13 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
           setBunnyApiKey(creds.apiKey || '');
           setBunnyLibraryId(creds.libraryId || '');
           setBunnyCredentialsSaved(true);
+        }
+
+        const heygenCredentials = intData.find(c => c.provider === 'heygen');
+        if (heygenCredentials?.credentials) {
+          const creds = heygenCredentials.credentials as { apiKey?: string };
+          setHeygenApiKey(creds.apiKey || '');
+          setHeygenCredentialsSaved(true);
         }
       }
     } catch (error) {
@@ -153,6 +165,40 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
       toast({ title: 'Failed to save credentials', variant: 'destructive' });
     } finally {
       setIsSavingBunnyCredentials(false);
+    }
+  };
+
+  const saveHeygenCredentials = async () => {
+    if (!heygenApiKey) {
+      toast({ title: 'Enter your HeyGen API key', variant: 'destructive' });
+      return;
+    }
+
+    setIsSavingHeygenCredentials(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: 'Please log in to save credentials', variant: 'destructive' });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('integration_credentials')
+        .upsert({
+          user_id: user.id,
+          provider: 'heygen',
+          credentials: { apiKey: heygenApiKey },
+        }, { onConflict: 'user_id,provider' });
+
+      if (error) throw error;
+
+      setHeygenCredentialsSaved(true);
+      toast({ title: 'HeyGen credentials saved' });
+    } catch (error) {
+      console.error('Failed to save HeyGen credentials:', error);
+      toast({ title: 'Failed to save credentials', variant: 'destructive' });
+    } finally {
+      setIsSavingHeygenCredentials(false);
     }
   };
 
@@ -969,6 +1015,69 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
                       <>
                         <Save className="h-4 w-4 mr-2" />
                         Save Bunny.net Credentials
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* HeyGen Credentials */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Video className="h-5 w-5" />
+                HeyGen
+                {heygenCredentialsSaved && (
+                  <Badge variant="outline" className="text-green-500 border-green-500/30">
+                    <Check className="h-3 w-3 mr-1" />
+                    Saved
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                AI avatar video generation credentials
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoadingCredentials ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>API Key</Label>
+                    <Input
+                      type="password"
+                      placeholder="Your HeyGen API key"
+                      value={heygenApiKey}
+                      onChange={(e) => { setHeygenApiKey(e.target.value); setHeygenCredentialsSaved(false); }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Find this in HeyGen: Settings → API Access → API Key
+                    </p>
+                  </div>
+                  <Button
+                    onClick={saveHeygenCredentials}
+                    disabled={isSavingHeygenCredentials || !heygenApiKey}
+                    className="w-full"
+                  >
+                    {isSavingHeygenCredentials ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : heygenCredentialsSaved ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Saved
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save HeyGen Credentials
                       </>
                     )}
                   </Button>
