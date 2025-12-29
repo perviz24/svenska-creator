@@ -1,9 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+type StockVideoProvider = 'pexels' | 'pixabay' | 'storyblocks' | 'shutterstock';
 
 interface StockVideo {
   id: string;
@@ -15,9 +18,162 @@ interface StockVideo {
   height: number;
   user: string;
   userUrl: string;
-  source: 'pexels' | 'pixabay';
+  source: StockVideoProvider;
   tags?: string[];
   aiRelevanceScore?: number;
+}
+
+// Get user-specific API credentials from database
+async function getUserCredentials(userId: string, provider: string): Promise<{ apiKey?: string; apiSecret?: string } | null> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const { data, error } = await supabase
+    .from('stock_provider_settings')
+    .select('api_key, api_secret')
+    .eq('user_id', userId)
+    .eq('provider', provider)
+    .eq('is_enabled', true)
+    .single();
+
+  if (error || !data) return null;
+  return { apiKey: data.api_key, apiSecret: data.api_secret };
+}
+
+// Search Pexels (free, uses system key)
+async function searchPexels(query: string, perPage: number): Promise<StockVideo[]> {
+  const PEXELS_API_KEY = Deno.env.get('PEXELS_API_KEY');
+  if (!PEXELS_API_KEY) throw new Error('Pexels API not configured');
+
+  const response = await fetch(
+    `https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&per_page=${perPage}&orientation=landscape`,
+    { headers: { 'Authorization': PEXELS_API_KEY } }
+  );
+
+  if (!response.ok) throw new Error('Pexels API error');
+  const data = await response.json();
+
+  return (data.videos || []).map((video: any) => {
+    const videoFiles = video.video_files || [];
+    const hdFile = videoFiles.find((f: any) => f.quality === 'hd' || f.quality === 'sd') || videoFiles[0];
+    const previewFile = videoFiles.find((f: any) => f.quality === 'sd') || videoFiles[videoFiles.length - 1] || hdFile;
+
+    return {
+      id: `pexels-${video.id}`,
+      url: hdFile?.link || video.url,
+      previewUrl: previewFile?.link || hdFile?.link || video.url,
+      thumbnailUrl: video.image || video.video_pictures?.[0]?.picture || '',
+      duration: video.duration || 0,
+      width: hdFile?.width || video.width || 1920,
+      height: hdFile?.height || video.height || 1080,
+      user: video.user?.name || 'Unknown',
+      userUrl: video.user?.url || 'https://pexels.com',
+      source: 'pexels' as const,
+      tags: video.tags?.map((t: any) => t.title || t) || [],
+    };
+  });
+}
+
+// Search Pixabay (user key required)
+async function searchPixabay(query: string, perPage: number, apiKey: string): Promise<StockVideo[]> {
+  const response = await fetch(
+    `https://pixabay.com/api/videos/?key=${apiKey}&q=${encodeURIComponent(query)}&per_page=${perPage}`,
+  );
+
+  if (!response.ok) throw new Error('Pixabay API error');
+  const data = await response.json();
+
+  return (data.hits || []).map((video: any) => ({
+    id: `pixabay-${video.id}`,
+    url: video.videos?.large?.url || video.videos?.medium?.url || '',
+    previewUrl: video.videos?.tiny?.url || video.videos?.small?.url || '',
+    thumbnailUrl: `https://i.vimeocdn.com/video/${video.picture_id}_640x360.jpg`,
+    duration: video.duration || 0,
+    width: video.videos?.large?.width || 1920,
+    height: video.videos?.large?.height || 1080,
+    user: video.user || 'Unknown',
+    userUrl: `https://pixabay.com/users/${video.user_id}/`,
+    source: 'pixabay' as const,
+    tags: video.tags?.split(',').map((t: string) => t.trim()) || [],
+  }));
+}
+
+// Search Storyblocks (premium, user key required)
+async function searchStoryblocks(query: string, perPage: number, apiKey: string, apiSecret: string): Promise<StockVideo[]> {
+  // Storyblocks uses HMAC authentication
+  const timestamp = Math.floor(Date.now() / 1000);
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', encoder.encode(apiSecret + apiKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(timestamp.toString()));
+  const hmac = btoa(String.fromCharCode(...new Uint8Array(signature)));
+
+  const response = await fetch(
+    `https://api.storyblocks.com/api/v2/videos/search?project_id=${apiKey}&user_id=user&keywords=${encodeURIComponent(query)}&page_size=${perPage}`,
+    {
+      headers: {
+        'APIK': apiKey,
+        'HMAC': hmac,
+        'EXPIRES': timestamp.toString(),
+      }
+    }
+  );
+
+  if (!response.ok) {
+    console.error('Storyblocks error:', response.status);
+    throw new Error('Storyblocks API error');
+  }
+  
+  const data = await response.json();
+  return (data.results || []).map((video: any) => ({
+    id: `storyblocks-${video.id}`,
+    url: video.preview_url || '',
+    previewUrl: video.thumbnail_url || '',
+    thumbnailUrl: video.thumbnail_url || '',
+    duration: video.duration || 0,
+    width: 1920,
+    height: 1080,
+    user: 'Storyblocks',
+    userUrl: 'https://www.storyblocks.com',
+    source: 'storyblocks' as const,
+    tags: video.keywords || [],
+  }));
+}
+
+// Search Shutterstock (premium, user key required)
+async function searchShutterstock(query: string, perPage: number, apiKey: string, apiSecret: string): Promise<StockVideo[]> {
+  const auth = btoa(`${apiKey}:${apiSecret}`);
+  
+  const response = await fetch(
+    `https://api.shutterstock.com/v2/videos/search?query=${encodeURIComponent(query)}&per_page=${perPage}&view=full`,
+    {
+      headers: {
+        'Authorization': `Basic ${auth}`,
+      }
+    }
+  );
+
+  if (!response.ok) {
+    console.error('Shutterstock error:', response.status);
+    throw new Error('Shutterstock API error');
+  }
+  
+  const data = await response.json();
+  return (data.data || []).map((video: any) => ({
+    id: `shutterstock-${video.id}`,
+    url: video.assets?.preview_mp4?.url || '',
+    previewUrl: video.assets?.preview_webm?.url || video.assets?.preview_mp4?.url || '',
+    thumbnailUrl: video.assets?.thumb_jpg?.url || '',
+    duration: video.duration || 0,
+    width: video.assets?.preview_mp4?.width || 1920,
+    height: video.assets?.preview_mp4?.height || 1080,
+    user: video.contributor?.id || 'Shutterstock',
+    userUrl: 'https://www.shutterstock.com',
+    source: 'shutterstock' as const,
+    tags: video.keywords || [],
+  }));
 }
 
 serve(async (req) => {
@@ -26,17 +182,8 @@ serve(async (req) => {
   }
 
   try {
-    const { action, query, context, perPage = 20 } = await req.json();
-    const PEXELS_API_KEY = Deno.env.get('PEXELS_API_KEY');
+    const { action, query, context, perPage = 20, provider = 'pexels', userId } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-
-    if (!PEXELS_API_KEY) {
-      console.error('PEXELS_API_KEY not configured');
-      return new Response(
-        JSON.stringify({ error: 'Pexels API not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     // AI-enhanced query generation
     if (action === 'enhance-query') {
@@ -97,53 +244,57 @@ Generate the best stock video search terms:`
 
     // Search videos
     if (action === 'search') {
-      console.log('Searching Pexels videos for:', query);
+      console.log(`Searching ${provider} videos for:`, query);
       
-      const pexelsResponse = await fetch(
-        `https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&per_page=${perPage}&orientation=landscape`,
-        {
-          headers: {
-            'Authorization': PEXELS_API_KEY,
-          },
-        }
-      );
+      let videos: StockVideo[] = [];
 
-      if (!pexelsResponse.ok) {
-        console.error('Pexels API error:', pexelsResponse.status);
+      try {
+        switch (provider as StockVideoProvider) {
+          case 'pexels':
+            videos = await searchPexels(query, perPage);
+            break;
+          
+          case 'pixabay':
+            if (!userId) throw new Error('User authentication required for Pixabay');
+            const pixabayCredentials = await getUserCredentials(userId, 'pixabay');
+            if (!pixabayCredentials?.apiKey) throw new Error('Pixabay API key not configured. Please add your API key in settings.');
+            videos = await searchPixabay(query, perPage, pixabayCredentials.apiKey);
+            break;
+          
+          case 'storyblocks':
+            if (!userId) throw new Error('User authentication required for Storyblocks');
+            const storyblocksCredentials = await getUserCredentials(userId, 'storyblocks');
+            if (!storyblocksCredentials?.apiKey || !storyblocksCredentials?.apiSecret) {
+              throw new Error('Storyblocks API credentials not configured. Please add your API key and secret in settings.');
+            }
+            videos = await searchStoryblocks(query, perPage, storyblocksCredentials.apiKey, storyblocksCredentials.apiSecret);
+            break;
+          
+          case 'shutterstock':
+            if (!userId) throw new Error('User authentication required for Shutterstock');
+            const shutterstockCredentials = await getUserCredentials(userId, 'shutterstock');
+            if (!shutterstockCredentials?.apiKey || !shutterstockCredentials?.apiSecret) {
+              throw new Error('Shutterstock API credentials not configured. Please add your API key and secret in settings.');
+            }
+            videos = await searchShutterstock(query, perPage, shutterstockCredentials.apiKey, shutterstockCredentials.apiSecret);
+            break;
+          
+          default:
+            throw new Error(`Unknown provider: ${provider}`);
+        }
+      } catch (providerError) {
+        console.error(`Error with provider ${provider}:`, providerError);
         return new Response(
-          JSON.stringify({ error: 'Failed to search videos', videos: [] }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ 
+            error: providerError instanceof Error ? providerError.message : 'Provider error',
+            videos: [],
+            provider 
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      const pexelsData = await pexelsResponse.json();
-      console.log(`Found ${pexelsData.videos?.length || 0} videos`);
-
-      const videos: StockVideo[] = (pexelsData.videos || []).map((video: any) => {
-        // Get the best quality video file (prefer HD/Full HD)
-        const videoFiles = video.video_files || [];
-        const hdFile = videoFiles.find((f: any) => f.quality === 'hd' || f.quality === 'sd') 
-          || videoFiles[0];
-        
-        // Get preview (lower quality for fast loading)
-        const previewFile = videoFiles.find((f: any) => f.quality === 'sd') 
-          || videoFiles[videoFiles.length - 1] 
-          || hdFile;
-
-        return {
-          id: `pexels-${video.id}`,
-          url: hdFile?.link || video.url,
-          previewUrl: previewFile?.link || hdFile?.link || video.url,
-          thumbnailUrl: video.image || video.video_pictures?.[0]?.picture || '',
-          duration: video.duration || 0,
-          width: hdFile?.width || video.width || 1920,
-          height: hdFile?.height || video.height || 1080,
-          user: video.user?.name || 'Unknown',
-          userUrl: video.user?.url || 'https://pexels.com',
-          source: 'pexels' as const,
-          tags: video.tags?.map((t: any) => t.title || t) || [],
-        };
-      });
+      console.log(`Found ${videos.length} videos from ${provider}`);
 
       // If we have AI capability, score relevance
       if (LOVABLE_API_KEY && context && videos.length > 0) {
@@ -202,7 +353,7 @@ Return relevance scores as JSON array:`
       }
 
       return new Response(
-        JSON.stringify({ videos, total: pexelsData.total_results || videos.length }),
+        JSON.stringify({ videos, total: videos.length, provider }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

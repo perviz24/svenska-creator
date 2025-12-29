@@ -9,12 +9,13 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { CourseSettings, ProjectMode, PresentationSettings, PresentationStyle, PresentationTone, ImageRichness, ProfessionalityLevel, CustomTemplate } from '@/types/course';
+import { CourseSettings, ProjectMode, PresentationSettings, PresentationStyle, PresentationTone, ImageRichness, ProfessionalityLevel, CustomTemplate, StockVideoProvider } from '@/types/course';
 import { SystemDiagnostics } from '@/components/SystemDiagnostics';
 import { UserInvitePanel } from '@/components/UserInvitePanel';
 import { VoiceControlPanel } from '@/components/VoiceControlPanel';
 import { PresentationPreviewCard } from '@/components/PresentationPreviewCard';
 import { CustomTemplateUpload } from '@/components/CustomTemplateUpload';
+import { StockVideoProviderSettings } from '@/components/StockVideoProviderSettings';
 
 interface SettingsPanelProps {
   settings: CourseSettings;
@@ -272,6 +273,33 @@ export function SettingsPanel({ settings, onSettingsChange, projectMode, onPrese
                     }
                   />
                 </div>
+
+                {/* Include Stock Videos */}
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor="stockvideos" className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                      <Film className="w-4 h-4 text-muted-foreground" />
+                      Inkludera stockvideor
+                    </Label>
+                  </div>
+                  <Switch
+                    id="stockvideos"
+                    checked={presentationSettings?.includeStockVideos ?? false}
+                    onCheckedChange={(checked) => 
+                      updatePresentationSettings({ includeStockVideos: checked })
+                    }
+                  />
+                </div>
+
+                {/* Stock Video Providers - Only show when stock videos enabled */}
+                {presentationSettings?.includeStockVideos && (
+                  <StockVideoProviderSettings
+                    selectedProvider={presentationSettings?.stockVideoProvider || 'pexels'}
+                    onProviderChange={(provider: StockVideoProvider) => 
+                      updatePresentationSettings({ stockVideoProvider: provider })
+                    }
+                  />
+                )}
               </TabsContent>
 
               <TabsContent value="tone" className="space-y-6 mt-0">
@@ -346,26 +374,6 @@ export function SettingsPanel({ settings, onSettingsChange, projectMode, onPrese
                     });
                   }}
                 />
-                
-                {/* Stock Videos Option */}
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor="stockvideos" className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-                      <Film className="w-4 h-4 text-muted-foreground" />
-                      Inkludera stockvideor
-                    </Label>
-                    <span className="text-xs text-muted-foreground">
-                      Sök och lägg till videor från Pexels
-                    </span>
-                  </div>
-                  <Switch
-                    id="stockvideos"
-                    checked={presentationSettings?.includeStockVideos ?? false}
-                    onCheckedChange={(checked) => 
-                      updatePresentationSettings({ includeStockVideos: checked })
-                    }
-                  />
-                </div>
               </TabsContent>
             </Tabs>
           </CardContent>
