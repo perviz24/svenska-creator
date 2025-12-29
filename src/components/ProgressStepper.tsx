@@ -24,8 +24,8 @@ const allSteps: Step[] = [
 const courseStepIds: WorkflowStep[] = ['mode', 'title', 'outline', 'script', 'slides', 'exercises', 'quiz', 'voice', 'video', 'upload'];
 const presentationStepIds: WorkflowStep[] = ['mode', 'title', 'slides', 'upload'];
 
-// Demo mode uses simplified steps (no exercises, quiz, voice, video)
-const demoCourseStepIds: WorkflowStep[] = ['mode', 'title', 'outline', 'script', 'slides', 'upload'];
+// Demo mode uses all course steps - content is limited, not steps
+const demoCourseStepIds: WorkflowStep[] = ['mode', 'title', 'outline', 'script', 'slides', 'exercises', 'quiz', 'voice', 'video', 'upload'];
 const demoPresentationStepIds: WorkflowStep[] = ['mode', 'title', 'slides', 'upload'];
 
 interface ProgressStepperProps {
