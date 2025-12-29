@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Sparkles, ArrowRight, Loader2 } from 'lucide-react';
+import { Sparkles, ArrowRight, Loader2, Upload, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { TitleSuggestion } from '@/types/course';
 import { cn } from '@/lib/utils';
+import { ContentUploader } from '@/components/ContentUploader';
 
 interface TitleStepProps {
   initialTitle: string;
@@ -17,6 +19,7 @@ interface TitleStepProps {
   onGenerateSuggestions: () => void;
   onSelectSuggestion: (id: string) => void;
   onContinue: () => void;
+  onContentUploaded?: (content: string) => void;
 }
 
 export function TitleStep({
@@ -28,8 +31,10 @@ export function TitleStep({
   onGenerateSuggestions,
   onSelectSuggestion,
   onContinue,
+  onContentUploaded,
 }: TitleStepProps) {
   const [inputValue, setInputValue] = useState(initialTitle);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
 
   const handleInputChange = (value: string) => {
     setInputValue(value);
@@ -78,6 +83,27 @@ export function TitleStep({
               </Button>
             </div>
           </div>
+
+          {/* Upload Own Content */}
+          <Collapsible open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="w-full justify-between text-muted-foreground hover:text-foreground">
+                <span className="flex items-center gap-2">
+                  <Upload className="w-4 h-4" />
+                  Ladda upp eget kursunderlag
+                </span>
+                {isUploadOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3">
+              <ContentUploader
+                onContentUploaded={(content) => onContentUploaded?.(content)}
+                label="Importera kursunderlag"
+                description="Ladda upp dokument, ange URL:er eller klistra in text som grund för kursen."
+                placeholder="Klistra in kursinnehåll eller beskrivning här..."
+              />
+            </CollapsibleContent>
+          </Collapsible>
 
           {suggestions.length > 0 && (
             <div className="space-y-4 animate-slide-up">

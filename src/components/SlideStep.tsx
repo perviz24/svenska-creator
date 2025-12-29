@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage } from 'lucide-react';
+import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage, Upload, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Slide, ModuleScript, StockPhoto, CourseOutline } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ContentUploader } from '@/components/ContentUploader';
 
 interface SlideStepProps {
   outline: CourseOutline | null;
@@ -20,6 +22,7 @@ interface SlideStepProps {
   onGenerateSlides: (moduleId: string, script: ModuleScript) => Promise<void>;
   onUpdateSlide: (moduleId: string, slideIndex: number, updates: Partial<Slide>) => void;
   onContinue: () => void;
+  onContentUploaded?: (content: string) => void;
 }
 
 export function SlideStep({
@@ -31,6 +34,7 @@ export function SlideStep({
   onGenerateSlides,
   onUpdateSlide,
   onContinue,
+  onContentUploaded,
 }: SlideStepProps) {
   const [selectedModuleIndex, setSelectedModuleIndex] = useState(0);
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
@@ -39,7 +43,7 @@ export function SlideStep({
   const [isExporting, setIsExporting] = useState(false);
   const [stockPhotos, setStockPhotos] = useState<StockPhoto[]>([]);
   const [customSearchQuery, setCustomSearchQuery] = useState('');
-
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
   if (!outline || scripts.length === 0) {
     return (
       <Card className="border-dashed border-2">
@@ -199,6 +203,28 @@ export function SlideStep({
           AI genererar professionella slides med smarta bildförslag från stockfoto-bibliotek.
         </p>
       </div>
+
+      {/* Upload Own Content */}
+      <Collapsible open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" size="sm" className="w-full justify-between">
+            <span className="flex items-center gap-2">
+              <Upload className="w-4 h-4" />
+              Ladda upp eget slide-innehåll
+            </span>
+            {isUploadOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <ContentUploader
+            onContentUploaded={(content) => onContentUploaded?.(content)}
+            label="Importera slide-innehåll"
+            description="Ladda upp presentationer eller dokument som bas för slides."
+            placeholder="Klistra in slide-text eller bullet points här..."
+            compact
+          />
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Module Selector with Export */}
       <div className="flex items-center justify-between gap-4">

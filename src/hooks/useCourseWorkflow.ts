@@ -596,9 +596,22 @@ export function useCourseWorkflow() {
     setState(initialState);
   }, []);
 
+  // Handler for uploaded content - stores it for use in generation
+  const [uploadedContent, setUploadedContent] = useState<string>('');
+
+  const handleContentUploaded = useCallback((content: string) => {
+    setUploadedContent(prev => prev ? `${prev}\n\n${content}` : content);
+    toast.success('Innehåll importerat och kommer användas i genereringen');
+  }, []);
+
+  const clearUploadedContent = useCallback(() => {
+    setUploadedContent('');
+  }, []);
+
   return {
     state,
     courseId,
+    uploadedContent,
     setTitle,
     generateTitleSuggestions,
     selectTitle,
@@ -618,5 +631,7 @@ export function useCourseWorkflow() {
     addExercises,
     addSummary,
     startNewCourse,
+    handleContentUploaded,
+    clearUploadedContent,
   };
 }

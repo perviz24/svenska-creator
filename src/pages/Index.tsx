@@ -31,6 +31,7 @@ const Index = () => {
     addQuiz,
     addExercises,
     startNewCourse,
+    handleContentUploaded,
   } = useCourseWorkflow();
 
   const renderCurrentStep = () => {
@@ -46,6 +47,7 @@ const Index = () => {
             onGenerateSuggestions={generateTitleSuggestions}
             onSelectSuggestion={selectTitle}
             onContinue={nextStep}
+            onContentUploaded={handleContentUploaded}
           />
         );
       case 'outline':
@@ -85,6 +87,7 @@ const Index = () => {
             onGenerateSlides={generateSlides}
             onUpdateSlide={updateSlide}
             onContinue={nextStep}
+            onContentUploaded={handleContentUploaded}
           />
         );
       case 'exercises':
@@ -110,6 +113,7 @@ const Index = () => {
             language={state.settings.language}
             onQuizGenerated={addQuiz}
             onContinue={nextStep}
+            onContentUploaded={handleContentUploaded}
           />
         );
       case 'voice':
@@ -127,6 +131,7 @@ const Index = () => {
             onGenerateAudio={generateModuleAudio}
             onUpdateVideoSettings={updateVideoSettings}
             onContinue={nextStep}
+            onContentUploaded={handleContentUploaded}
           />
         );
       case 'upload':
