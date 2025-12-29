@@ -410,6 +410,33 @@ export function useCourseWorkflow() {
     }
   }, [state.outline, state.title, state.settings, courseId]);
 
+  const uploadScript = useCallback(async (moduleId: string, script: ModuleScript) => {
+    // Add the uploaded script to state
+    setState(prev => {
+      // Check if script for this module already exists
+      const existingIndex = prev.scripts.findIndex(s => s.moduleId === moduleId);
+      let newScripts: ModuleScript[];
+      
+      if (existingIndex >= 0) {
+        // Replace existing script
+        newScripts = [...prev.scripts];
+        newScripts[existingIndex] = script;
+      } else {
+        // Add new script
+        newScripts = [...prev.scripts, script];
+      }
+      
+      return {
+        ...prev,
+        scripts: newScripts,
+      };
+    });
+
+    // Save script to database
+    await saveScript(script);
+    await saveCourse({ current_step: 'script' });
+  }, [courseId]);
+
   const updateSettings = useCallback((settings: Partial<CourseSettings>) => {
     setState(prev => {
       const newSettings = { ...prev.settings, ...settings };
@@ -537,6 +564,7 @@ export function useCourseWorkflow() {
     nextStep,
     generateOutline,
     generateScript,
+    uploadScript,
     generateSlides,
     updateSlide,
     updateSettings,
