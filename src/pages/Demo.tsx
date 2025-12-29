@@ -304,6 +304,7 @@ const Demo = () => {
             outline={state.outline}
             moduleAudio={state.moduleAudio}
             courseTitle={state.title}
+            demoMode={state.settings.demoMode}
           />
         );
       default:

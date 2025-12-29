@@ -24,7 +24,8 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import type { CourseOutline, ModuleAudio } from '@/types/course';
+import type { CourseOutline, ModuleAudio, DemoModeSettings } from '@/types/course';
+import { DemoWatermark } from '@/components/DemoWatermark';
 
 interface BunnyVideo {
   id: string;
@@ -42,9 +43,11 @@ interface ExportStepProps {
   moduleAudio: Record<string, ModuleAudio>;
   courseTitle: string;
   onComplete?: () => void;
+  demoMode?: DemoModeSettings;
 }
 
-export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: ExportStepProps) {
+export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demoMode }: ExportStepProps) {
+  const isDemoMode = demoMode?.enabled || false;
   // Bunny.net state
   const [bunnyVideos, setBunnyVideos] = useState<BunnyVideo[]>([]);
   const [isLoadingVideos, setIsLoadingVideos] = useState(false);
@@ -88,10 +91,14 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
   // Module to video mapping
   const [moduleVideoMap, setModuleVideoMap] = useState<Record<string, string>>({});
 
-  // Load saved credentials on mount
+  // Load saved credentials on mount (skip for demo mode - user enters temporary credentials)
   useEffect(() => {
-    loadAllCredentials();
-  }, []);
+    if (!isDemoMode) {
+      loadAllCredentials();
+    } else {
+      setIsLoadingCredentials(false);
+    }
+  }, [isDemoMode]);
 
   const loadAllCredentials = async () => {
     try {
@@ -157,6 +164,13 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
       return;
     }
 
+    // In demo mode, just mark as "saved" locally without persisting
+    if (isDemoMode) {
+      setBunnyCredentialsSaved(true);
+      toast({ title: 'Bunny.net credentials set (Demo)', description: 'Credentials are temporary and won\'t be saved.' });
+      return;
+    }
+
     setIsSavingBunnyCredentials(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -191,6 +205,13 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
       return;
     }
 
+    // In demo mode, just mark as "saved" locally without persisting
+    if (isDemoMode) {
+      setHeygenCredentialsSaved(true);
+      toast({ title: 'HeyGen credentials set (Demo)', description: 'Credentials are temporary and won\'t be saved.' });
+      return;
+    }
+
     setIsSavingHeygenCredentials(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -222,6 +243,13 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
   const saveElevenlabsCredentials = async () => {
     if (!elevenlabsApiKey) {
       toast({ title: 'Enter your ElevenLabs API key', variant: 'destructive' });
+      return;
+    }
+
+    // In demo mode, just mark as "saved" locally without persisting
+    if (isDemoMode) {
+      setElevenlabsCredentialsSaved(true);
+      toast({ title: 'ElevenLabs credentials set (Demo)', description: 'Credentials are temporary and won\'t be saved.' });
       return;
     }
 
@@ -325,6 +353,13 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
   const saveCredentials = async () => {
     if (!wpUrl || !wpUsername || !wpAppPassword) {
       toast({ title: 'Fill in all credentials first', variant: 'destructive' });
+      return;
+    }
+
+    // In demo mode, just mark as "saved" locally without persisting
+    if (isDemoMode) {
+      setCredentialsSaved(true);
+      toast({ title: 'LearnDash credentials set (Demo)', description: 'Credentials are temporary and won\'t be saved.' });
       return;
     }
 
@@ -628,6 +663,21 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete }: Ex
 
   return (
     <div className="space-y-6">
+      {isDemoMode && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            <AlertCircle className="h-5 w-5" />
+            <div>
+              <p className="font-medium">Demo Mode Active</p>
+              <p className="text-sm opacity-80">
+                You can test BunnyNet and LearnDash integrations by entering your credentials below. 
+                Credentials entered in demo mode are temporary and won't be saved.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="text-center space-y-2">
         <h2 className="text-2xl font-bold">Export & Upload</h2>
         <p className="text-muted-foreground">
