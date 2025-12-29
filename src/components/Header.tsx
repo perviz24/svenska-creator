@@ -1,4 +1,5 @@
-import { GraduationCap, LogOut, PlusCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { GraduationCap, LogOut, PlusCircle, Settings } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,7 +25,7 @@ export function Header({ onNewCourse }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center gap-3">
+        <Link to="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent shadow-lg">
             <GraduationCap className="w-6 h-6 text-primary-foreground" />
           </div>
@@ -36,7 +37,7 @@ export function Header({ onNewCourse }: HeaderProps) {
               Automatisk videokursproduktion
             </p>
           </div>
-        </div>
+        </Link>
         <div className="flex items-center gap-3">
           {onNewCourse && (
             <Button
@@ -49,6 +50,13 @@ export function Header({ onNewCourse }: HeaderProps) {
               Ny kurs
             </Button>
           )}
+          
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/settings" className="gap-2">
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Inställningar</span>
+            </Link>
+          </Button>
           
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/10 border border-success/20">
             <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
@@ -72,6 +80,13 @@ export function Header({ onNewCourse }: HeaderProps) {
                     <p className="text-sm font-medium">{user.email}</p>
                   </div>
                 </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Inställningar
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
