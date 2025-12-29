@@ -50,21 +50,13 @@ export function SlideStep({
   const [enhanceType, setEnhanceType] = useState<'design' | 'content' | 'full'>('full');
   const [isCanvaOpen, setIsCanvaOpen] = useState(false);
 
-  if (!outline || scripts.length === 0) {
-    return (
-      <Card className="border-dashed border-2">
-        <CardContent className="py-12 text-center">
-          <Presentation className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-2">Generera slides</h3>
-          <p className="text-muted-foreground">
-            Du måste först generera manus för att kunna skapa slides.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
+  const [showSlideRefinement, setShowSlideRefinement] = useState(false);
+  const [uploadedSlideContent, setUploadedSlideContent] = useState('');
 
-  const currentScript = scripts[selectedModuleIndex];
+  const canGenerateFromScripts = !!outline && scripts.length > 0;
+
+  const currentScript = canGenerateFromScripts ? scripts[selectedModuleIndex] : undefined;
   const currentModuleSlides = currentScript ? slides[currentScript.moduleId] || [] : [];
   const currentSlide = currentModuleSlides[selectedSlideIndex];
 
@@ -251,9 +243,6 @@ export function SlideStep({
     return labels[layout] || layout;
   };
 
-  const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
-  const [showSlideRefinement, setShowSlideRefinement] = useState(false);
-  const [uploadedSlideContent, setUploadedSlideContent] = useState('');
 
   return (
     <div className="space-y-6">
@@ -412,7 +401,17 @@ export function SlideStep({
       </div>
 
       {/* Main Content */}
-      {currentModuleSlides.length === 0 ? (
+      {!canGenerateFromScripts ? (
+        <Card className="border-dashed border-2">
+          <CardContent className="py-12 text-center">
+            <Presentation className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">Generera slides</h3>
+            <p className="text-muted-foreground">
+              Du måste först generera manus för att kunna skapa slides.
+            </p>
+          </CardContent>
+        </Card>
+      ) : currentModuleSlides.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Presentation className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

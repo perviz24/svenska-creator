@@ -58,21 +58,13 @@ export function VideoStep({
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>([]);
   const [isGeneratingHeyGenVideo, setIsGeneratingHeyGenVideo] = useState(false);
 
-  if (!outline || scripts.length === 0 || Object.keys(slides).length === 0) {
-    return (
-      <Card className="border-dashed border-2">
-        <CardContent className="py-12 text-center">
-          <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-2">Generera video</h3>
-          <p className="text-muted-foreground">
-            Du måste först generera slides för att kunna skapa video.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
+  const [showNarrationRefinement, setShowNarrationRefinement] = useState(false);
+  const [uploadedNarrationContent, setUploadedNarrationContent] = useState('');
 
-  const currentScript = scripts[selectedModuleIndex];
+  const canGenerateFromSlides = !!outline && scripts.length > 0 && Object.keys(slides).length > 0;
+
+  const currentScript = canGenerateFromSlides ? scripts[selectedModuleIndex] : undefined;
   const currentModuleSlides = currentScript ? slides[currentScript.moduleId] || [] : [];
   const currentAudio = currentScript ? moduleAudio[currentScript.moduleId] : undefined;
 
@@ -180,9 +172,6 @@ export function VideoStep({
     moduleAudio[script.moduleId]?.audioUrl
   );
 
-  const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
-  const [showNarrationRefinement, setShowNarrationRefinement] = useState(false);
-  const [uploadedNarrationContent, setUploadedNarrationContent] = useState('');
 
   return (
     <div className="space-y-6">
@@ -254,9 +243,20 @@ export function VideoStep({
       )}
 
       {uploadMode === 'generate' && (
-      <>
-      {/* Module Selector */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+        !canGenerateFromSlides ? (
+          <Card className="border-dashed border-2">
+            <CardContent className="py-12 text-center">
+              <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">Generera video</h3>
+              <p className="text-muted-foreground">
+                Du måste först generera slides för att kunna skapa video.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {/* Module Selector */}
+            <div className="flex gap-2 overflow-x-auto pb-2">
         {scripts.map((script, index) => (
           <Button
             key={script.moduleId}
@@ -496,7 +496,8 @@ export function VideoStep({
           </Card>
         </TabsContent>
       </Tabs>
-      </>
+          </>
+        )
       )}
 
       {/* Action Buttons */}
