@@ -1,4 +1,4 @@
-import { Check, FileText, Layers, Mic, Video, Upload, Sparkles, HelpCircle } from 'lucide-react';
+import { Check, FileText, Layers, Mic, Video, Upload, Sparkles, HelpCircle, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WorkflowStep } from '@/types/course';
 
@@ -9,14 +9,15 @@ interface Step {
 }
 
 const steps: Step[] = [
-  { id: 'title', label: 'Kurstitel', icon: <Sparkles className="w-4 h-4" /> },
-  { id: 'outline', label: 'Kursöversikt', icon: <FileText className="w-4 h-4" /> },
+  { id: 'title', label: 'Titel', icon: <Sparkles className="w-4 h-4" /> },
+  { id: 'outline', label: 'Översikt', icon: <FileText className="w-4 h-4" /> },
   { id: 'script', label: 'Manus', icon: <FileText className="w-4 h-4" /> },
   { id: 'slides', label: 'Slides', icon: <Layers className="w-4 h-4" /> },
+  { id: 'exercises', label: 'Övningar', icon: <BookOpen className="w-4 h-4" /> },
   { id: 'quiz', label: 'Quiz', icon: <HelpCircle className="w-4 h-4" /> },
   { id: 'voice', label: 'Röst', icon: <Mic className="w-4 h-4" /> },
   { id: 'video', label: 'Video', icon: <Video className="w-4 h-4" /> },
-  { id: 'upload', label: 'Ladda upp', icon: <Upload className="w-4 h-4" /> },
+  { id: 'upload', label: 'Export', icon: <Upload className="w-4 h-4" /> },
 ];
 
 interface ProgressStepperProps {

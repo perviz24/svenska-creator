@@ -4,6 +4,7 @@ import { TitleStep } from '@/components/TitleStep';
 import { OutlineStep } from '@/components/OutlineStep';
 import { ScriptStep } from '@/components/ScriptStep';
 import { SlideStep } from '@/components/SlideStep';
+import { ExerciseStep } from '@/components/ExerciseStep';
 import { QuizStep } from '@/components/QuizStep';
 import { VideoStep } from '@/components/VideoStep';
 import { ExportStep } from '@/components/ExportStep';
@@ -27,6 +28,7 @@ const Index = () => {
     generateModuleAudio,
     updateVideoSettings,
     addQuiz,
+    addExercises,
     startNewCourse,
   } = useCourseWorkflow();
 
@@ -79,6 +81,19 @@ const Index = () => {
             courseTitle={state.title}
             onGenerateSlides={generateSlides}
             onUpdateSlide={updateSlide}
+            onContinue={nextStep}
+          />
+        );
+      case 'exercises':
+        return (
+          <ExerciseStep
+            outline={state.outline}
+            scripts={state.scripts}
+            exercises={state.exercises}
+            isLoading={state.isProcessing}
+            courseTitle={state.title}
+            language={state.settings.language}
+            onExercisesGenerated={addExercises}
             onContinue={nextStep}
           />
         );

@@ -123,6 +123,44 @@ export interface ModuleQuiz {
   questions: QuizQuestion[];
 }
 
+export interface Exercise {
+  id: string;
+  title: string;
+  description: string;
+  type: 'individual' | 'group' | 'reflection' | 'practical' | 'case-study';
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  estimatedTime: number;
+  instructions: string[];
+  learningObjectives: string[];
+  materials?: string[];
+  assessmentCriteria?: string[];
+  sampleSolution?: string;
+}
+
+export interface ModuleExercises {
+  moduleId: string;
+  moduleTitle: string;
+  exercises: Exercise[];
+}
+
+export interface ModuleSummary {
+  moduleId: string;
+  moduleTitle: string;
+  briefSummary: string;
+  keyPoints: string[];
+  keyConcepts: { term: string; definition: string }[];
+  actionItems?: string[];
+}
+
+export interface HeyGenAvatar {
+  avatar_id: string;
+  avatar_name: string;
+  preview_image_url?: string;
+  preview_video_url?: string;
+  gender?: string;
+  type?: 'public' | 'private';
+}
+
 export interface VideoSettings {
   avatarId?: string;
   avatarName?: string;
@@ -134,6 +172,7 @@ export type WorkflowStep =
   | 'outline'
   | 'script'
   | 'slides'
+  | 'exercises'
   | 'quiz'
   | 'voice'
   | 'video'
@@ -148,7 +187,9 @@ export interface WorkflowState {
   outline: CourseOutline | null;
   scripts: ModuleScript[];
   slides: Record<string, Slide[]>; // moduleId -> slides
+  exercises: Record<string, ModuleExercises>; // moduleId -> exercises
   quizzes: Record<string, ModuleQuiz>; // moduleId -> quiz
+  summaries: Record<string, ModuleSummary>; // moduleId -> summary
   moduleAudio: Record<string, ModuleAudio>; // moduleId -> audio
   videoSettings: VideoSettings;
   settings: CourseSettings;

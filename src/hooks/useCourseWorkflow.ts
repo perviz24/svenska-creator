@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { WorkflowState, WorkflowStep, TitleSuggestion, CourseOutline, CourseSettings, ModuleScript, Slide, ModuleAudio, VideoSettings, ModuleQuiz } from '@/types/course';
+import { WorkflowState, WorkflowStep, TitleSuggestion, CourseOutline, CourseSettings, ModuleScript, Slide, ModuleAudio, VideoSettings, ModuleQuiz, ModuleExercises, ModuleSummary } from '@/types/course';
 import { supabase } from '@/integrations/supabase/client';
 import { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
@@ -28,7 +28,9 @@ const initialState: WorkflowState = {
   outline: null,
   scripts: [],
   slides: {},
+  exercises: {},
   quizzes: {},
+  summaries: {},
   moduleAudio: {},
   videoSettings: initialVideoSettings,
   settings: initialSettings,
@@ -288,7 +290,7 @@ export function useCourseWorkflow() {
   }, []);
 
   const nextStep = useCallback(() => {
-    const steps: WorkflowStep[] = ['title', 'outline', 'script', 'slides', 'quiz', 'voice', 'video', 'upload'];
+    const steps: WorkflowStep[] = ['title', 'outline', 'script', 'slides', 'exercises', 'quiz', 'voice', 'video', 'upload'];
     setState(prev => {
       const currentIndex = steps.indexOf(prev.currentStep);
       if (currentIndex < steps.length - 1) {
@@ -313,6 +315,26 @@ export function useCourseWorkflow() {
       quizzes: {
         ...prev.quizzes,
         [moduleId]: quiz,
+      },
+    }));
+  }, []);
+
+  const addExercises = useCallback((moduleId: string, moduleExercises: ModuleExercises) => {
+    setState(prev => ({
+      ...prev,
+      exercises: {
+        ...prev.exercises,
+        [moduleId]: moduleExercises,
+      },
+    }));
+  }, []);
+
+  const addSummary = useCallback((moduleId: string, summary: ModuleSummary) => {
+    setState(prev => ({
+      ...prev,
+      summaries: {
+        ...prev.summaries,
+        [moduleId]: summary,
       },
     }));
   }, []);
@@ -582,6 +604,8 @@ export function useCourseWorkflow() {
     generateModuleAudio,
     updateVideoSettings,
     addQuiz,
+    addExercises,
+    addSummary,
     startNewCourse,
   };
 }
