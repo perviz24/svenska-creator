@@ -68,9 +68,9 @@ export function PresentationPreviewCard({ settings }: PresentationPreviewCardPro
       
       {/* Mini slide preview */}
       <div 
-        className={`relative aspect-video bg-gradient-to-br overflow-hidden shadow-lg transition-all duration-300 ${styleClasses.container} ${includeAnimations ? 'hover:scale-[1.02]' : ''}`}
+        className={`relative aspect-video overflow-hidden shadow-lg transition-all duration-300 ${styleClasses.container} ${includeAnimations ? 'hover:scale-[1.02]' : ''}`}
         style={{ 
-          background: `linear-gradient(135deg, ${primaryColor}15 0%, ${primaryColor}05 100%)`,
+          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 50%, ${primaryColor}bb 100%)`,
           borderColor: primaryColor,
         }}
       >
@@ -85,11 +85,11 @@ export function PresentationPreviewCard({ settings }: PresentationPreviewCardPro
           {/* Title */}
           <h3 
             className={`text-sm leading-tight mb-1 ${styleClasses.title}`}
-            style={{ color: primaryColor }}
+            style={{ color: '#ffffff' }}
           >
             {toneText.title}
           </h3>
-          <p className={`text-[10px] text-muted-foreground mb-2 ${styleClasses.body}`}>
+          <p className={`text-[10px] mb-2 ${styleClasses.body}`} style={{ color: 'rgba(255,255,255,0.8)' }}>
             {toneText.subtitle}
           </p>
           
@@ -97,13 +97,13 @@ export function PresentationPreviewCard({ settings }: PresentationPreviewCardPro
           <div className="flex-1 flex gap-2">
             {/* Text content */}
             <div className={`flex-1 space-y-1 ${imagePlaceholders >= 2 ? 'max-w-[40%]' : imagePlaceholders === 1 ? 'max-w-[55%]' : ''}`}>
-              <div className="h-1 rounded-full bg-foreground/20 w-full" />
-              <div className="h-1 rounded-full bg-foreground/15 w-4/5" />
-              <div className="h-1 rounded-full bg-foreground/10 w-3/5" />
+              <div className="h-1 rounded-full bg-white/40 w-full" />
+              <div className="h-1 rounded-full bg-white/30 w-4/5" />
+              <div className="h-1 rounded-full bg-white/25 w-3/5" />
               {professionality !== 'very-casual' && (
                 <>
-                  <div className="h-1 rounded-full bg-foreground/15 w-full mt-2" />
-                  <div className="h-1 rounded-full bg-foreground/10 w-2/3" />
+                  <div className="h-1 rounded-full bg-white/30 w-full mt-2" />
+                  <div className="h-1 rounded-full bg-white/25 w-2/3" />
                 </>
               )}
             </div>
@@ -144,8 +144,8 @@ export function PresentationPreviewCard({ settings }: PresentationPreviewCardPro
           {/* Footer indicator */}
           {includeAnimations && (
             <div className="absolute bottom-1.5 right-2 flex items-center gap-0.5">
-              <Sparkles className="w-2 h-2 text-muted-foreground/50" />
-              <span className="text-[8px] text-muted-foreground/50">Animerad</span>
+              <Sparkles className="w-2 h-2" style={{ color: 'rgba(255,255,255,0.6)' }} />
+              <span className="text-[8px]" style={{ color: 'rgba(255,255,255,0.6)' }}>Animerad</span>
             </div>
           )}
         </div>
@@ -153,7 +153,7 @@ export function PresentationPreviewCard({ settings }: PresentationPreviewCardPro
         {/* Slide number */}
         <div 
           className="absolute bottom-1.5 left-2 text-[8px] font-medium"
-          style={{ color: primaryColor }}
+          style={{ color: 'rgba(255,255,255,0.8)' }}
         >
           1 / {settings?.slideCount || 10}
         </div>

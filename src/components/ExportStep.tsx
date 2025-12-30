@@ -111,6 +111,10 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
   const [isExportingPptx, setIsExportingPptx] = useState(false);
   const [isExportingPptxClean, setIsExportingPptxClean] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  
+  // Check if we have exportable content (slides or outline)
+  const hasExportableContent = (providedSlides && Object.keys(providedSlides).length > 0) || 
+                                (outline?.modules && outline.modules.length > 0);
 
   // Load saved credentials on mount (skip for demo mode - user enters temporary credentials)
   useEffect(() => {
@@ -1146,7 +1150,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
                 <Button 
                   className="w-full" 
                   variant="outline" 
-                  disabled={isExportingPptxClean || !outline?.modules?.length}
+                  disabled={isExportingPptxClean || !hasExportableContent}
                   onClick={handleDownloadPptxClean}
                 >
                   {isExportingPptxClean ? (
@@ -1172,7 +1176,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
                 <Button 
                   className="w-full" 
                   variant="default" 
-                  disabled={isExportingPptx || !outline?.modules?.length}
+                  disabled={isExportingPptx || !hasExportableContent}
                   onClick={handleDownloadPptxStyled}
                 >
                   {isExportingPptx ? (
@@ -1212,7 +1216,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
             <Button 
               className="w-full" 
               variant="outline" 
-              disabled={isExportingPdf || !outline?.modules?.length}
+              disabled={isExportingPdf || !hasExportableContent}
               onClick={handleDownloadPdf}
             >
               {isExportingPdf ? (
@@ -1249,7 +1253,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
             </p>
             <Button 
               className="w-full" 
-              disabled={isExportingPptxClean || !outline?.modules?.length}
+              disabled={isExportingPptxClean || !hasExportableContent}
               onClick={handleDownloadPptxClean}
             >
               {isExportingPptxClean ? (
@@ -1277,8 +1281,10 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
               <div className="space-y-1">
                 <h4 className="font-medium">{courseTitle || 'Din presentation'}</h4>
                 <p className="text-sm text-muted-foreground">
-                  {outline?.modules?.length || 0} avsnitt • {
-                    outline?.modules?.reduce((acc, m) => acc + (m.subTopics?.length || 0), 0) || 0
+                  {providedSlides ? Object.keys(providedSlides).length : (outline?.modules?.length || 0)} avsnitt • {
+                    providedSlides 
+                      ? Object.values(providedSlides).reduce((acc, slides) => acc + slides.length, 0)
+                      : (outline?.modules?.reduce((acc, m) => acc + (m.subTopics?.length || 0), 0) || 0)
                   } slides
                 </p>
               </div>
