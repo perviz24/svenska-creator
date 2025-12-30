@@ -1234,10 +1234,11 @@ export function SlideStep({
                 <div 
                   className="aspect-video rounded-xl border-2 border-border/50 overflow-hidden relative shadow-lg"
                   style={{ 
-                    backgroundColor: currentSlide.backgroundColor || 'hsl(var(--card))',
                     background: currentSlide.imageUrl 
-                      ? `linear-gradient(135deg, hsl(var(--primary) / 0.9), hsl(var(--primary) / 0.7))` 
-                      : currentSlide.backgroundColor || 'linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--muted)))'
+                      ? undefined
+                      : currentSlide.backgroundColor 
+                        ? currentSlide.backgroundColor 
+                        : `linear-gradient(135deg, hsl(220 70% 35%) 0%, hsl(240 60% 25%) 100%)`
                   }}
                 >
                   {currentSlide.imageUrl && (
@@ -1248,7 +1249,12 @@ export function SlideStep({
                     />
                   )}
                   {/* Gradient overlay for better text readability */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
+                  <div className={cn(
+                    "absolute inset-0",
+                    currentSlide.imageUrl 
+                      ? "bg-gradient-to-t from-black/80 via-black/40 to-black/20"
+                      : "bg-gradient-to-br from-primary/20 to-transparent"
+                  )} />
                   
                   <div className="relative z-10 p-6 h-full flex flex-col justify-end">
                     <Badge variant="secondary" className="self-start mb-3 text-xs bg-white/20 text-white backdrop-blur-sm border-0">
@@ -1284,17 +1290,23 @@ export function SlideStep({
                         ? "border-primary ring-2 ring-primary/20" 
                         : "border-border hover:border-primary/50"
                     )}
-                    style={{ backgroundColor: slide.backgroundColor || 'hsl(var(--muted))' }}
+                    style={{ 
+                      background: slide.imageUrl 
+                        ? undefined 
+                        : slide.backgroundColor 
+                          ? slide.backgroundColor 
+                          : `linear-gradient(135deg, hsl(220 70% 35%) 0%, hsl(240 60% 25%) 100%)`
+                    }}
                   >
                     {slide.imageUrl && (
                       <img 
                         src={slide.imageUrl} 
                         alt=""
-                        className="w-full h-full object-cover opacity-50"
+                        className="w-full h-full object-cover opacity-70"
                       />
                     )}
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/40">
-                      <span className="text-xs font-bold text-foreground">{index + 1}</span>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xs font-bold text-white drop-shadow-md">{index + 1}</span>
                     </div>
                   </button>
                 ))}
