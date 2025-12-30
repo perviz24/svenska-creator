@@ -335,6 +335,16 @@ serve(async (req) => {
         detected_mood: topicContext.visualMood,
       });
 
+      // Build optimized instructions for best visual output
+      const enhancedInstructions = [
+        effectiveInstructions,
+        'Create visually stunning, professional slides with modern design.',
+        'Use high-quality images that directly relate to the content.',
+        'Ensure clear visual hierarchy with impactful headings.',
+        'Apply consistent branding and color scheme throughout.',
+        'Include data visualizations where appropriate.',
+      ].filter(Boolean).join(' ');
+
       const presentonPayload = {
         content: contentText.substring(0, 10000),
         n_slides: Math.min(numSlides, 50),
@@ -342,10 +352,11 @@ serve(async (req) => {
         template: effectiveTemplate,
         theme: effectiveTheme,
         tone: effectiveTone,
-        instructions: effectiveInstructions,
+        instructions: enhancedInstructions,
         verbosity: 'standard',
-        web_search: false,
-        image_type: effectiveImageStyle === 'illustrations' ? 'ai-generated' : 'ai-generated',
+        web_search: true, // Enable web search for better content grounding
+        image_type: 'ai-generated', // AI-generated images for unique, relevant visuals
+        markdown_emphasis: true, // Enable markdown formatting
         include_title_slide: true,
         include_table_of_contents: numSlides > 8,
         export_as: 'pptx',
