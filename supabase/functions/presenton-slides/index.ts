@@ -20,7 +20,8 @@ interface PresentonRequest {
   topic: string;
   numSlides: number;
   language?: string;
-  style?: 'professional' | 'creative' | 'minimal' | 'corporate';
+  style?: string;
+  tone?: string;
   additionalContext?: string;
   // For status checking
   taskId?: string;
@@ -42,6 +43,7 @@ serve(async (req) => {
       numSlides = 10, 
       language = 'en',
       style = 'professional',
+      tone,
       additionalContext = '',
       scriptContent,
       moduleTitle,
@@ -114,15 +116,41 @@ serve(async (req) => {
     // If Presenton API key is available, use their cloud API
     if (PRESENTON_API_KEY) {
       console.log('Using Presenton Cloud API for slide generation');
-      
+
       const contentText = scriptContent || additionalContext || topic || moduleTitle || courseTitle || '';
-      
+
+      const mapLanguage = (lang?: string) => (lang === 'sv' ? 'Swedish' : 'English');
+
+      const mapTone = (input?: string) => {
+        const raw = (input || '').toLowerCase().trim();
+        // Presenton allowed: default, casual, professional, funny, educational, sales_pitch
+        if (['default', 'casual', 'professional', 'funny', 'educational', 'sales_pitch'].includes(raw)) return raw;
+        // Common app synonyms → Presenton tones
+        if (['modern', 'corporate', 'formal', 'business'].includes(raw)) return 'professional';
+        if (['friendly', 'relaxed'].includes(raw)) return 'casual';
+        if (['learning', 'training', 'course'].includes(raw)) return 'educational';
+        if (['sales', 'pitch'].includes(raw)) return 'sales_pitch';
+        return 'default';
+      };
+
+      const mapTemplate = (input?: string) => {
+        const raw = (input || '').toLowerCase().trim();
+        // Keep conservative defaults to improve consistency
+        if (raw.includes('minimal')) return 'minimal';
+        if (raw.includes('creative')) return 'creative';
+        if (raw.includes('corporate') || raw.includes('professional') || raw.includes('modern')) return 'corporate';
+        return 'general';
+      };
+
+      const effectiveTone = mapTone(tone || style);
+      const effectiveTemplate = mapTemplate(style);
+
       const presentonPayload = {
         content: contentText.substring(0, 10000),
         n_slides: Math.min(numSlides, 100),
-        language: language === 'sv' ? 'Swedish' : 'English',
-        template: 'general',
-        tone: style === 'professional' ? 'default' : style,
+        language: mapLanguage(language),
+        template: effectiveTemplate,
+        tone: effectiveTone,
         verbosity: 'standard',
         markdown_emphasis: true,
         web_search: false,
@@ -132,8 +160,8 @@ serve(async (req) => {
         export_as: 'pptx',
       };
 
-      console.log('Calling Presenton async endpoint...');
-      
+      console.log('Calling Presenton async endpoint...', { tone: effectiveTone, template: effectiveTemplate, n_slides: presentonPayload.n_slides });
+
       const generateResponse = await fetch(`${PRESENTON_API_URL}/api/v1/ppt/presentation/generate/async`, {
         method: 'POST',
         headers: {
@@ -163,8 +191,6 @@ serve(async (req) => {
         );
       }
     }
-
-    // Fallback: Use Lovable AI to generate professional slides (synchronous)
     console.log('Using Lovable AI for slide generation');
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');

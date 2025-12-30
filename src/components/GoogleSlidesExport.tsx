@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Slide } from '@/types/course';
-import { supabase } from '@/integrations/supabase/client';
+import pptxgen from 'pptxgenjs';
 
 interface GoogleSlidesExportProps {
   slides: Slide[];
@@ -24,33 +24,64 @@ export function GoogleSlidesExport({ slides, courseTitle, moduleTitle }: GoogleS
 
     setIsExporting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('export-google-slides', {
-        body: {
-          slides: slides.map(s => ({
-            title: s.title,
-            content: s.content,
-            layout: s.layout,
-            speakerNotes: s.speakerNotes,
-            imageUrl: s.imageUrl,
-            backgroundColor: s.backgroundColor,
-          })),
-          courseTitle,
-          moduleTitle,
-        },
+      // Generate a real PPTX locally (Google Slides can import PPTX)
+      const pptx = new pptxgen();
+      pptx.author = 'Course Generator';
+      pptx.title = courseTitle || moduleTitle || 'Presentation';
+      pptx.subject = 'Google Slides export';
+
+      slides.forEach((s, index) => {
+        const slide = pptx.addSlide();
+        slide.background = { color: 'FFFFFF' };
+
+        const title = s.title || `Slide ${index + 1}`;
+        const content = s.content || '';
+
+        // Title
+        slide.addText(title, {
+          x: 0.5,
+          y: 0.4,
+          w: 9,
+          h: 0.8,
+          fontSize: 28,
+          bold: true,
+          color: '000000',
+          fontFace: 'Arial',
+        });
+
+        // Body
+        if (content.trim()) {
+          const lines = content.split('\n').map(l => l.trim()).filter(Boolean);
+          const bulletItems = lines.map(line => ({
+            text: line.replace(/^[•\-]\s*/, ''),
+            options: { bullet: { type: 'bullet' as const }, breakLine: true },
+          }));
+
+          slide.addText(bulletItems, {
+            x: 0.7,
+            y: 1.4,
+            w: 8.8,
+            h: 4.2,
+            fontSize: 18,
+            color: '333333',
+            fontFace: 'Arial',
+            valign: 'top',
+          });
+        }
+
+        // Speaker notes
+        if (s.speakerNotes?.trim()) {
+          slide.addNotes(s.speakerNotes);
+        }
       });
 
-      if (error) throw error;
+      const safeTitle = (moduleTitle || courseTitle || 'google-slides')
+        .replace(/[^a-zA-Z0-9åäöÅÄÖ\s]/g, '')
+        .trim()
+        .replace(/\s+/g, '-');
 
-      if (data.downloadUrl) {
-        // Download the PPTX file that can be imported to Google Slides
-        const link = document.createElement('a');
-        link.href = data.downloadUrl;
-        link.download = data.filename || `${moduleTitle}-google-slides.pptx`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('Exporterad! Ladda upp filen till Google Slides');
-      }
+      await pptx.writeFile({ fileName: `${safeTitle}-google-slides.pptx` });
+      toast.success('Exporterad! Importera PPTX-filen i Google Slides');
     } catch (error) {
       console.error('Error exporting to Google Slides:', error);
       toast.error('Kunde inte exportera till Google Slides');
