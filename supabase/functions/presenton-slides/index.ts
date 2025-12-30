@@ -208,11 +208,12 @@ serve(async (req) => {
         if (raw === 'modern') return 'modern';
         if (raw === 'standard' || raw === 'classic') return 'standard';
         if (raw === 'swift') return 'swift';
+        if (raw === 'general') return 'general';
         // Map app styles to best matching Presenton templates
         if (raw === 'minimal') return 'modern'; // Modern is cleanest
         if (raw === 'creative') return 'swift'; // Swift is most dynamic
         if (raw === 'corporate') return 'standard'; // Standard is most conservative
-        return 'general'; // Safe default
+        return 'modern'; // Default to modern for better visual quality
       };
 
       // Map styles to Presenton themes - now context-aware
