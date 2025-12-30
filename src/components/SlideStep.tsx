@@ -665,22 +665,127 @@ export function SlideStep({
               
               {slideGenerator === 'presenton' && (
                 <>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Stil:</span>
-                    <Select value={exportTemplate} onValueChange={(v) => setExportTemplate(v as ExportTemplate)}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover z-50">
-                        <SelectItem value="professional">Professionell</SelectItem>
-                        <SelectItem value="modern">Modern</SelectItem>
-                        <SelectItem value="minimal">Minimal</SelectItem>
-                        <SelectItem value="creative">Kreativ</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  {/* Template Style Previews */}
+                  <div className="w-full mt-2 mb-4">
+                    <span className="text-sm text-muted-foreground mb-3 block">Välj stil:</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {/* Professional */}
+                      <button
+                        onClick={() => setExportTemplate('professional')}
+                        className={cn(
+                          "group relative aspect-[4/3] rounded-lg border-2 overflow-hidden transition-all duration-200 hover:scale-105",
+                          exportTemplate === 'professional' 
+                            ? "border-primary ring-2 ring-primary/20" 
+                            : "border-border hover:border-primary/50"
+                        )}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 p-2">
+                          <div className="h-1 w-8 bg-blue-500 rounded mb-1" />
+                          <div className="h-0.5 w-12 bg-white/60 rounded mb-0.5" />
+                          <div className="h-0.5 w-10 bg-white/40 rounded mb-0.5" />
+                          <div className="h-0.5 w-8 bg-white/30 rounded" />
+                          <div className="absolute bottom-1 right-1 w-6 h-4 bg-blue-500/30 rounded-sm" />
+                        </div>
+                        <div className="absolute inset-x-0 bottom-0 bg-background/90 backdrop-blur-sm py-1 text-center">
+                          <span className="text-xs font-medium">Professionell</span>
+                        </div>
+                        {exportTemplate === 'professional' && (
+                          <div className="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                            <span className="text-[8px] text-primary-foreground">✓</span>
+                          </div>
+                        )}
+                      </button>
+
+                      {/* Modern */}
+                      <button
+                        onClick={() => setExportTemplate('modern')}
+                        className={cn(
+                          "group relative aspect-[4/3] rounded-lg border-2 overflow-hidden transition-all duration-200 hover:scale-105",
+                          exportTemplate === 'modern' 
+                            ? "border-primary ring-2 ring-primary/20" 
+                            : "border-border hover:border-primary/50"
+                        )}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-br from-violet-600 to-indigo-800 p-2">
+                          <div className="h-1 w-6 bg-white rounded-full mb-1" />
+                          <div className="flex gap-1 mb-1">
+                            <div className="h-3 w-3 bg-white/20 rounded" />
+                            <div className="flex-1">
+                              <div className="h-0.5 w-full bg-white/50 rounded mb-0.5" />
+                              <div className="h-0.5 w-3/4 bg-white/30 rounded" />
+                            </div>
+                          </div>
+                          <div className="absolute bottom-2 left-2 right-2 h-2 bg-white/10 rounded-full" />
+                        </div>
+                        <div className="absolute inset-x-0 bottom-0 bg-background/90 backdrop-blur-sm py-1 text-center">
+                          <span className="text-xs font-medium">Modern</span>
+                        </div>
+                        {exportTemplate === 'modern' && (
+                          <div className="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                            <span className="text-[8px] text-primary-foreground">✓</span>
+                          </div>
+                        )}
+                      </button>
+
+                      {/* Minimal */}
+                      <button
+                        onClick={() => setExportTemplate('minimal')}
+                        className={cn(
+                          "group relative aspect-[4/3] rounded-lg border-2 overflow-hidden transition-all duration-200 hover:scale-105",
+                          exportTemplate === 'minimal' 
+                            ? "border-primary ring-2 ring-primary/20" 
+                            : "border-border hover:border-primary/50"
+                        )}
+                      >
+                        <div className="absolute inset-0 bg-white p-3">
+                          <div className="h-0.5 w-10 bg-gray-800 rounded mb-2" />
+                          <div className="h-0.5 w-14 bg-gray-300 rounded mb-0.5" />
+                          <div className="h-0.5 w-12 bg-gray-200 rounded mb-0.5" />
+                          <div className="h-0.5 w-10 bg-gray-200 rounded" />
+                        </div>
+                        <div className="absolute inset-x-0 bottom-0 bg-background/90 backdrop-blur-sm py-1 text-center">
+                          <span className="text-xs font-medium">Minimal</span>
+                        </div>
+                        {exportTemplate === 'minimal' && (
+                          <div className="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                            <span className="text-[8px] text-primary-foreground">✓</span>
+                          </div>
+                        )}
+                      </button>
+
+                      {/* Creative */}
+                      <button
+                        onClick={() => setExportTemplate('creative')}
+                        className={cn(
+                          "group relative aspect-[4/3] rounded-lg border-2 overflow-hidden transition-all duration-200 hover:scale-105",
+                          exportTemplate === 'creative' 
+                            ? "border-primary ring-2 ring-primary/20" 
+                            : "border-border hover:border-primary/50"
+                        )}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-br from-orange-400 via-pink-500 to-purple-600 p-2">
+                          <div className="absolute top-1 left-1 w-4 h-4 bg-yellow-300 rounded-full opacity-60" />
+                          <div className="absolute top-3 right-2 w-2 h-2 bg-cyan-300 rounded-full opacity-80" />
+                          <div className="mt-4 ml-1">
+                            <div className="h-1 w-8 bg-white rounded-full mb-1" />
+                            <div className="h-0.5 w-10 bg-white/60 rounded" />
+                          </div>
+                          <div className="absolute bottom-2 right-1 w-5 h-3 bg-white/20 rounded rotate-12" />
+                        </div>
+                        <div className="absolute inset-x-0 bottom-0 bg-background/90 backdrop-blur-sm py-1 text-center">
+                          <span className="text-xs font-medium">Kreativ</span>
+                        </div>
+                        {exportTemplate === 'creative' && (
+                          <div className="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                            <span className="text-[8px] text-primary-foreground">✓</span>
+                          </div>
+                        )}
+                      </button>
+                    </div>
                   </div>
+
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Antal:</span>
+                    <span className="text-sm text-muted-foreground">Antal slides:</span>
                     <Select value={numSlides.toString()} onValueChange={(v) => setNumSlides(parseInt(v))}>
                       <SelectTrigger className="w-20">
                         <SelectValue />
