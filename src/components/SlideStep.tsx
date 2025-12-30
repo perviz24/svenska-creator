@@ -72,7 +72,10 @@ export function SlideStep({
   const [slideGenerator, setSlideGenerator] = useState<SlideGenerator>('internal');
   const [exportTemplate, setExportTemplate] = useState<ExportTemplate>('professional');
   const [isGeneratingPresenton, setIsGeneratingPresenton] = useState(false);
-  const [numSlides, setNumSlides] = useState(10);
+  
+  // Apply demo mode limits to slide count
+  const maxSlidesAllowed = isDemoMode ? (demoMode?.maxSlides || 3) : 20;
+  const [numSlides, setNumSlides] = useState(isDemoMode ? Math.min(10, maxSlidesAllowed) : 10);
   
   // Presenton async polling state
   const [presentonTaskId, setPresentonTaskId] = useState<string | null>(null);
