@@ -1106,7 +1106,6 @@ export function SlideStep({
             )}
           </CardContent>
         </Card>
-        </>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Slide Preview */}
@@ -1367,7 +1366,8 @@ export function SlideStep({
           </Card>
         </div>
       )}
-
+      </>
+      )}
       {/* Action Buttons */}
       <div className="flex justify-between items-center pt-4">
         <Button 
