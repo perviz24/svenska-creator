@@ -664,22 +664,38 @@ export function SlideStep({
               </div>
               
               {slideGenerator === 'presenton' && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Antal slides:</span>
-                  <Select value={numSlides.toString()} onValueChange={(v) => setNumSlides(parseInt(v))}>
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="15">15</SelectItem>
-                      <SelectItem value="20">20</SelectItem>
-                      <SelectItem value="30">30</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Stil:</span>
+                    <Select value={exportTemplate} onValueChange={(v) => setExportTemplate(v as ExportTemplate)}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        <SelectItem value="professional">Professionell</SelectItem>
+                        <SelectItem value="modern">Modern</SelectItem>
+                        <SelectItem value="minimal">Minimal</SelectItem>
+                        <SelectItem value="creative">Kreativ</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Antal:</span>
+                    <Select value={numSlides.toString()} onValueChange={(v) => setNumSlides(parseInt(v))}>
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="15">15</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="30">30</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
               )}
             </div>
             
