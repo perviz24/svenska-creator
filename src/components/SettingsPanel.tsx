@@ -14,6 +14,7 @@ import { SystemDiagnostics } from '@/components/SystemDiagnostics';
 import { UserInvitePanel } from '@/components/UserInvitePanel';
 import { VoiceControlPanel } from '@/components/VoiceControlPanel';
 import { PresentationPreviewCard } from '@/components/PresentationPreviewCard';
+import { LiveSlidePreview } from '@/components/LiveSlidePreview';
 import { CustomTemplateUpload } from '@/components/CustomTemplateUpload';
 import { ThemePreviewSelector } from '@/components/ThemePreviewSelector';
 import { StockVideoProviderSettings } from '@/components/StockVideoProviderSettings';
@@ -94,16 +95,19 @@ export function SettingsPanel({ settings, onSettingsChange, projectMode, onPrese
   if (projectMode === 'presentation') {
     return (
       <div className="space-y-4">
-        {/* Preview Card */}
+        {/* Live Preview Card */}
         <Card className="border-border/50 shadow-lg overflow-hidden">
           <CardHeader className="pb-2 pt-3">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Eye className="w-4 h-4 text-accent" />
-              Förhandsvisning
+              Live förhandsvisning
             </CardTitle>
           </CardHeader>
           <CardContent className="pb-3">
-            <PresentationPreviewCard settings={presentationSettings} />
+            <LiveSlidePreview 
+              settings={presentationSettings} 
+              topic={presentationSettings?.topic}
+            />
           </CardContent>
         </Card>
 
