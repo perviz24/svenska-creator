@@ -233,18 +233,43 @@ const Index = () => {
           {state.currentStep !== 'mode' && !(state.settings.projectMode === 'presentation' && state.currentStep === 'slides') && (
             <div className="mb-6 bg-muted/50 border border-border rounded-lg px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-6 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Globe className="h-4 w-4" />
-                  <span className="font-medium">{state.settings.language === 'sv' ? 'Svenska' : 'English'}</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Volume2 className="h-4 w-4" />
-                  <span className="font-medium">{state.settings.voiceName || 'Standard'}</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Sparkles className="h-4 w-4" />
-                  <span className="font-medium">{state.settings.aiQualityMode === 'quality' ? 'Hög kvalitet' : 'Snabb'}</span>
-                </div>
+                {state.settings.projectMode === 'presentation' ? (
+                  <>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Sparkles className="h-4 w-4" />
+                      <span className="font-medium capitalize">
+                        {state.settings.presentationSettings?.style || 'modern'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Volume2 className="h-4 w-4" />
+                      <span className="font-medium capitalize">
+                        {state.settings.presentationSettings?.tone || 'professional'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Globe className="h-4 w-4" />
+                      <span className="font-medium">
+                        {state.settings.presentationSettings?.slideCount || 10} slides
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Globe className="h-4 w-4" />
+                      <span className="font-medium">{state.settings.language === 'sv' ? 'Svenska' : 'English'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Volume2 className="h-4 w-4" />
+                      <span className="font-medium">{state.settings.voiceName || 'Standard'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Sparkles className="h-4 w-4" />
+                      <span className="font-medium">{state.settings.aiQualityMode === 'quality' ? 'Hög kvalitet' : 'Snabb'}</span>
+                    </div>
+                  </>
+                )}
               </div>
               <Sheet>
                 <SheetTrigger asChild>
