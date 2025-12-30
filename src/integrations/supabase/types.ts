@@ -58,6 +58,12 @@ export type Database = {
           max_modules: number | null
           outline: Json | null
           parent_course_id: string | null
+          presenton_download_url: string | null
+          presenton_edit_url: string | null
+          presenton_generation_history: Json | null
+          presenton_progress: number | null
+          presenton_status: string | null
+          presenton_task_id: string | null
           selected_title_id: string | null
           settings: Json
           slides_per_module: number | null
@@ -77,6 +83,12 @@ export type Database = {
           max_modules?: number | null
           outline?: Json | null
           parent_course_id?: string | null
+          presenton_download_url?: string | null
+          presenton_edit_url?: string | null
+          presenton_generation_history?: Json | null
+          presenton_progress?: number | null
+          presenton_status?: string | null
+          presenton_task_id?: string | null
           selected_title_id?: string | null
           settings?: Json
           slides_per_module?: number | null
@@ -96,6 +108,12 @@ export type Database = {
           max_modules?: number | null
           outline?: Json | null
           parent_course_id?: string | null
+          presenton_download_url?: string | null
+          presenton_edit_url?: string | null
+          presenton_generation_history?: Json | null
+          presenton_progress?: number | null
+          presenton_status?: string | null
+          presenton_task_id?: string | null
           selected_title_id?: string | null
           settings?: Json
           slides_per_module?: number | null

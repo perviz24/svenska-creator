@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slide, ModuleScript, StockPhoto, CourseOutline, DemoModeSettings, ProjectMode } from '@/types/course';
+import { Slide, ModuleScript, StockPhoto, CourseOutline, DemoModeSettings, ProjectMode, PresentonState, PresentonGenerationEntry } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -28,12 +28,14 @@ interface SlideStepProps {
   courseTitle: string;
   demoMode?: DemoModeSettings;
   projectMode?: ProjectMode;
+  presentonState?: PresentonState;
   onGenerateSlides: (moduleId: string, script: ModuleScript) => Promise<void>;
   onUpdateSlide: (moduleId: string, slideIndex: number, updates: Partial<Slide>) => void;
   onSetModuleSlides?: (moduleId: string, slides: Slide[]) => void;
   onContinue: () => void;
   onContentUploaded?: (content: string) => void;
   onSkip?: () => void;
+  onSavePresentonState?: (updates: Partial<PresentonState>) => Promise<void>;
 }
 
 export function SlideStep({
@@ -44,12 +46,14 @@ export function SlideStep({
   courseTitle,
   demoMode,
   projectMode = 'course',
+  presentonState,
   onGenerateSlides,
   onUpdateSlide,
   onSetModuleSlides,
   onContinue,
   onContentUploaded,
   onSkip,
+  onSavePresentonState,
 }: SlideStepProps) {
   const isDemoMode = demoMode?.enabled || false;
   const showWatermark = isDemoMode && (demoMode?.watermarkEnabled !== false);
@@ -77,23 +81,41 @@ export function SlideStep({
   const maxSlidesAllowed = isDemoMode ? (demoMode?.maxSlides || 3) : 20;
   const [numSlides, setNumSlides] = useState(isDemoMode ? Math.min(10, maxSlidesAllowed) : 10);
   
-  // Presenton async polling state
-  const [presentonTaskId, setPresentonTaskId] = useState<string | null>(null);
-  const [presentonProgress, setPresentonProgress] = useState(0);
-  const [presentonStatus, setPresentonStatus] = useState<'idle' | 'pending' | 'processing' | 'completed' | 'failed'>('idle');
-  const [presentonDownloadUrl, setPresentonDownloadUrl] = useState<string | null>(null);
-  const [presentonEditUrl, setPresentonEditUrl] = useState<string | null>(null);
+  // Presenton async polling state - initialize from props
+  const [presentonTaskId, setPresentonTaskId] = useState<string | null>(presentonState?.taskId || null);
+  const [presentonProgress, setPresentonProgress] = useState(presentonState?.progress || 0);
+  const [presentonStatus, setPresentonStatus] = useState<'idle' | 'pending' | 'processing' | 'completed' | 'failed'>(presentonState?.status || 'idle');
+  const [presentonDownloadUrl, setPresentonDownloadUrl] = useState<string | null>(presentonState?.downloadUrl || null);
+  const [presentonEditUrl, setPresentonEditUrl] = useState<string | null>(presentonState?.editUrl || null);
   
-  // Regeneration / alternatives state
-  const [generationHistory, setGenerationHistory] = useState<Array<{
-    id: string;
-    timestamp: Date;
-    downloadUrl?: string;
-    editUrl?: string;
-    slideCount?: number;
-    style: string;
-  }>>([]);
+  // Regeneration / alternatives state - initialize from props
+  const [generationHistory, setGenerationHistory] = useState<PresentonGenerationEntry[]>(
+    presentonState?.generationHistory || []
+  );
   const [showAlternatives, setShowAlternatives] = useState(false);
+
+  // Sync state from props when they change
+  useEffect(() => {
+    if (presentonState) {
+      if (presentonState.taskId !== presentonTaskId) setPresentonTaskId(presentonState.taskId);
+      if (presentonState.progress !== presentonProgress) setPresentonProgress(presentonState.progress);
+      if (presentonState.status !== presentonStatus) setPresentonStatus(presentonState.status);
+      if (presentonState.downloadUrl !== presentonDownloadUrl) setPresentonDownloadUrl(presentonState.downloadUrl);
+      if (presentonState.editUrl !== presentonEditUrl) setPresentonEditUrl(presentonState.editUrl);
+      if (JSON.stringify(presentonState.generationHistory) !== JSON.stringify(generationHistory)) {
+        setGenerationHistory(presentonState.generationHistory);
+      }
+    }
+  }, [presentonState]);
+
+  // Auto-resume polling if status is pending/processing on mount
+  useEffect(() => {
+    if (presentonTaskId && (presentonStatus === 'pending' || presentonStatus === 'processing')) {
+      console.log('Resuming Presenton polling for task:', presentonTaskId);
+      setIsGeneratingPresenton(true);
+      pollPresentonStatus(presentonTaskId);
+    }
+  }, []); // Only run on mount
 
   // Helper function to clean markdown from slide content
   const cleanMarkdown = (text: string): string => {
@@ -196,6 +218,17 @@ export function SlideStep({
         // Presenton async - start polling
         setPresentonTaskId(data.taskId);
         setPresentonProgress(10);
+        setPresentonStatus('pending');
+        
+        // Persist initial state to database
+        if (onSavePresentonState) {
+          onSavePresentonState({
+            taskId: data.taskId,
+            status: 'pending',
+            progress: 10,
+          });
+        }
+        
         toast.info('Presentation genereras via Presenton...');
         
         // Poll for completion
@@ -268,13 +301,27 @@ export function SlideStep({
           setIsGeneratingPresenton(false);
           
           // Save to generation history for alternatives
-          setGenerationHistory(prev => [...prev, {
+          const newHistoryEntry: PresentonGenerationEntry = {
             id: taskId,
-            timestamp: new Date(),
+            timestamp: new Date().toISOString(),
             downloadUrl: data.downloadUrl,
             editUrl: data.editUrl,
             style: exportTemplate,
-          }]);
+          };
+          const updatedHistory = [...generationHistory, newHistoryEntry];
+          setGenerationHistory(updatedHistory);
+          
+          // Persist to database
+          if (onSavePresentonState) {
+            onSavePresentonState({
+              taskId,
+              status: 'completed',
+              progress: 100,
+              downloadUrl: data.downloadUrl,
+              editUrl: data.editUrl,
+              generationHistory: updatedHistory,
+            });
+          }
           
           toast.success('Presentation genererad via Presenton!', {
             action: {
@@ -288,10 +335,25 @@ export function SlideStep({
         }
 
         if (data.status === 'failed') {
+          // Persist failed state
+          if (onSavePresentonState) {
+            onSavePresentonState({
+              status: 'failed',
+              progress: 0,
+            });
+          }
           throw new Error(data.error || 'Generation failed');
         }
 
         setPresentonStatus(data.status);
+        
+        // Persist progress every 10 attempts (~20 seconds)
+        if (attempt > 0 && attempt % 10 === 0 && onSavePresentonState) {
+          onSavePresentonState({
+            status: data.status,
+            progress: Math.round(progress),
+          });
+        }
 
         // Wait before next poll
         await new Promise(resolve => setTimeout(resolve, pollInterval));
@@ -299,6 +361,15 @@ export function SlideStep({
         console.error('Polling error:', error);
         setPresentonStatus('failed');
         setIsGeneratingPresenton(false);
+        
+        // Persist failed state
+        if (onSavePresentonState) {
+          onSavePresentonState({
+            status: 'failed',
+            progress: 0,
+          });
+        }
+        
         toast.error('Fel vid hämtning av presentation status');
         return;
       }
@@ -307,6 +378,15 @@ export function SlideStep({
     // Timeout
     setPresentonStatus('failed');
     setIsGeneratingPresenton(false);
+    
+    // Persist failed state
+    if (onSavePresentonState) {
+      onSavePresentonState({
+        status: 'failed',
+        progress: 0,
+      });
+    }
+    
     toast.error('Timeout - presentationen tog för lång tid att generera');
   };
 
@@ -985,7 +1065,7 @@ export function SlideStep({
                           {idx === 0 ? '✓ Senaste' : `Alternativ ${generationHistory.length - idx}`}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {item.style} • {item.timestamp.toLocaleTimeString('sv-SE')}
+                          {item.style} • {new Date(item.timestamp).toLocaleTimeString('sv-SE')}
                         </span>
                       </DropdownMenuItem>
                     ))}

@@ -39,6 +39,7 @@ const Index = () => {
     addExercises,
     startNewCourse,
     handleContentUploaded,
+    savePresentonState,
   } = useCourseWorkflow();
 
   const handleModeChange = (mode: ProjectMode) => {
@@ -129,12 +130,14 @@ const Index = () => {
             courseTitle={state.title}
             demoMode={state.settings.demoMode}
             projectMode={state.settings.projectMode}
+            presentonState={state.presenton}
             onGenerateSlides={generateSlides}
             onUpdateSlide={updateSlide}
             onSetModuleSlides={setModuleSlides}
             onContinue={nextStep}
             onContentUploaded={handleContentUploaded}
             onSkip={nextStep}
+            onSavePresentonState={savePresentonState}
           />
         );
       case 'exercises':

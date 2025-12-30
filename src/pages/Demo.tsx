@@ -61,6 +61,15 @@ const initialVideoSettings: VideoSettings = {
   videoStyle: 'presentation',
 };
 
+const initialPresentonState: import('@/types/course').PresentonState = {
+  taskId: null,
+  status: 'idle',
+  progress: 0,
+  downloadUrl: null,
+  editUrl: null,
+  generationHistory: [],
+};
+
 const initialState: WorkflowState = {
   currentStep: 'mode',
   completedSteps: [],
@@ -76,6 +85,7 @@ const initialState: WorkflowState = {
   moduleAudio: {},
   videoSettings: initialVideoSettings,
   settings: initialSettings,
+  presenton: initialPresentonState,
   isProcessing: false,
   error: null,
 };

@@ -39,6 +39,15 @@ const initialVideoSettings: VideoSettings = {
   videoStyle: 'presentation',
 };
 
+const initialPresentonState: import('@/types/course').PresentonState = {
+  taskId: null,
+  status: 'idle',
+  progress: 0,
+  downloadUrl: null,
+  editUrl: null,
+  generationHistory: [],
+};
+
 const initialState: WorkflowState = {
   currentStep: 'mode',
   completedSteps: [],
@@ -54,6 +63,7 @@ const initialState: WorkflowState = {
   moduleAudio: {},
   videoSettings: initialVideoSettings,
   settings: initialSettings,
+  presenton: initialPresentonState,
   isProcessing: false,
   error: null,
 };
@@ -213,6 +223,18 @@ export function useCourseWorkflow() {
         const settings = course.settings as unknown as CourseSettings || initialSettings;
         const outline = course.outline as unknown as CourseOutline | null;
 
+        // Load Presenton state from course record
+        const presentonState: import('@/types/course').PresentonState = {
+          taskId: (course as any).presenton_task_id || null,
+          status: (course as any).presenton_status || 'idle',
+          progress: (course as any).presenton_progress || 0,
+          downloadUrl: (course as any).presenton_download_url || null,
+          editUrl: (course as any).presenton_edit_url || null,
+          generationHistory: Array.isArray((course as any).presenton_generation_history) 
+            ? (course as any).presenton_generation_history 
+            : [],
+        };
+
         setState(prev => ({
           ...prev,
           title: course.title,
@@ -226,6 +248,7 @@ export function useCourseWorkflow() {
           exercises: exercisesMap,
           quizzes: quizzesMap,
           moduleAudio: audioMap,
+          presenton: presentonState,
           completedSteps: getCompletedSteps(course.current_step as WorkflowStep),
         }));
       }
@@ -348,6 +371,41 @@ export function useCourseWorkflow() {
       console.log(`Saved ${slides.length} slides for module ${moduleId}`);
     } catch (error) {
       console.error('Error saving slides:', error);
+    }
+  };
+
+  const savePresentonState = async (presentonUpdates: Partial<import('@/types/course').PresentonState>) => {
+    if (!user || !courseId) return;
+
+    try {
+      const dbUpdates: Record<string, unknown> = {};
+      
+      if (presentonUpdates.taskId !== undefined) dbUpdates.presenton_task_id = presentonUpdates.taskId;
+      if (presentonUpdates.status !== undefined) dbUpdates.presenton_status = presentonUpdates.status;
+      if (presentonUpdates.progress !== undefined) dbUpdates.presenton_progress = presentonUpdates.progress;
+      if (presentonUpdates.downloadUrl !== undefined) dbUpdates.presenton_download_url = presentonUpdates.downloadUrl;
+      if (presentonUpdates.editUrl !== undefined) dbUpdates.presenton_edit_url = presentonUpdates.editUrl;
+      if (presentonUpdates.generationHistory !== undefined) {
+        dbUpdates.presenton_generation_history = JSON.parse(JSON.stringify(presentonUpdates.generationHistory));
+      }
+
+      await supabase
+        .from('courses')
+        .update(dbUpdates)
+        .eq('id', courseId);
+
+      // Update local state
+      setState(prev => ({
+        ...prev,
+        presenton: {
+          ...prev.presenton,
+          ...presentonUpdates,
+        },
+      }));
+      
+      console.log('Saved Presenton state:', presentonUpdates);
+    } catch (error) {
+      console.error('Error saving Presenton state:', error);
     }
   };
 
@@ -920,5 +978,6 @@ export function useCourseWorkflow() {
     startNewCourse,
     handleContentUploaded,
     clearUploadedContent,
+    savePresentonState,
   };
 }
