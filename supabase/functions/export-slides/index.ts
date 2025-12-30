@@ -1,3 +1,5 @@
+import PptxGenJS from "https://esm.sh/pptxgenjs@3.12.0";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -21,13 +23,13 @@ interface ExportRequest {
   template?: 'professional' | 'modern' | 'minimal' | 'creative';
 }
 
-// Professional color palettes
+// Professional color palettes matching Presenton themes
 const TEMPLATES = {
   professional: {
     primary: '#1e3a5f',
     secondary: '#2d5a87',
     accent: '#4a90d9',
-    background: '#f8fafc',
+    background: '#ffffff',
     text: '#1a1a2e',
     muted: '#64748b',
   },
@@ -40,24 +42,153 @@ const TEMPLATES = {
     muted: '#6b7280',
   },
   minimal: {
-    primary: '#18181b',
-    secondary: '#3f3f46',
-    accent: '#a1a1aa',
-    background: '#fafafa',
-    text: '#18181b',
+    primary: '#0d9488',
+    secondary: '#14b8a6',
+    accent: '#2dd4bf',
+    background: '#f0fdfa',
+    text: '#134e4a',
     muted: '#71717a',
   },
   creative: {
-    primary: '#7c3aed',
-    secondary: '#a855f7',
-    accent: '#c084fc',
-    background: '#faf5ff',
-    text: '#1f2937',
+    primary: '#d97706',
+    secondary: '#f59e0b',
+    accent: '#fbbf24',
+    background: '#fffbeb',
+    text: '#78350f',
     muted: '#6b7280',
   },
 };
 
-// Generate professional HTML for PDF export (print-to-PDF)
+// Generate native PPTX using pptxgenjs
+async function generateNativePPTX(
+  slides: Slide[], 
+  courseTitle: string, 
+  moduleTitle: string, 
+  demoMode: boolean = false, 
+  template: keyof typeof TEMPLATES = 'professional'
+): Promise<string> {
+  const colors = TEMPLATES[template];
+  const pptx = new PptxGenJS();
+  
+  // Set presentation properties
+  pptx.author = 'Kursgeneratorn';
+  pptx.title = courseTitle;
+  pptx.subject = moduleTitle;
+  pptx.company = 'Kursgeneratorn';
+  
+  // Define master slide layouts
+  pptx.defineSlideMaster({
+    title: 'TITLE_SLIDE',
+    background: { color: colors.primary },
+    objects: [
+      { placeholder: { options: { name: 'title', type: 'title', x: 0.5, y: 2.5, w: 9, h: 1.5, fontSize: 44, color: 'FFFFFF', bold: true, align: 'center' } } },
+      { placeholder: { options: { name: 'subtitle', type: 'body', x: 0.5, y: 4.2, w: 9, h: 1, fontSize: 24, color: 'FFFFFF', align: 'center' } } },
+    ],
+  });
+
+  pptx.defineSlideMaster({
+    title: 'CONTENT_SLIDE',
+    background: { color: colors.background.replace('#', '') },
+    objects: [
+      { rect: { x: 0, y: 0, w: '100%', h: 0.6, fill: { color: colors.primary.replace('#', '') } } },
+      { placeholder: { options: { name: 'title', type: 'title', x: 0.5, y: 0.8, w: 9, h: 0.8, fontSize: 28, color: colors.text.replace('#', ''), bold: true } } },
+    ],
+  });
+
+  // Add title slide
+  const titleSlide = pptx.addSlide({ masterName: 'TITLE_SLIDE' });
+  titleSlide.addText(courseTitle, { 
+    x: 0.5, y: 2.2, w: 9, h: 1.2, 
+    fontSize: 40, color: 'FFFFFF', bold: true, align: 'center',
+    fontFace: 'Arial'
+  });
+  titleSlide.addText(moduleTitle, { 
+    x: 0.5, y: 3.5, w: 9, h: 0.8, 
+    fontSize: 24, color: 'FFFFFF', align: 'center', 
+    fontFace: 'Arial'
+  });
+  titleSlide.addText(`${slides.length} slides • ${new Date().toLocaleDateString('sv-SE')}`, { 
+    x: 0.5, y: 4.5, w: 9, h: 0.5, 
+    fontSize: 14, color: 'CCCCCC', align: 'center',
+    fontFace: 'Arial'
+  });
+  
+  if (demoMode) {
+    titleSlide.addText('DEMO', { 
+      x: 8, y: 0.2, w: 1.5, h: 0.4, 
+      fontSize: 12, color: 'FFFFFF', bold: true, align: 'center',
+      fill: { color: 'F59E0B' },
+      fontFace: 'Arial'
+    });
+  }
+
+  // Add content slides
+  for (let i = 0; i < slides.length; i++) {
+    const slide = slides[i];
+    const contentSlide = pptx.addSlide({ masterName: 'CONTENT_SLIDE' });
+    
+    // Header bar
+    contentSlide.addShape('rect', { 
+      x: 0, y: 0, w: '100%', h: 0.5, 
+      fill: { color: colors.primary.replace('#', '') }
+    });
+    
+    // Module title in header
+    contentSlide.addText(moduleTitle, { 
+      x: 0.3, y: 0.12, w: 4, h: 0.3, 
+      fontSize: 10, color: 'FFFFFF', fontFace: 'Arial'
+    });
+    
+    // Slide number
+    contentSlide.addText(`${i + 1} / ${slides.length}`, { 
+      x: 8.5, y: 0.12, w: 1, h: 0.3, 
+      fontSize: 10, color: 'FFFFFF', align: 'right', fontFace: 'Arial'
+    });
+    
+    // Demo watermark
+    if (demoMode) {
+      contentSlide.addText('DEMO', { 
+        x: 3, y: 2.5, w: 4, h: 1, 
+        fontSize: 72, color: 'F59E0B', bold: true, align: 'center',
+        transparency: 90, rotate: -15, fontFace: 'Arial'
+      });
+    }
+    
+    // Title
+    contentSlide.addText(slide.title, { 
+      x: 0.5, y: 0.7, w: 9, h: 0.7, 
+      fontSize: 26, color: colors.text.replace('#', ''), bold: true,
+      fontFace: 'Arial'
+    });
+    
+    // Content bullets
+    const contentItems = (slide.content || '').split('\n').filter(line => line.trim());
+    const bulletPoints = contentItems.map(item => ({
+      text: item.replace(/^[•\-\*]\s*/, '').trim(),
+      options: { bullet: { type: 'bullet' as const, color: colors.accent.replace('#', '') }, indentLevel: 0 }
+    }));
+    
+    if (bulletPoints.length > 0) {
+      contentSlide.addText(bulletPoints, { 
+        x: 0.5, y: 1.6, w: 8.5, h: 3.5, 
+        fontSize: 18, color: colors.text.replace('#', ''),
+        lineSpacing: 28, fontFace: 'Arial',
+        valign: 'top'
+      });
+    }
+    
+    // Speaker notes
+    if (slide.speakerNotes) {
+      contentSlide.addNotes(slide.speakerNotes);
+    }
+  }
+
+  // Generate base64 output
+  const pptxBase64 = await pptx.write({ outputType: 'base64' });
+  return pptxBase64 as string;
+}
+
+// Generate professional HTML for PDF export
 function generatePDFHtml(slides: Slide[], courseTitle: string, moduleTitle: string, demoMode: boolean = false, template: keyof typeof TEMPLATES = 'professional'): string {
   const colors = TEMPLATES[template];
   
@@ -140,122 +271,6 @@ function generatePDFHtml(slides: Slide[], courseTitle: string, moduleTitle: stri
 </html>`;
 }
 
-// Generate PPTX-compatible XML that can be opened in PowerPoint
-function generatePPTXContent(slides: Slide[], courseTitle: string, moduleTitle: string, demoMode: boolean = false, template: keyof typeof TEMPLATES = 'professional'): string {
-  const colors = TEMPLATES[template];
-  
-  // Create a simplified Open XML format that PowerPoint can read
-  const slideContents = slides.map((slide, index) => {
-    const contentItems = (slide.content || '').split('\n').filter(line => line.trim());
-    
-    return {
-      slideNumber: index + 1,
-      title: slide.title,
-      bullets: contentItems.map(item => item.replace(/^[•\-\*]\s*/, '').trim()),
-      notes: slide.speakerNotes || '',
-    };
-  });
-
-  // Generate a well-formed XML structure
-  const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
-<presentation>
-  <metadata>
-    <title>${escapeXml(courseTitle)}</title>
-    <subject>${escapeXml(moduleTitle)}</subject>
-    <slideCount>${slides.length}</slideCount>
-    <created>${new Date().toISOString()}</created>
-    <template>${template}</template>
-    ${demoMode ? '<demoMode>true</demoMode>' : ''}
-  </metadata>
-  <theme>
-    <primaryColor>${colors.primary}</primaryColor>
-    <secondaryColor>${colors.secondary}</secondaryColor>
-    <accentColor>${colors.accent}</accentColor>
-    <backgroundColor>${colors.background}</backgroundColor>
-    <textColor>${colors.text}</textColor>
-  </theme>
-  <slides>
-${slideContents.map(s => `    <slide number="${s.slideNumber}">
-      <title>${escapeXml(s.title)}</title>
-      <content>
-${s.bullets.map(b => `        <bullet>${escapeXml(b)}</bullet>`).join('\n')}
-      </content>
-      ${s.notes ? `<notes>${escapeXml(s.notes)}</notes>` : ''}
-    </slide>`).join('\n')}
-  </slides>
-</presentation>`;
-
-  return xmlContent;
-}
-
-// Generate HTML-based PPTX alternative that can be imported to Google Slides
-function generatePPTXHtml(slides: Slide[], courseTitle: string, moduleTitle: string, demoMode: boolean = false, template: keyof typeof TEMPLATES = 'professional'): string {
-  const colors = TEMPLATES[template];
-  
-  const slidePages = slides.map((slide, index) => {
-    const contentItems = (slide.content || '').split('\n').filter(line => line.trim());
-    
-    return `
-    <div class="slide" style="width: 960px; height: 540px; background: ${slide.backgroundColor || colors.background}; border: 1px solid #ddd; margin: 20px auto; padding: 40px; box-sizing: border-box; position: relative; page-break-after: always;">
-      ${demoMode ? `
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); opacity: 0.08; font-size: 80px; font-weight: bold; color: #F59E0B; pointer-events: none;">DEMO</div>
-      ` : ''}
-      <div style="font-size: 10px; color: ${colors.muted}; margin-bottom: 20px;">Slide ${index + 1}</div>
-      <h2 style="font-size: 32px; font-weight: 700; color: ${colors.primary}; margin-bottom: 30px;">${escapeHtml(slide.title)}</h2>
-      <ul style="list-style: disc; padding-left: 30px; font-size: 18px; color: ${colors.text}; line-height: 1.8;">
-        ${contentItems.map(item => `<li>${escapeHtml(item.replace(/^[•\-\*]\s*/, ''))}</li>`).join('')}
-      </ul>
-    </div>`;
-  }).join('\n');
-
-  return `<!DOCTYPE html>
-<html lang="sv">
-<head>
-  <meta charset="UTF-8">
-  <title>${escapeHtml(courseTitle)} - PowerPoint Export</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    body { font-family: 'Inter', sans-serif; background: #f0f0f0; padding: 20px; }
-    .slide { box-shadow: 0 4px 20px rgba(0,0,0,0.1); border-radius: 4px; }
-    @media print { 
-      body { background: white; padding: 0; }
-      .slide { box-shadow: none; margin: 0; page-break-after: always; }
-    }
-    .instructions { max-width: 960px; margin: 0 auto 20px; padding: 20px; background: #e3f2fd; border-radius: 8px; }
-    @media print { .instructions { display: none; } }
-  </style>
-</head>
-<body>
-  <div class="instructions">
-    <h3 style="margin: 0 0 10px 0; color: #1565c0;">📥 Importera till PowerPoint eller Google Slides</h3>
-    <ol style="margin: 0; padding-left: 20px; color: #333;">
-      <li>Tryck <strong>Ctrl+P</strong> (eller Cmd+P på Mac) för att öppna utskrift</li>
-      <li>Välj <strong>"Spara som PDF"</strong> som skrivare</li>
-      <li>Öppna Google Slides → Arkiv → Importera slides → Välj PDF-filen</li>
-      <li>Eller öppna PowerPoint → Infoga → Objekt → Skapa från fil</li>
-    </ol>
-  </div>
-  
-  <div style="text-align: center; margin-bottom: 30px;">
-    <h1 style="color: ${colors.primary}; margin: 0;">${escapeHtml(courseTitle)}</h1>
-    <p style="color: ${colors.muted}; font-size: 18px;">${escapeHtml(moduleTitle)} • ${slides.length} slides</p>
-  </div>
-  
-  ${slidePages}
-</body>
-</html>`;
-}
-
-function escapeXml(str: string): string {
-  if (!str) return '';
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
 function escapeHtml(str: string): string {
   if (!str) return '';
   return str
@@ -279,37 +294,45 @@ Deno.serve(async (req) => {
       throw new Error('No slides provided for export');
     }
 
-    let content: string;
-    let contentType: string;
-    let filename: string;
     const demoSuffix = demoMode ? '_DEMO' : '';
     const safeTitle = (courseTitle || 'presentation').replace(/[^a-zA-Z0-9åäöÅÄÖ\s]/g, '').replace(/\s+/g, '_');
 
     if (format === 'pptx') {
-      // Generate HTML-based PPTX alternative
-      content = generatePPTXHtml(slides, courseTitle, moduleTitle, demoMode, template as keyof typeof TEMPLATES);
-      contentType = 'text/html';
-      filename = `${safeTitle}${demoSuffix}.html`;
+      // Generate native PPTX
+      const pptxBase64 = await generateNativePPTX(slides, courseTitle, moduleTitle, demoMode, template as keyof typeof TEMPLATES);
+      
+      console.log(`Generated native PPTX: ${pptxBase64.length} bytes (base64)`);
+
+      return new Response(
+        JSON.stringify({
+          content: pptxBase64,
+          contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          filename: `${safeTitle}${demoSuffix}.pptx`,
+          format: 'pptx',
+          template,
+          isBase64: true,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     } else if (format === 'pdf') {
-      content = generatePDFHtml(slides, courseTitle, moduleTitle, demoMode, template as keyof typeof TEMPLATES);
-      contentType = 'text/html';
-      filename = `${safeTitle}${demoSuffix}.html`;
+      const content = generatePDFHtml(slides, courseTitle, moduleTitle, demoMode, template as keyof typeof TEMPLATES);
+      
+      console.log(`Generated PDF HTML: ${content.length} bytes`);
+
+      return new Response(
+        JSON.stringify({
+          content,
+          contentType: 'text/html',
+          filename: `${safeTitle}${demoSuffix}.html`,
+          format: 'pdf',
+          template,
+          isBase64: false,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     } else {
       throw new Error('Unsupported format. Use "pptx" or "pdf".');
     }
-
-    console.log(`Generated ${format} content: ${content.length} bytes`);
-
-    return new Response(
-      JSON.stringify({
-        content,
-        contentType,
-        filename,
-        format,
-        template,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Export error:', error);

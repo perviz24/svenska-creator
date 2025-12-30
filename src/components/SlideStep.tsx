@@ -148,7 +148,9 @@ export function SlideStep({
     }
   };
 
-  const handleGeneratePresenton = async () => {
+  const handleGeneratePresenton = async (retryCount = 0) => {
+    const maxRetries = 2;
+    
     setIsGeneratingPresenton(true);
     setPresentonStatus('pending');
     setPresentonProgress(0);
@@ -163,16 +165,20 @@ export function SlideStep({
         body: {
           action: 'generate',
           topic: isPresentation ? courseTitle : currentScript?.moduleTitle,
-          numSlides: numSlides,
+          numSlides: Math.min(numSlides, isDemoMode ? (demoMode?.maxSlides || 3) : 50),
           language: 'sv',
           style: exportTemplate,
+          tone: exportTemplate, // Pass both for proper mapping
           scriptContent,
           moduleTitle: currentScript?.moduleTitle || courseTitle,
           courseTitle,
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Failed to call slide generation service');
+      }
 
       // Check if it's an async response (Presenton) or sync response (Lovable AI fallback)
       if (data.status === 'pending' && data.taskId) {
@@ -187,14 +193,34 @@ export function SlideStep({
         // Lovable AI sync response - apply slides directly
         handleSlidesReceived(data.slides, data.source);
         setPresentonStatus('completed');
+        toast.success(`${data.slideCount || data.slides.length} slides genererade!`);
       } else if (data.error) {
+        // Check if retryable
+        if (data.retryable && retryCount < maxRetries) {
+          console.log(`Retrying slide generation (attempt ${retryCount + 1}/${maxRetries})...`);
+          toast.info('Försöker igen...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return handleGeneratePresenton(retryCount + 1);
+        }
         throw new Error(data.error);
+      } else {
+        console.error('Unexpected response format:', data);
+        throw new Error('Unexpected response from slide generation service');
       }
     } catch (error) {
       console.error('Presenton generation error:', error);
       setPresentonStatus('failed');
-      toast.error('Kunde inte generera slides. Försöker med intern generator.');
-      // Fallback to internal generator
+      
+      // Check if we should retry
+      if (retryCount < maxRetries) {
+        console.log(`Retrying slide generation (attempt ${retryCount + 1}/${maxRetries})...`);
+        toast.info('Ett fel uppstod. Försöker igen...');
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        return handleGeneratePresenton(retryCount + 1);
+      }
+      
+      // Final fallback to internal generator
+      toast.error('Presenton misslyckades. Använder intern generator.');
       setSlideGenerator('internal');
       await fallbackToInternalGenerator();
     } finally {
@@ -454,8 +480,21 @@ export function SlideStep({
 
       if (error) throw error;
 
-      // Create a blob and download
-      const blob = new Blob([data.content], { type: data.contentType });
+      // Handle base64 PPTX or HTML content
+      let blob: Blob;
+      if (data.isBase64 && format === 'pptx') {
+        // Decode base64 to binary
+        const binaryString = atob(data.content);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        blob = new Blob([bytes], { type: data.contentType });
+      } else {
+        // HTML content for PDF
+        blob = new Blob([data.content], { type: data.contentType });
+      }
+      
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
