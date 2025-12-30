@@ -17,7 +17,7 @@ const initialSettings: CourseSettings = {
   projectMode: 'course',
   demoMode: {
     enabled: false,
-    maxSlides: 5,
+    maxSlides: 3,
     maxModules: 1,
     maxAudioDurationSeconds: 60,
     maxVideoDurationSeconds: 30,

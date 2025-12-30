@@ -231,8 +231,8 @@ serve(async (req) => {
       }
     }
 
-    // In demo mode, limit slides
-    const effectiveMaxSlides = demoMode ? Math.min(maxSlides, 5) : maxSlides;
+    // In demo mode, limit slides to 3 max
+    const effectiveMaxSlides = demoMode ? Math.min(maxSlides, 3) : maxSlides;
     console.log('Cache MISS - generating slides. Demo mode:', demoMode, 'Max slides:', effectiveMaxSlides);
 
     const systemPrompt = language === 'sv' 
