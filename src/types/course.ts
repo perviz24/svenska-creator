@@ -265,6 +265,24 @@ export type WorkflowStep =
   | 'video'
   | 'upload';
 
+export interface PresentonGenerationEntry {
+  id: string;
+  timestamp: string;
+  downloadUrl?: string;
+  editUrl?: string;
+  slideCount?: number;
+  style: string;
+}
+
+export interface PresentonState {
+  taskId: string | null;
+  status: 'idle' | 'pending' | 'processing' | 'completed' | 'failed';
+  progress: number;
+  downloadUrl: string | null;
+  editUrl: string | null;
+  generationHistory: PresentonGenerationEntry[];
+}
+
 export interface WorkflowState {
   currentStep: WorkflowStep;
   completedSteps: WorkflowStep[];
@@ -280,6 +298,7 @@ export interface WorkflowState {
   moduleAudio: Record<string, ModuleAudio>; // moduleId -> audio
   videoSettings: VideoSettings;
   settings: CourseSettings;
+  presenton: PresentonState;
   isProcessing: boolean;
   error: string | null;
 }
