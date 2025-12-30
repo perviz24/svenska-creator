@@ -30,6 +30,7 @@ interface SlideStepProps {
   projectMode?: ProjectMode;
   onGenerateSlides: (moduleId: string, script: ModuleScript) => Promise<void>;
   onUpdateSlide: (moduleId: string, slideIndex: number, updates: Partial<Slide>) => void;
+  onSetModuleSlides?: (moduleId: string, slides: Slide[]) => void;
   onContinue: () => void;
   onContentUploaded?: (content: string) => void;
   onSkip?: () => void;
@@ -45,6 +46,7 @@ export function SlideStep({
   projectMode = 'course',
   onGenerateSlides,
   onUpdateSlide,
+  onSetModuleSlides,
   onContinue,
   onContentUploaded,
   onSkip,
@@ -159,21 +161,22 @@ export function SlideStep({
       }
 
       if (data.slides && data.slides.length > 0) {
-        // Apply generated slides
+        // Apply generated slides using setModuleSlides
         const moduleId = isPresentation ? presentationModuleId : currentScript?.moduleId;
-        if (moduleId) {
-          data.slides.forEach((slide: any, index: number) => {
-            onUpdateSlide(moduleId, index, {
-              title: slide.title,
-              content: slide.content,
-              speakerNotes: slide.speakerNotes,
-              layout: slide.layout as Slide['layout'],
-              imageUrl: slide.imageUrl,
-              imageSource: slide.imageSource as Slide['imageSource'],
-              imageAttribution: slide.imageAttribution,
-              suggestedImageQuery: slide.suggestedImageQuery,
-            });
-          });
+        if (moduleId && onSetModuleSlides) {
+          const newSlides: Slide[] = data.slides.map((slide: any, index: number) => ({
+            moduleId,
+            slideNumber: index + 1,
+            title: slide.title,
+            content: slide.content,
+            speakerNotes: slide.speakerNotes,
+            layout: slide.layout as Slide['layout'] || 'title-content',
+            imageUrl: slide.imageUrl,
+            imageSource: slide.imageSource as Slide['imageSource'],
+            imageAttribution: slide.imageAttribution,
+            suggestedImageQuery: slide.suggestedImageQuery,
+          }));
+          onSetModuleSlides(moduleId, newSlides);
         }
         
         toast.success(`${data.slides.length} slides genererade${data.source === 'presenton' ? ' via Presenton' : ''}!`);
@@ -187,13 +190,30 @@ export function SlideStep({
             },
           });
         }
+      } else {
+        throw new Error('Inga slides genererades');
       }
     } catch (error) {
       console.error('Presenton generation error:', error);
       toast.error('Kunde inte generera slides. Försöker med intern generator.');
       // Fallback to internal generator
       setSlideGenerator('internal');
-      if (currentScript) {
+      if (isPresentation) {
+        const presentationScript: ModuleScript = {
+          moduleId: presentationModuleId,
+          moduleTitle: courseTitle || 'Presentation',
+          totalWords: 0,
+          estimatedDuration: 0,
+          citations: [],
+          sections: [{
+            id: 'section-1',
+            title: courseTitle || 'Presentation',
+            content: courseTitle || 'Presentation content',
+            slideMarkers: [],
+          }],
+        };
+        await onGenerateSlides(presentationModuleId, presentationScript);
+      } else if (currentScript) {
         await onGenerateSlides(currentScript.moduleId, currentScript);
       }
     } finally {

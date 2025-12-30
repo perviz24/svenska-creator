@@ -363,6 +363,16 @@ const Demo = () => {
     });
   };
 
+  const setModuleSlides = (moduleId: string, slides: Slide[]) => {
+    setState(prev => ({
+      ...prev,
+      slides: {
+        ...prev.slides,
+        [moduleId]: slides,
+      },
+    }));
+  };
+
   const handleModeChange = (mode: ProjectMode) => {
     updateSettings({ projectMode: mode });
   };
@@ -506,6 +516,7 @@ const Demo = () => {
             projectMode={state.settings.projectMode}
             onGenerateSlides={generateSlides}
             onUpdateSlide={updateSlide}
+            onSetModuleSlides={setModuleSlides}
             onContinue={nextStep}
             onContentUploaded={handleContentUploaded}
             onSkip={nextStep}

@@ -784,6 +784,21 @@ export function useCourseWorkflow() {
     });
   }, [courseId]);
 
+  // Set all slides for a module (used by Presenton integration)
+  const setModuleSlides = useCallback((moduleId: string, slides: Slide[]) => {
+    setState(prev => ({
+      ...prev,
+      slides: {
+        ...prev.slides,
+        [moduleId]: slides,
+      },
+    }));
+    
+    // Save to database
+    saveSlides(moduleId, slides);
+    saveCourse({ current_step: 'slides' });
+  }, [courseId]);
+
   const generateModuleAudio = useCallback(async (moduleId: string, script: ModuleScript, audioUrl?: string) => {
     const audio: ModuleAudio = {
       moduleId,
@@ -850,6 +865,7 @@ export function useCourseWorkflow() {
     uploadScript,
     generateSlides,
     updateSlide,
+    setModuleSlides,
     updateSettings,
     generateModuleAudio,
     updateVideoSettings,
