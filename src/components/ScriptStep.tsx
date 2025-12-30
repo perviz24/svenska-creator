@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ModuleScript, CourseOutline, ScriptSection } from '@/types/course';
+import { ModuleScript, CourseOutline, ScriptSection, DemoModeSettings } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { useVoiceSynthesis } from '@/hooks/useVoiceSynthesis';
 import { toast } from 'sonner';
@@ -35,6 +35,7 @@ interface ScriptStepProps {
   currentModuleIndex: number;
   courseTitle: string;
   language?: 'sv' | 'en';
+  demoMode?: DemoModeSettings;
   onGenerateScript: (moduleIndex: number) => void;
   onContinue: () => void;
   onUploadScript?: (moduleId: string, script: ModuleScript) => void;
@@ -47,10 +48,12 @@ export function ScriptStep({
   currentModuleIndex,
   courseTitle,
   language = 'sv',
+  demoMode,
   onGenerateScript,
   onContinue,
   onUploadScript,
 }: ScriptStepProps) {
+  const isDemoMode = demoMode?.enabled || false;
   const { getState, generateVoice, playAudio, stopAudio } = useVoiceSynthesis();
   const [selectedVoice, setSelectedVoice] = useState(ELEVENLABS_VOICES[0].id);
   const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');

@@ -7,7 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CourseOutline, Module, LearningObjective, SubTopic } from '@/types/course';
+import { CourseOutline, Module, LearningObjective, SubTopic, DemoModeSettings } from '@/types/course';
 import { AIReviewEditor } from '@/components/AIReviewEditor';
 import { ResearchHub } from '@/components/ResearchHub';
 import { ContentUploader } from '@/components/ContentUploader';
@@ -19,6 +19,7 @@ interface OutlineStepProps {
   outline: CourseOutline | null;
   isLoading: boolean;
   courseTitle: string;
+  demoMode?: DemoModeSettings;
   onGenerateOutline: () => void;
   onRegenerateOutline: () => void;
   onUpdateOutline: (outline: CourseOutline) => void;
@@ -309,12 +310,14 @@ export function OutlineStep({
   outline,
   isLoading,
   courseTitle,
+  demoMode,
   onGenerateOutline,
   onRegenerateOutline,
   onUpdateOutline,
   onContinue,
   onUploadOutline,
 }: OutlineStepProps) {
+  const isDemoMode = demoMode?.enabled || false;
   const [showResearch, setShowResearch] = useState(false);
   const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
   const [isUploadOpen, setIsUploadOpen] = useState(false);

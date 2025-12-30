@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { CourseOutline, CourseSettings, ModuleScript, Slide, VideoSettings } from '@/types/course';
-import { Calculator, ChevronDown, ChevronUp, Cpu, Volume2, Image, Video, DollarSign } from 'lucide-react';
+import { Calculator, ChevronDown, ChevronUp, Cpu, Volume2, Image, Video, DollarSign, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
@@ -55,15 +55,21 @@ export const CostEstimationBar = ({
 }: CostEstimationBarProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [currency, setCurrency] = useState<Currency>('sek');
+  
+  const isDemoMode = settings.demoMode?.enabled || false;
+  const demoLimits = settings.demoMode;
 
   const costs = useMemo(() => {
-    const moduleCount = outline?.modules?.length || 1;
+    // Apply demo mode limits
+    const moduleCount = isDemoMode 
+      ? Math.min(outline?.modules?.length || 1, demoLimits?.maxModules || 1)
+      : (outline?.modules?.length || 1);
     
     // Estimate tokens based on content
     const estimatedTitleTokens = 500; // Title generation
     const estimatedOutlineTokens = 2000 * moduleCount; // Outline generation
-    const estimatedScriptTokensPerModule = 5000; // Script generation per module
-    const estimatedSlideTokensPerModule = 1500; // Slide generation per module
+    const estimatedScriptTokensPerModule = isDemoMode ? 2000 : 5000; // Script generation per module (reduced for demo)
+    const estimatedSlideTokensPerModule = isDemoMode ? 500 : 1500; // Slide generation per module
     const estimatedQuizTokensPerModule = 1000; // Quiz generation
     const estimatedExerciseTokensPerModule = 1500; // Exercise generation
     
@@ -81,19 +87,29 @@ export const CostEstimationBar = ({
       : PRICING.ai.fast;
     const aiCost = (totalTokens / 1000) * tokenCostPer1000;
     
-    // Voice costs - estimate duration from scripts
+    // Voice costs - estimate duration from scripts (limited in demo mode)
     const totalScriptWords = scripts.reduce((sum, script) => sum + (script.totalWords || 0), 0);
-    const estimatedMinutes = totalScriptWords > 0 
+    const rawEstimatedMinutes = totalScriptWords > 0 
       ? totalScriptWords / 150 // Average 150 words per minute
       : moduleCount * 5; // Default 5 min per module if no scripts
+    
+    // Apply demo mode audio limit
+    const estimatedMinutes = isDemoMode 
+      ? Math.min(rawEstimatedMinutes, (demoLimits?.maxAudioDurationSeconds || 60) / 60)
+      : rawEstimatedMinutes;
+    
     const voiceCostPerMinute = settings.voiceId?.includes('eleven') 
       ? PRICING.voice.elevenlabs 
       : PRICING.voice.standard;
     const voiceCost = estimatedMinutes * voiceCostPerMinute;
     
-    // Slide costs
-    const totalSlides = Object.values(slides).reduce((sum, moduleSlides) => sum + moduleSlides.length, 0) 
+    // Slide costs (limited in demo mode)
+    const rawTotalSlides = Object.values(slides).reduce((sum, moduleSlides) => sum + moduleSlides.length, 0) 
       || (moduleCount * (settings.structureLimits?.slidesPerModule || 8));
+    const totalSlides = isDemoMode 
+      ? Math.min(rawTotalSlides, demoLimits?.maxSlides || 5)
+      : rawTotalSlides;
+      
     const slidesWithImages = Math.floor(totalSlides * 0.6); // Assume 60% have images
     const slidesWithAiImages = Math.floor(totalSlides * 0.2); // Assume 20% have AI images
     const basicSlides = totalSlides - slidesWithImages - slidesWithAiImages;
@@ -102,8 +118,10 @@ export const CostEstimationBar = ({
       (slidesWithImages * PRICING.slide.withImage) +
       (slidesWithAiImages * PRICING.slide.withAiImage);
     
-    // Video costs
-    const videoDurationMinutes = estimatedMinutes;
+    // Video costs (limited in demo mode)
+    const videoDurationMinutes = isDemoMode 
+      ? Math.min(estimatedMinutes, (demoLimits?.maxVideoDurationSeconds || 30) / 60)
+      : estimatedMinutes;
     const videoCostPerMinute = videoSettings.videoStyle === 'avatar' 
       ? PRICING.video.avatar 
       : PRICING.video.presentation;
@@ -122,9 +140,10 @@ export const CostEstimationBar = ({
         totalTokens,
         estimatedMinutes: Math.round(estimatedMinutes),
         totalSlides,
+        videoDurationMinutes: Math.round(videoDurationMinutes),
       }
     };
-  }, [settings, outline, scripts, slides, videoSettings]);
+  }, [settings, outline, scripts, slides, videoSettings, isDemoMode, demoLimits]);
 
   const formatCurrency = (amount: number, curr: Currency = currency): string => {
     switch (curr) {
@@ -146,22 +165,33 @@ export const CostEstimationBar = ({
   };
 
   return (
-    <div className="mb-6 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border border-primary/20 rounded-lg overflow-hidden">
+    <div className={`mb-6 border rounded-lg overflow-hidden ${isDemoMode ? 'bg-gradient-to-r from-amber-500/5 via-amber-500/10 to-amber-500/5 border-amber-500/20' : 'bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border-primary/20'}`}>
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
         <CollapsibleTrigger asChild>
-          <button className="w-full px-4 py-3 flex items-center justify-between hover:bg-primary/5 transition-colors">
+          <button className={`w-full px-4 py-3 flex items-center justify-between transition-colors ${isDemoMode ? 'hover:bg-amber-500/5' : 'hover:bg-primary/5'}`}>
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
-                <Calculator className="h-4 w-4 text-primary" />
+              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${isDemoMode ? 'bg-amber-500/10' : 'bg-primary/10'}`}>
+                {isDemoMode ? (
+                  <FlaskConical className="h-4 w-4 text-amber-500" />
+                ) : (
+                  <Calculator className="h-4 w-4 text-primary" />
+                )}
               </div>
               <div className="text-left">
-                <span className="text-sm font-medium text-foreground">Beräknad kostnad</span>
+                <span className="text-sm font-medium text-foreground">
+                  {isDemoMode ? 'Demo-kostnad (reducerad)' : 'Beräknad kostnad'}
+                </span>
                 <span className="text-xs text-muted-foreground ml-2">
-                  ({costs.details.moduleCount} moduler, ~{costs.details.estimatedMinutes} min)
+                  ({costs.details.moduleCount} modul{costs.details.moduleCount !== 1 ? 'er' : ''}, {costs.details.totalSlides} slides, ~{costs.details.estimatedMinutes} min)
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-4">
+              {isDemoMode && (
+                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-xs">
+                  Demoläge
+                </Badge>
+              )}
               <div className="flex items-center gap-2">
                 {/* Currency toggle badges */}
                 <div className="flex gap-1">

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slide, ModuleScript, CourseOutline, ModuleAudio, VideoSettings } from '@/types/course';
+import { Slide, ModuleScript, CourseOutline, ModuleAudio, VideoSettings, DemoModeSettings } from '@/types/course';
 import { PresentationPlayer } from '@/components/PresentationPlayer';
 import { AudioReviewPanel, VideoReviewPanel } from '@/components/AudioVideoReviewPanel';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +23,7 @@ interface VideoStepProps {
   courseTitle: string;
   voiceId: string;
   isLoading: boolean;
+  demoMode?: DemoModeSettings;
   onGenerateAudio: (moduleId: string, script: ModuleScript) => Promise<void>;
   onUpdateVideoSettings: (settings: Partial<VideoSettings>) => void;
   onContinue: () => void;
@@ -46,12 +47,14 @@ export function VideoStep({
   courseTitle,
   voiceId,
   isLoading,
+  demoMode,
   onGenerateAudio,
   onUpdateVideoSettings,
   onContinue,
   onContentUploaded,
   onSkip,
 }: VideoStepProps) {
+  const isDemoMode = demoMode?.enabled || false;
   const [selectedModuleIndex, setSelectedModuleIndex] = useState(0);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
