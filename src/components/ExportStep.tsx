@@ -98,6 +98,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
 
   // Export state for presentation mode
   const [isExportingPptx, setIsExportingPptx] = useState(false);
+  const [isExportingPptxClean, setIsExportingPptxClean] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // Load saved credentials on mount (skip for demo mode - user enters temporary credentials)
@@ -144,8 +145,114 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
     return allSlides;
   };
 
-  // Download PPTX handler using pptxgenjs
-  const handleDownloadPptx = async () => {
+  // Download Clean PPTX handler - minimal styling for easy editing
+  const handleDownloadPptxClean = async () => {
+    setIsExportingPptxClean(true);
+    try {
+      const slides = collectAllSlides();
+      if (slides.length === 0) {
+        toast({ title: 'Inga slides att exportera', variant: 'destructive' });
+        return;
+      }
+
+      const pptx = new pptxgen();
+      pptx.author = 'Course Generator';
+      pptx.title = courseTitle || 'Presentation';
+      pptx.subject = 'Generated Presentation';
+      
+      // Add slides with minimal clean design
+      slides.forEach((slideData, index) => {
+        const slide = pptx.addSlide();
+        slide.background = { color: 'FFFFFF' };
+        
+        if (slideData.layout === 'title' || index === 0) {
+          // Clean title slide
+          slide.addText(slideData.title, {
+            x: 0.5,
+            y: 2,
+            w: 9,
+            h: 1.5,
+            fontSize: 40,
+            bold: true,
+            color: '000000',
+            align: 'center',
+            fontFace: 'Arial',
+          });
+          if (slideData.content) {
+            slide.addText(slideData.content, {
+              x: 0.5,
+              y: 3.8,
+              w: 9,
+              h: 1,
+              fontSize: 20,
+              color: '666666',
+              align: 'center',
+              fontFace: 'Arial',
+            });
+          }
+        } else {
+          // Clean content slide
+          slide.addText(slideData.title, {
+            x: 0.5,
+            y: 0.3,
+            w: 9,
+            h: 0.8,
+            fontSize: 28,
+            bold: true,
+            color: '000000',
+            fontFace: 'Arial',
+          });
+          
+          if (slideData.content) {
+            const contentLines = slideData.content.split('\n').filter(line => line.trim());
+            const textContent = contentLines.map(line => ({
+              text: line.replace(/^[•\-]\s*/, ''),
+              options: { bullet: { type: 'bullet' as const }, breakLine: true },
+            }));
+            
+            slide.addText(textContent, {
+              x: 0.5,
+              y: 1.3,
+              w: 9,
+              h: 4,
+              fontSize: 18,
+              color: '333333',
+              fontFace: 'Arial',
+              valign: 'top',
+            });
+          }
+
+          if (slideData.speakerNotes) {
+            slide.addNotes(slideData.speakerNotes);
+          }
+        }
+      });
+
+      if (isDemoMode) {
+        const lastSlide = pptx.addSlide();
+        lastSlide.addText('DEMO', {
+          x: 8,
+          y: 5,
+          w: 1.5,
+          h: 0.3,
+          fontSize: 10,
+          color: 'CCCCCC',
+          fontFace: 'Arial',
+        });
+      }
+
+      await pptx.writeFile({ fileName: `${courseTitle || 'presentation'}_clean.pptx` });
+      toast({ title: 'Ren PowerPoint nedladdad!' });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({ title: 'Kunde inte exportera PowerPoint', variant: 'destructive' });
+    } finally {
+      setIsExportingPptxClean(false);
+    }
+  };
+
+  // Download Styled PPTX handler - professional design
+  const handleDownloadPptxStyled = async () => {
     setIsExportingPptx(true);
     try {
       const slides = collectAllSlides();
@@ -154,38 +261,19 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
         return;
       }
 
-      // Create a new presentation
       const pptx = new pptxgen();
       pptx.author = 'Course Generator';
       pptx.title = courseTitle || 'Presentation';
       pptx.subject = 'Generated Presentation';
       pptx.company = 'Course Platform';
       
-      // Define master slide layouts
-      pptx.defineSlideMaster({
-        title: 'TITLE_SLIDE',
-        background: { color: '1a1a2e' },
-        objects: [
-          { placeholder: { options: { name: 'title', type: 'title', x: 0.5, y: 2.5, w: 9, h: 1.5, color: 'FFFFFF', fontSize: 44, bold: true, align: 'center' } } },
-          { placeholder: { options: { name: 'subtitle', type: 'body', x: 0.5, y: 4.2, w: 9, h: 1, color: 'AAAAAA', fontSize: 20, align: 'center' } } },
-        ],
-      });
-
-      pptx.defineSlideMaster({
-        title: 'CONTENT_SLIDE',
-        background: { color: 'FFFFFF' },
-        objects: [
-          { rect: { x: 0, y: 0, w: '100%', h: 0.8, fill: { color: '1a1a2e' } } },
-          { placeholder: { options: { name: 'title', type: 'title', x: 0.5, y: 0.15, w: 9, h: 0.5, color: 'FFFFFF', fontSize: 24, bold: true } } },
-          { placeholder: { options: { name: 'body', type: 'body', x: 0.5, y: 1.2, w: 9, h: 4.3, color: '333333', fontSize: 18 } } },
-        ],
-      });
-
-      // Add slides
+      // Add slides with professional styling
       slides.forEach((slideData, index) => {
+        const slide = pptx.addSlide();
+        
         if (slideData.layout === 'title' || index === 0) {
-          // Title slide
-          const slide = pptx.addSlide({ masterName: 'TITLE_SLIDE' });
+          // Styled title slide with gradient background
+          slide.background = { color: '1a1a2e' };
           slide.addText(slideData.title, {
             x: 0.5,
             y: 2.2,
@@ -210,10 +298,9 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
             });
           }
         } else {
-          // Content slide
-          const slide = pptx.addSlide({ masterName: 'CONTENT_SLIDE' });
+          // Styled content slide with header bar
+          slide.background = { color: 'FFFFFF' };
           
-          // Header bar
           slide.addShape('rect', {
             x: 0,
             y: 0,
@@ -222,7 +309,6 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
             fill: { color: '1a1a2e' },
           });
           
-          // Title
           slide.addText(slideData.title, {
             x: 0.5,
             y: 0.15,
@@ -234,7 +320,6 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
             fontFace: 'Arial',
           });
           
-          // Content - handle bullet points
           if (slideData.content) {
             const contentLines = slideData.content.split('\n').filter(line => line.trim());
             const textContent = contentLines.map(line => ({
@@ -254,14 +339,12 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
             });
           }
 
-          // Add speaker notes if available
           if (slideData.speakerNotes) {
             slide.addNotes(slideData.speakerNotes);
           }
         }
       });
 
-      // Add demo watermark if in demo mode
       if (isDemoMode) {
         pptx.addSlide().addText('DEMO - Generated with Demo Mode', {
           x: 0,
@@ -275,10 +358,8 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
         });
       }
 
-      // Generate and download
-      await pptx.writeFile({ fileName: `${courseTitle || 'presentation'}.pptx` });
-      
-      toast({ title: 'PowerPoint nedladdad!' });
+      await pptx.writeFile({ fileName: `${courseTitle || 'presentation'}_styled.pptx` });
+      toast({ title: 'Professionell PowerPoint nedladdad!' });
     } catch (error) {
       console.error('Export error:', error);
       toast({ title: 'Kunde inte exportera PowerPoint', variant: 'destructive' });
@@ -981,82 +1062,113 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
           </p>
         </div>
 
-        {/* PowerPoint and PDF Export */}
-        <div className="grid md:grid-cols-2 gap-4">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-orange-500/10 group-hover:bg-orange-500/20 transition-colors">
-                  <Presentation className="h-6 w-6 text-orange-500" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">PowerPoint</CardTitle>
-                  <CardDescription>Ladda ner som .pptx-fil</CardDescription>
-                </div>
+        {/* PowerPoint Export Options */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-orange-500/10">
+                <Presentation className="h-6 w-6 text-orange-500" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Perfekt för att redigera och presentera i Microsoft PowerPoint eller Google Slides.
-              </p>
-              <Button 
-                className="w-full" 
-                variant="outline" 
-                disabled={isExportingPptx || !outline?.modules?.length}
-                onClick={handleDownloadPptx}
-              >
-                {isExportingPptx ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Exporterar...
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4 mr-2" />
-                    Ladda ner PowerPoint
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
+              <div>
+                <CardTitle className="text-lg">PowerPoint</CardTitle>
+                <CardDescription>Ladda ner som .pptx-fil</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Clean/Minimal Option */}
+              <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                <h4 className="font-medium mb-1">Ren / Minimal</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Endast titel, undertext och punktlistor. Perfekt för egen design.
+                </p>
+                <Button 
+                  className="w-full" 
+                  variant="outline" 
+                  disabled={isExportingPptxClean || !outline?.modules?.length}
+                  onClick={handleDownloadPptxClean}
+                >
+                  {isExportingPptxClean ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Exporterar...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      Ladda ner ren
+                    </>
+                  )}
+                </Button>
+              </div>
 
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-red-500/10 group-hover:bg-red-500/20 transition-colors">
-                  <FileText className="h-6 w-6 text-red-500" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">PDF-dokument</CardTitle>
-                  <CardDescription>Ladda ner som .pdf-fil</CardDescription>
-                </div>
+              {/* Styled/Professional Option */}
+              <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                <h4 className="font-medium mb-1">Professionell design</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Färdig design med färger och styling. Redo att presentera.
+                </p>
+                <Button 
+                  className="w-full" 
+                  variant="default" 
+                  disabled={isExportingPptx || !outline?.modules?.length}
+                  onClick={handleDownloadPptxStyled}
+                >
+                  {isExportingPptx ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Exporterar...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      Ladda ner stylad
+                    </>
+                  )}
+                </Button>
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Idealisk för utskrift och delning som statiskt dokument.
-              </p>
-              <Button 
-                className="w-full" 
-                variant="outline" 
-                disabled={isExportingPdf || !outline?.modules?.length}
-                onClick={handleDownloadPdf}
-              >
-                {isExportingPdf ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Exporterar...
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4 mr-2" />
-                    Ladda ner PDF
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* PDF Export */}
+        <Card className="hover:border-primary/50 transition-colors">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-red-500/10">
+                <FileText className="h-6 w-6 text-red-500" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">PDF-dokument</CardTitle>
+                <CardDescription>Ladda ner som .pdf-fil</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Idealisk för utskrift och delning som statiskt dokument.
+            </p>
+            <Button 
+              className="w-full" 
+              variant="outline" 
+              disabled={isExportingPdf || !outline?.modules?.length}
+              onClick={handleDownloadPdf}
+            >
+              {isExportingPdf ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Exporterar...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Ladda ner PDF
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Google Slides Export */}
         <Card>
@@ -1073,14 +1185,14 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Exportera din presentation direkt till Google Slides för realtidssamarbete och molnlagring.
+              Ladda ner en ren PowerPoint-fil som enkelt kan importeras till Google Slides.
             </p>
             <Button 
               className="w-full" 
-              disabled={isExportingPptx || !outline?.modules?.length}
-              onClick={handleDownloadPptx}
+              disabled={isExportingPptxClean || !outline?.modules?.length}
+              onClick={handleDownloadPptxClean}
             >
-              {isExportingPptx ? (
+              {isExportingPptxClean ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Exporterar...
@@ -1088,7 +1200,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
               ) : (
                 <>
                   <ExternalLink className="h-4 w-4 mr-2" />
-                  Exportera till Google Slides
+                  Ladda ner för Google Slides
                 </>
               )}
             </Button>
