@@ -386,8 +386,11 @@ serve(async (req) => {
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
-      throw new Error('Neither PRESENTON_API_KEY nor LOVABLE_API_KEY is configured');
+      throw new Error('LOVABLE_API_KEY is not configured');
     }
+    
+    // Log slide generation parameters
+    console.log('Lovable AI slide generation:', { numSlides, language, style, topic: topic?.substring(0, 50) });
 
     // Determine presentation structure based on content and slide count
     const contentForAnalysis = scriptContent || additionalContext || topic || '';
