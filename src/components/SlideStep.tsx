@@ -78,8 +78,11 @@ export function SlideStep({
   const [isGeneratingPresenton, setIsGeneratingPresenton] = useState(false);
   
   // Apply demo mode limits to slide count
-  const maxSlidesAllowed = isDemoMode ? (demoMode?.maxSlides || 3) : 20;
-  const [numSlides, setNumSlides] = useState(isDemoMode ? Math.min(10, maxSlidesAllowed) : 10);
+  const maxSlidesAllowed = isDemoMode ? (demoMode?.maxSlides || 3) : 50;
+  const [numSlides, setNumSlides] = useState(() => {
+    const defaultSlides = isDemoMode ? (demoMode?.maxSlides || 3) : 10;
+    return Math.min(defaultSlides, maxSlidesAllowed);
+  });
   
   // Presenton async polling state - initialize from props
   const [presentonTaskId, setPresentonTaskId] = useState<string | null>(presentonState?.taskId || null);
@@ -93,6 +96,16 @@ export function SlideStep({
     presentonState?.generationHistory || []
   );
   const [showAlternatives, setShowAlternatives] = useState(false);
+
+  // Update numSlides when demo mode or max slides changes
+  useEffect(() => {
+    const newMax = isDemoMode ? (demoMode?.maxSlides || 3) : 50;
+    const defaultSlides = isDemoMode ? (demoMode?.maxSlides || 3) : 10;
+    const newValue = Math.min(defaultSlides, newMax);
+    if (numSlides > newMax || (isDemoMode && numSlides !== newValue)) {
+      setNumSlides(newValue);
+    }
+  }, [isDemoMode, demoMode?.maxSlides]);
 
   // Sync state from props when they change
   useEffect(() => {
