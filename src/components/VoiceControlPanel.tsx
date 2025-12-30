@@ -32,25 +32,32 @@ interface VoiceOption {
   previewUrl?: string;
 }
 
+// Swedish-optimized voices for medical professional content
+// Prioritized for clarity, authority, and natural Swedish pronunciation
 const ELEVENLABS_VOICES: VoiceOption[] = [
-  { id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'Roger', description: 'Djup, resonerande röst', gender: 'male', language: 'sv', naturalness: 5 },
-  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Varm, professionell', gender: 'female', language: 'sv', naturalness: 5 },
+  // TOP TIER - Native Swedish voices optimized for medical/professional content
+  { id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel', description: 'Klar, auktoritativ - perfekt för medicinsk utbildning', gender: 'male', language: 'sv', naturalness: 5 },
+  { id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda', description: 'Tydlig, professionell - utmärkt för vårdutbildning', gender: 'female', language: 'sv', naturalness: 5 },
+  { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', description: 'Djup, förtroendeingivande - medicinsk terminologi', gender: 'male', language: 'sv', naturalness: 5 },
+  { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily', description: 'Pedagogisk, tydlig - bra för instruktioner', gender: 'female', language: 'sv', naturalness: 5 },
+  
+  // SECOND TIER - Good Swedish support
+  { id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'Roger', description: 'Djup, resonerande röst', gender: 'male', language: 'sv', naturalness: 4 },
+  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Varm, professionell', gender: 'female', language: 'sv', naturalness: 4 },
   { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura', description: 'Mjuk, förtroendeingivande', gender: 'female', language: 'sv', naturalness: 4 },
-  { id: 'IKne3meq5aSn9XLyUdCD', name: 'Charlie', description: 'Casual, avslappnad', gender: 'male', language: 'en', naturalness: 4 },
-  { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', description: 'Auktoritativ, lugn', gender: 'male', language: 'sv', naturalness: 5 },
-  { id: 'N2lVS1w4EtoT3dr4eOWO', name: 'Callum', description: 'Ung, dynamisk', gender: 'male', language: 'en', naturalness: 4 },
-  { id: 'SAz9YHcvj6GT2YYXdXww', name: 'River', description: 'Neutral, tydlig', gender: 'neutral', language: 'en', naturalness: 4 },
+  
+  // ENGLISH VOICES - for international content
   { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', description: 'Modern, klar', gender: 'male', language: 'en', naturalness: 5 },
   { id: 'Xb7hH8MSUJpSbSDYk0k2', name: 'Alice', description: 'Brittisk, varm', gender: 'female', language: 'en', naturalness: 5 },
-  { id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda', description: 'Vänlig, energisk', gender: 'female', language: 'sv', naturalness: 5 },
   { id: 'bIHbv24MWmeRgasZH58o', name: 'Will', description: 'Podcast-stil, engagerande', gender: 'male', language: 'en', naturalness: 5 },
-  { id: 'cgSgspJ2msm6clMCkdW9', name: 'Jessica', description: 'Expresiv, levande', gender: 'female', language: 'en', naturalness: 4 },
-  { id: 'cjVigY5qzO86Huf0OWal', name: 'Eric', description: 'Amerikanisk, vänlig', gender: 'male', language: 'en', naturalness: 5 },
-  { id: 'iP95p4xoKVk53GoZ742B', name: 'Chris', description: 'Casual, samtalslik', gender: 'male', language: 'en', naturalness: 5 },
   { id: 'nPczCjzI2devNBz1zQrb', name: 'Brian', description: 'Berättarröst, djup', gender: 'male', language: 'en', naturalness: 5 },
-  { id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel', description: 'Berättande, mjuk', gender: 'male', language: 'sv', naturalness: 5 },
-  { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily', description: 'Tydlig, pedagogisk', gender: 'female', language: 'sv', naturalness: 4 },
-  { id: 'pqHfZKP75CvOlQylNhV4', name: 'Bill', description: 'Dokumentärstil', gender: 'male', language: 'en', naturalness: 5 },
+  { id: 'cjVigY5qzO86Huf0OWal', name: 'Eric', description: 'Amerikanisk, vänlig', gender: 'male', language: 'en', naturalness: 4 },
+  { id: 'IKne3meq5aSn9XLyUdCD', name: 'Charlie', description: 'Casual, avslappnad', gender: 'male', language: 'en', naturalness: 4 },
+  { id: 'N2lVS1w4EtoT3dr4eOWO', name: 'Callum', description: 'Ung, dynamisk', gender: 'male', language: 'en', naturalness: 4 },
+  { id: 'SAz9YHcvj6GT2YYXdXww', name: 'River', description: 'Neutral, tydlig', gender: 'neutral', language: 'en', naturalness: 4 },
+  { id: 'cgSgspJ2msm6clMCkdW9', name: 'Jessica', description: 'Expresiv, levande', gender: 'female', language: 'en', naturalness: 4 },
+  { id: 'iP95p4xoKVk53GoZ742B', name: 'Chris', description: 'Casual, samtalslik', gender: 'male', language: 'en', naturalness: 4 },
+  { id: 'pqHfZKP75CvOlQylNhV4', name: 'Bill', description: 'Dokumentärstil', gender: 'male', language: 'en', naturalness: 4 },
 ];
 
 interface VoiceControlPanelProps {
@@ -375,12 +382,13 @@ export function VoiceControlPanel({
   );
 }
 
+// Optimized defaults for Swedish medical professional content
 export const defaultVoiceSettings: VoiceSettings = {
-  voiceId: 'JBFqnCBsd6RMkjVDRZzb',
-  voiceName: 'George',
-  stability: 0.5,
-  similarityBoost: 0.75,
-  style: 0.3,
-  speed: 1.0,
+  voiceId: 'onwK4e9ZLuTAKqWW03F9', // Daniel - best for Swedish medical content
+  voiceName: 'Daniel',
+  stability: 0.65, // Higher stability for medical terminology
+  similarityBoost: 0.80, // Strong voice clarity
+  style: 0.25, // Lower expressiveness for professional tone
+  speed: 0.95, // Slightly slower for clarity of medical terms
   useCustomVoice: false,
 };

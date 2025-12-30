@@ -56,7 +56,16 @@ serve(async (req) => {
   }
 
   try {
-    const { module, courseTitle, style = 'professional', language = 'sv', enableResearch = true, demoMode = false } = await req.json();
+    const { 
+      module, 
+      courseTitle, 
+      style = 'professional', 
+      language = 'sv', 
+      enableResearch = true, 
+      demoMode = false,
+      medicalDomain = true, // Enable medical terminology by default
+      targetAudience = 'medical_professionals' // 'medical_professionals', 'nurses', 'general'
+    } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
@@ -67,7 +76,7 @@ serve(async (req) => {
       throw new Error('Module data is required');
     }
 
-    console.log('Generating script for module:', module.title, 'with research:', enableResearch, 'demo:', demoMode);
+    console.log('Generating script for module:', module.title, 'with research:', enableResearch, 'demo:', demoMode, 'medical:', medicalDomain);
 
     // Skip research in demo mode for faster generation
     let researchData = { research: '', citations: [] as string[] };
@@ -93,19 +102,51 @@ serve(async (req) => {
       ? 'IMPORTANT: This is a DEMO. Write a VERY short script of max 260 words (2 min). Only 2 short sections. No long explanations.'
       : '';
 
+    // Medical domain-specific instructions
+    const medicalGuidelinesSv = medicalDomain ? `
+MEDICINSKA RIKTLINJER (KRITISKT):
+- Använd korrekt medicinsk terminologi på svenska (t.ex. "hypertoni" inte "högt blodtryck" i professionellt sammanhang)
+- Ange alltid evidensgrad för påståenden (t.ex. "enligt aktuella riktlinjer", "stark evidens visar")
+- Inkludera doseringar, indikationer och kontraindikationer där relevant
+- Följ svenska vårdpraxis och Läkemedelsverkets rekommendationer
+- Använd SI-enheter konsekvent
+- Vid osäkerhet, var tydlig med begränsningar ("konsultera alltid aktuella riktlinjer")
+- Undvik generaliseringar - var specifik med patientgrupper och tillstånd
+- Inkludera praktiska kliniska tips och fallgropar att undvika
+
+MÅLGRUPP: ${targetAudience === 'medical_professionals' ? 'Läkare och specialister' : targetAudience === 'nurses' ? 'Sjuksköterskor och vårdpersonal' : 'Vårdpersonal'}
+` : '';
+
+    const medicalGuidelinesEn = medicalDomain ? `
+MEDICAL GUIDELINES (CRITICAL):
+- Use correct medical terminology appropriate for healthcare professionals
+- Always indicate evidence level for claims (e.g., "current guidelines recommend", "strong evidence shows")
+- Include dosages, indications, and contraindications where relevant
+- Follow evidence-based practice standards
+- Use SI units consistently
+- When uncertain, be clear about limitations ("always consult current guidelines")
+- Avoid generalizations - be specific about patient populations and conditions
+- Include practical clinical tips and pitfalls to avoid
+
+TARGET AUDIENCE: ${targetAudience === 'medical_professionals' ? 'Physicians and specialists' : targetAudience === 'nurses' ? 'Nurses and healthcare staff' : 'Healthcare workers'}
+` : '';
+
     const systemPrompt = language === 'sv'
-      ? `Du är en expert på att skriva manus för vårdutbildningsvideor.
+      ? `Du är en expert på att skriva manus för medicinsk utbildning och vårdutbildningsvideor.
          Skriv ett komplett manus för en utbildningsmodul på svenska.
          ${demoInstructionSv}
+         ${medicalGuidelinesSv}
          
-         Stilen ska vara ${style === 'professional' ? 'professionell och tydlig' : style === 'conversational' ? 'konversationell och engagerande' : 'akademisk och formell'}.
+         Stilen ska vara ${style === 'professional' ? 'professionell och tydlig med auktoritet' : style === 'conversational' ? 'konversationell men fortfarande kliniskt korrekt' : 'akademisk och formell med vetenskaplig precision'}.
          
          Manuset ska:
          - Vara cirka ${effectiveDuration} minuter långt (${targetWords} ord)
          - Inkludera tydliga markeringar för bildbyten med formatet: [BILD: beskrivning av bilden]
-         - Vara pedagogiskt och lätt att följa
-         ${demoMode ? '- MAX 2 sektioner, väldigt kort' : '- Täcka alla lärandemål och delteman'}
-         ${researchData.citations.length > 0 ? '- Integrera den forskning och de källor som tillhandahålls naturligt i manuset' : ''}
+         - Vara pedagogiskt strukturerat med tydlig progression
+         - Använda kliniska exempel och case där det förstärker förståelsen
+         ${demoMode ? '- MAX 2 sektioner, väldigt kort' : '- Täcka alla lärandemål och delteman systematiskt'}
+         ${researchData.citations.length > 0 ? '- Integrera den forskning och de källor som tillhandahålls naturligt, med inline-citeringar [1], [2] etc.' : ''}
+         - Avsluta varje sektion med en kort sammanfattning av nyckelbudskapen
          
          Svara ENDAST med giltig JSON i detta format:
          {
@@ -115,28 +156,34 @@ serve(async (req) => {
              "totalWords": ${targetWords},
              "estimatedDuration": ${effectiveDuration},
              "citations": [],
+             "medicalTerms": [],
              "sections": [
                {
                  "id": "section-1",
                  "title": "Sektion titel",
                  "content": "Manustext här med [BILD: bildförslag] markeringar...",
-                 "slideMarkers": ["BILD: beskrivning 1"]
+                 "slideMarkers": ["BILD: beskrivning 1"],
+                 "keyTakeaways": ["Nyckelbudskap 1", "Nyckelbudskap 2"],
+                 "estimatedDurationSeconds": 120
                }
              ]
            }
          }`
-      : `You are an expert at writing scripts for healthcare education videos.
+      : `You are an expert at writing scripts for medical education and healthcare training videos.
          Write a complete script for an educational module in English.
          ${demoInstructionEn}
+         ${medicalGuidelinesEn}
          
-         The style should be ${style}.
+         The style should be ${style === 'professional' ? 'professional and authoritative' : style === 'conversational' ? 'conversational but clinically accurate' : 'academic with scientific precision'}.
          
          The script should:
          - Be approximately ${effectiveDuration} minutes long (${targetWords} words)
          - Include clear markers for slide changes with the format: [SLIDE: description of the slide]
-         - Be pedagogical and easy to follow
-         ${demoMode ? '- MAX 2 sections, very short' : '- Cover all learning objectives and subtopics'}
-         ${researchData.citations.length > 0 ? '- Naturally integrate the provided research and sources into the script' : ''}
+         - Be pedagogically structured with clear progression
+         - Use clinical examples and cases where they enhance understanding
+         ${demoMode ? '- MAX 2 sections, very short' : '- Cover all learning objectives and subtopics systematically'}
+         ${researchData.citations.length > 0 ? '- Naturally integrate the provided research with inline citations [1], [2] etc.' : ''}
+         - End each section with a brief summary of key messages
          
          Respond ONLY with valid JSON in this format:
          {
@@ -146,12 +193,15 @@ serve(async (req) => {
              "totalWords": ${targetWords},
              "estimatedDuration": ${effectiveDuration},
              "citations": [],
+             "medicalTerms": [],
              "sections": [
                {
                  "id": "section-1",
                  "title": "Section title",
                  "content": "Script text here with [SLIDE: slide suggestion] markers...",
-                 "slideMarkers": ["SLIDE: description 1"]
+                 "slideMarkers": ["SLIDE: description 1"],
+                 "keyTakeaways": ["Key message 1", "Key message 2"],
+                 "estimatedDurationSeconds": 120
                }
              ]
           }
@@ -169,7 +219,7 @@ Subtopics:
 ${module.subTopics.map((st: { title: string; duration: number }) => `- ${st.title} (${st.duration} min)`).join('\n')}
 ${researchSection}
 
-Write a complete, professional script for this module.`;
+Write a complete, evidence-based professional script for this medical education module.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
