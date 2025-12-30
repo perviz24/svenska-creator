@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage, Upload, Palette, SkipForward, Layers, FileSpreadsheet } from 'lucide-react';
+import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage, Upload, Palette, SkipForward, Layers, FileSpreadsheet, Zap, Settings2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slide, ModuleScript, StockPhoto, CourseOutline, DemoModeSettings, ProjectMode } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +16,10 @@ import { CanvaTemplates } from '@/components/CanvaTemplates';
 import { GoogleSlidesExport } from '@/components/GoogleSlidesExport';
 import { AIRefinementPanel } from '@/components/AIRefinementPanel';
 import { DemoWatermark } from '@/components/DemoWatermark';
+
+type SlideGenerator = 'internal' | 'presenton';
+type ExportTemplate = 'professional' | 'modern' | 'minimal' | 'creative';
+
 interface SlideStepProps {
   outline: CourseOutline | null;
   scripts: ModuleScript[];
@@ -59,6 +64,12 @@ export function SlideStep({
   const [uploadMode, setUploadMode] = useState<'generate' | 'upload'>('generate');
   const [showSlideRefinement, setShowSlideRefinement] = useState(false);
   const [uploadedSlideContent, setUploadedSlideContent] = useState('');
+  
+  // New state for Presenton integration
+  const [slideGenerator, setSlideGenerator] = useState<SlideGenerator>('internal');
+  const [exportTemplate, setExportTemplate] = useState<ExportTemplate>('professional');
+  const [isGeneratingPresenton, setIsGeneratingPresenton] = useState(false);
+  const [numSlides, setNumSlides] = useState(10);
 
   // Helper function to clean markdown from slide content
   const cleanMarkdown = (text: string): string => {
@@ -96,6 +107,11 @@ export function SlideStep({
   const currentSlide = currentModuleSlides[selectedSlideIndex];
 
   const handleGenerateSlides = async () => {
+    if (slideGenerator === 'presenton') {
+      await handleGeneratePresenton();
+      return;
+    }
+    
     if (isPresentation) {
       // For presentations, create a minimal script-like object from the title
       const presentationScript: ModuleScript = {
@@ -116,6 +132,72 @@ export function SlideStep({
     } else if (currentScript) {
       await onGenerateSlides(currentScript.moduleId, currentScript);
       setSelectedSlideIndex(0);
+    }
+  };
+
+  const handleGeneratePresenton = async () => {
+    setIsGeneratingPresenton(true);
+    try {
+      const scriptContent = currentScript?.sections?.map(s => `${s.title}\n${s.content}`).join('\n\n') || '';
+      
+      const { data, error } = await supabase.functions.invoke('presenton-slides', {
+        body: {
+          topic: isPresentation ? courseTitle : currentScript?.moduleTitle,
+          numSlides: numSlides,
+          language: 'sv',
+          style: exportTemplate,
+          scriptContent,
+          moduleTitle: currentScript?.moduleTitle || courseTitle,
+          courseTitle,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.fallback && data.error) {
+        toast.info('Använder intern AI för slide-generering');
+      }
+
+      if (data.slides && data.slides.length > 0) {
+        // Apply generated slides
+        const moduleId = isPresentation ? presentationModuleId : currentScript?.moduleId;
+        if (moduleId) {
+          data.slides.forEach((slide: any, index: number) => {
+            onUpdateSlide(moduleId, index, {
+              title: slide.title,
+              content: slide.content,
+              speakerNotes: slide.speakerNotes,
+              layout: slide.layout as Slide['layout'],
+              imageUrl: slide.imageUrl,
+              imageSource: slide.imageSource as Slide['imageSource'],
+              imageAttribution: slide.imageAttribution,
+              suggestedImageQuery: slide.suggestedImageQuery,
+            });
+          });
+        }
+        
+        toast.success(`${data.slides.length} slides genererade${data.source === 'presenton' ? ' via Presenton' : ''}!`);
+        setSelectedSlideIndex(0);
+        
+        if (data.editUrl) {
+          toast.info('Slides kan redigeras i Presenton', {
+            action: {
+              label: 'Öppna',
+              onClick: () => window.open(data.editUrl, '_blank'),
+            },
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Presenton generation error:', error);
+      toast.error('Kunde inte generera slides. Försöker med intern generator.');
+      // Fallback to internal generator
+      setSlideGenerator('internal');
+      if (currentScript) {
+        await onGenerateSlides(currentScript.moduleId, currentScript);
+      }
+    } finally {
+      setIsGeneratingPresenton(false);
     }
   };
 
@@ -259,6 +341,8 @@ export function SlideStep({
           courseTitle: courseTitle,
           moduleTitle,
           format,
+          demoMode: isDemoMode,
+          template: exportTemplate,
         },
       });
 
@@ -275,7 +359,7 @@ export function SlideStep({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast.success(`Presentation exporterad som ${format.toUpperCase()}!`);
+      toast.success(`Presentation exporterad som ${format.toUpperCase()} med ${exportTemplate}-mall!`);
     } catch (error) {
       console.error('Export error:', error);
       toast.error('Kunde inte exportera presentation');
@@ -321,8 +405,8 @@ export function SlideStep({
         </p>
       </div>
 
-      {/* Mode Toggle */}
-      <div className="flex justify-center">
+      {/* Mode Toggle + Generator Settings */}
+      <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
         <Tabs value={uploadMode} onValueChange={(v) => setUploadMode(v as 'generate' | 'upload')} className="w-full max-w-md">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="generate" className="gap-2">
@@ -335,6 +419,34 @@ export function SlideStep({
             </TabsTrigger>
           </TabsList>
         </Tabs>
+        
+        {uploadMode === 'generate' && (
+          <div className="flex gap-2 items-center">
+            <Select value={slideGenerator} onValueChange={(v) => setSlideGenerator(v as SlideGenerator)}>
+              <SelectTrigger className="w-[140px]">
+                <Zap className="w-4 h-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="internal">Intern AI</SelectItem>
+                <SelectItem value="presenton">Presenton</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={exportTemplate} onValueChange={(v) => setExportTemplate(v as ExportTemplate)}>
+              <SelectTrigger className="w-[130px]">
+                <Settings2 className="w-4 h-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="professional">Professionell</SelectItem>
+                <SelectItem value="modern">Modern</SelectItem>
+                <SelectItem value="minimal">Minimal</SelectItem>
+                <SelectItem value="creative">Kreativ</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* Upload Mode Content */}
