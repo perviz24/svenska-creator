@@ -10,6 +10,7 @@ import { QuizStep } from '@/components/QuizStep';
 import { VideoStep } from '@/components/VideoStep';
 import { ExportStep } from '@/components/ExportStep';
 import { SettingsPanel } from '@/components/SettingsPanel';
+import { CostEstimationBar } from '@/components/CostEstimationBar';
 import { useCourseWorkflow } from '@/hooks/useCourseWorkflow';
 import { ProjectMode, PresentationSettings, CourseStructureLimits, DemoModeSettings } from '@/types/course';
 import { Globe, Volume2, Sparkles, Settings } from 'lucide-react';
@@ -211,6 +212,17 @@ const Index = () => {
               onStepClick={goToStep}
             />
           </div>
+
+          {/* Cost Estimation Bar - Show on all steps except mode */}
+          {state.currentStep !== 'mode' && (
+            <CostEstimationBar
+              settings={state.settings}
+              outline={state.outline}
+              scripts={state.scripts}
+              slides={state.slides}
+              videoSettings={state.videoSettings}
+            />
+          )}
 
           {/* Compact Settings Summary Bar - Show on all steps except mode */}
           {state.currentStep !== 'mode' && (
