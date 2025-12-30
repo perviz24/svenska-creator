@@ -122,6 +122,12 @@ const Settings = () => {
     apiKey: '',
     enabled: false,
   });
+  
+  // Presenton settings state
+  const [presentonSettings, setPresentonSettings] = useState({
+    apiKey: '',
+    enabled: false,
+  });
 
   const testLearnDashConnection = async () => {
     if (!learnDashCredentials.wpUrl || !learnDashCredentials.wpUsername || !learnDashCredentials.wpAppPassword) {
@@ -629,7 +635,64 @@ const Settings = () => {
                 )}
               </Card>
 
-              {/* Google Slides Integration */}
+              {/* Presenton AI Slides Integration */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Presentation className="w-5 h-5 text-primary" />
+                        Presenton
+                      </CardTitle>
+                      <CardDescription>
+                        AI-driven slide-generering för professionella presentationer (upp till 100+ slides)
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {presentonSettings.enabled && (
+                        <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                          Aktiverad
+                        </Badge>
+                      )}
+                      <Switch
+                        checked={presentonSettings.enabled}
+                        onCheckedChange={(checked) => setPresentonSettings(prev => ({ ...prev, enabled: checked }))}
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
+                {presentonSettings.enabled && (
+                  <CardContent className="space-y-4">
+                    <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg mb-4">
+                      <Info className="w-5 h-5 text-muted-foreground mt-0.5" />
+                      <div className="text-sm text-muted-foreground">
+                        <p className="font-medium text-foreground mb-1">Presenton API</p>
+                        <p>
+                          Presenton är en AI-driven presentationgenerator som kan skapa professionella slides med hög kvalitet.
+                          API-nyckeln konfigureras via Lovable Cloud-secrets (PRESENTON_API_KEY). 
+                          Om ingen nyckel finns används intern Lovable AI som fallback.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <a href="https://presenton.ai" target="_blank" rel="noopener noreferrer" className="gap-2">
+                          Presenton.ai
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </Button>
+                      <Button variant="outline" size="sm" asChild>
+                        <a href="https://docs.presenton.ai/using-presenton-api" target="_blank" rel="noopener noreferrer" className="gap-2">
+                          API-dokumentation
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </Button>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+
+
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
