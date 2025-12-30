@@ -705,6 +705,9 @@ export function useCourseWorkflow() {
   const generateSlides = useCallback(async (moduleId: string, script: ModuleScript) => {
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
     
+    const demoMode = state.settings.demoMode;
+    const isDemoMode = demoMode?.enabled || false;
+    
     try {
       const scriptText = script.sections.map(s => s.content).join('\n\n');
       
@@ -714,6 +717,8 @@ export function useCourseWorkflow() {
           moduleTitle: script.moduleTitle,
           courseTitle: state.title,
           language: state.settings.language,
+          maxSlides: isDemoMode ? demoMode.maxSlides : undefined,
+          demoMode: isDemoMode,
         },
       });
 
@@ -723,7 +728,7 @@ export function useCourseWorkflow() {
         throw new Error(data.error);
       }
 
-      const slides: Slide[] = data.slides.map((slide: any) => ({
+      let slides: Slide[] = data.slides.map((slide: any) => ({
         moduleId,
         slideNumber: slide.slideNumber,
         title: slide.title,
@@ -737,6 +742,11 @@ export function useCourseWorkflow() {
         imageSource: slide.imageSource,
         imageAttribution: slide.imageAttribution,
       }));
+      
+      // Limit slides in demo mode
+      if (isDemoMode && demoMode?.maxSlides) {
+        slides = slides.slice(0, demoMode.maxSlides);
+      }
 
       setState(prev => ({
         ...prev,
@@ -751,7 +761,7 @@ export function useCourseWorkflow() {
       await saveSlides(moduleId, slides);
       await saveCourse({ current_step: 'slides' });
 
-      toast.success(`Slides för "${script.moduleTitle}" skapade!`);
+      toast.success(`Slides för "${script.moduleTitle}" skapade!${isDemoMode ? ` (begränsat till ${slides.length} slides i demoläge)` : ''}`);
     } catch (error) {
       console.error('Error generating slides:', error);
       const message = error instanceof Error ? error.message : 'Kunde inte generera slides';
@@ -762,7 +772,7 @@ export function useCourseWorkflow() {
       }));
       toast.error(message);
     }
-  }, [state.title, state.settings.language]);
+  }, [state.title, state.settings]);
 
   const updateSlide = useCallback((moduleId: string, slideIndex: number, updates: Partial<Slide>) => {
     setState(prev => {

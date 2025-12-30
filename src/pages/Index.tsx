@@ -96,6 +96,7 @@ const Index = () => {
             outline={state.outline}
             isLoading={state.isProcessing}
             courseTitle={state.title}
+            demoMode={state.settings.demoMode}
             onGenerateOutline={generateOutline}
             onRegenerateOutline={generateOutline}
             onUpdateOutline={updateOutline}
@@ -112,6 +113,7 @@ const Index = () => {
             currentModuleIndex={state.scripts.length}
             courseTitle={state.title}
             language={state.settings.language}
+            demoMode={state.settings.demoMode}
             onGenerateScript={generateScript}
             onUploadScript={uploadScript}
             onContinue={nextStep}
@@ -174,6 +176,7 @@ const Index = () => {
             courseTitle={state.title}
             voiceId={state.settings.voiceId}
             isLoading={state.isProcessing}
+            demoMode={state.settings.demoMode}
             onGenerateAudio={generateModuleAudio}
             onUpdateVideoSettings={updateVideoSettings}
             onContinue={nextStep}
