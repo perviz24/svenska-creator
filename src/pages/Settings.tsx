@@ -54,9 +54,28 @@ const Settings = () => {
   const [activeTab, setActiveTab] = useState('ai');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   
-  // Admin Demo Mode - enables all integrations for testing
-  const [adminDemoMode, setAdminDemoMode] = useState(false);
+  // Admin Demo Mode - enables all integrations for testing (persisted in localStorage)
+  const [adminDemoMode, setAdminDemoMode] = useState(() => {
+    const saved = localStorage.getItem('adminDemoMode');
+    return saved === 'true';
+  });
   const isAdminOrOwner = currentRole === 'owner' || currentRole === 'admin';
+  
+  // Persist admin demo mode to localStorage
+  useEffect(() => {
+    localStorage.setItem('adminDemoMode', adminDemoMode.toString());
+    
+    // Sync integration states when demo mode changes from localStorage
+    if (adminDemoMode) {
+      setElevenlabsSettings(prev => ({ ...prev, enabled: true }));
+      setPerplexitySettings(prev => ({ ...prev, enabled: true }));
+      setFirecrawlSettings(prev => ({ ...prev, enabled: true }));
+      setPresentonSettings(prev => ({ ...prev, enabled: true }));
+      setHeygenSettings(prev => ({ ...prev, enabled: true }));
+      setBunnySettings(prev => ({ ...prev, enabled: true }));
+      setGoogleSlidesSettings(prev => ({ ...prev, enabled: true }));
+    }
+  }, [adminDemoMode]);
   
   // AI Quality Mode state
   const [aiQualityMode, setAiQualityMode] = useState<'fast' | 'quality'>('quality');
