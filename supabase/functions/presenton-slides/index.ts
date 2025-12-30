@@ -172,22 +172,95 @@ serve(async (req) => {
       throw new Error('Neither PRESENTON_API_KEY nor LOVABLE_API_KEY is configured');
     }
 
-    const systemPrompt = `You are an expert presentation designer. Create professional, visually-oriented slides that:
-- Have concise, impactful titles (max 8 words)
-- Use bullet points with 3-5 items max per slide
-- Include speaker notes with detailed talking points
-- Suggest specific, searchable image queries
-- Vary layouts for visual interest
-- Follow the ${style} presentation style
+    // Determine presentation structure based on content and slide count
+    const contentForAnalysis = scriptContent || additionalContext || topic || '';
+    const hasRichContent = contentForAnalysis.length > 500;
+    const isEducational = courseTitle || moduleTitle;
+    
+    // Build narrative arc structure recommendation
+    const narrativeStructure = numSlides <= 5 
+      ? 'Hook → Problem → Solution → Evidence → Call-to-Action'
+      : numSlides <= 10
+        ? 'Title → Context → 3-5 Key Points → Case Study/Example → Summary → Next Steps'
+        : 'Title → Agenda → Introduction → 5-8 Main Sections (each with supporting evidence) → Recap → Q&A';
 
-Output clean, professional content suitable for ${language === 'sv' ? 'Swedish' : 'English'} business presentations.`;
+    const systemPrompt = `You are a world-class presentation designer and storytelling expert. Your slides win awards for clarity, visual hierarchy, and persuasive narrative flow.
 
-    const userPrompt = `Create ${numSlides} professional presentation slides about: "${topic || moduleTitle}"
-${courseTitle ? `Course context: ${courseTitle}` : ''}
-${additionalContext ? `Additional context: ${additionalContext}` : ''}
-${scriptContent ? `Base content:\n${scriptContent.substring(0, 4000)}` : ''}
+## Core Principles:
+1. **ONE IDEA PER SLIDE** - Each slide communicates exactly one concept
+2. **6x6 RULE** - Maximum 6 bullet points, 6 words per bullet
+3. **VISUAL HIERARCHY** - Titles are scannable in 3 seconds
+4. **NARRATIVE ARC** - Every presentation tells a compelling story
+5. **PROGRESSIVE DISCLOSURE** - Build complexity gradually
 
-Return a JSON array of slides with: slideNumber, title, content (bullet points separated by \\n), speakerNotes, layout (title/title-content/two-column/image-focus/bullet-points), suggestedImageQuery (specific English terms for stock photos).`;
+## Slide Design Rules:
+- **Titles**: Action-oriented, benefit-focused (e.g., "Reduce Costs by 40%" not "Cost Analysis")
+- **Bullets**: Start with strong verbs, parallel structure, specific outcomes
+- **Data**: Always contextualize numbers (comparisons, percentages, trends)
+- **Transitions**: Each slide flows logically to the next
+
+## Layout Selection Guide:
+- \`title\`: Opening/closing slides, major section breaks
+- \`title-content\`: Key statements with supporting detail
+- \`bullet-points\`: Lists of 3-5 related items, process steps
+- \`two-column\`: Comparisons, before/after, pros/cons
+- \`image-focus\`: Emotional moments, product showcases, metaphors
+- \`data-visualization\`: Statistics, trends, metrics
+- \`quote\`: Expert testimony, customer feedback, key takeaways
+
+## Speaker Notes Guidelines:
+- Write as natural speech (contractions, conversational tone)
+- Include: key message, supporting evidence, transition phrase to next slide
+- Add timing suggestions (30-60 seconds per slide)
+- Include audience engagement prompts where appropriate
+
+## Image Query Best Practices:
+- Be SPECIFIC and LITERAL: "business team celebrating success high-five" not "teamwork"
+- Include context: "modern office", "professional setting", "diverse group"
+- Specify mood: "bright", "confident", "focused"
+- Avoid clichés: no handshakes, puzzle pieces, or light bulbs unless truly relevant
+
+## Style: ${style}
+${style === 'professional' ? '- Clean, corporate aesthetic. Data-driven. Credible authority tone.' : ''}
+${style === 'creative' ? '- Bold visuals, unexpected metaphors, memorable phrases. Inspire and energize.' : ''}
+${style === 'minimal' ? '- Maximum whitespace, essential words only, elegant typography focus.' : ''}
+${style === 'corporate' ? '- Conservative, structured, formal. Risk-averse language, clear hierarchy.' : ''}
+
+## Language: ${language === 'sv' ? 'Swedish (formal business Swedish, avoid anglicisms)' : 'English (clear, international business English)'}`;
+
+    // Build context-aware user prompt
+    const contentSource = scriptContent 
+      ? `\n\n## Source Material to Structure:\n${scriptContent.substring(0, 6000)}`
+      : '';
+    
+    const contextInfo = [
+      courseTitle && `Course: "${courseTitle}"`,
+      moduleTitle && `Module: "${moduleTitle}"`,
+      additionalContext && `Context: ${additionalContext}`
+    ].filter(Boolean).join('\n');
+
+    const userPrompt = `Create a ${numSlides}-slide presentation${topic ? ` on: "${topic}"` : ''}.
+
+## Narrative Structure to Follow:
+${narrativeStructure}
+
+${contextInfo ? `## Background Information:\n${contextInfo}` : ''}
+${contentSource}
+
+## Requirements:
+1. Start with a compelling hook that establishes relevance
+2. Build tension/interest through the middle slides
+3. Provide clear resolution and actionable takeaways
+4. ${isEducational ? 'Include learning objectives early and reinforce key concepts' : 'Focus on persuasion and memorable key messages'}
+5. End with a strong call-to-action or memorable closing thought
+
+## Output Format:
+Generate exactly ${numSlides} slides with variety in layouts. Ensure each slide has:
+- A punchy, benefit-oriented title (max 8 words)
+- Concise content following the 6x6 rule
+- Detailed speaker notes (50-100 words) with transition to next slide
+- Appropriate layout that matches the content type
+- Specific, searchable image query for relevant visuals`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -206,30 +279,62 @@ Return a JSON array of slides with: slideNumber, title, content (bullet points s
             type: 'function',
             function: {
               name: 'create_presentation',
-              description: 'Create professional presentation slides',
+              description: 'Create a professional presentation with narrative flow and visual variety',
               parameters: {
                 type: 'object',
                 properties: {
+                  presentationTitle: { 
+                    type: 'string',
+                    description: 'The overall title/theme of the presentation'
+                  },
                   slides: {
                     type: 'array',
                     items: {
                       type: 'object',
                       properties: {
                         slideNumber: { type: 'number' },
-                        title: { type: 'string' },
-                        content: { type: 'string' },
-                        speakerNotes: { type: 'string' },
+                        title: { 
+                          type: 'string',
+                          description: 'Action-oriented, benefit-focused title (max 8 words)'
+                        },
+                        subtitle: {
+                          type: 'string',
+                          description: 'Optional supporting subtitle for context'
+                        },
+                        content: { 
+                          type: 'string',
+                          description: 'Main content - bullet points separated by \\n, following 6x6 rule'
+                        },
+                        keyMessage: {
+                          type: 'string',
+                          description: 'The ONE takeaway the audience should remember from this slide'
+                        },
+                        speakerNotes: { 
+                          type: 'string',
+                          description: 'Detailed talking points in conversational tone, including transition to next slide'
+                        },
                         layout: { 
                           type: 'string',
-                          enum: ['title', 'title-content', 'two-column', 'image-focus', 'bullet-points']
+                          enum: ['title', 'title-content', 'two-column', 'image-focus', 'bullet-points', 'data-visualization', 'quote']
                         },
-                        suggestedImageQuery: { type: 'string' }
+                        suggestedImageQuery: { 
+                          type: 'string',
+                          description: 'Specific, literal image search query with context and mood descriptors'
+                        },
+                        dataVisualization: {
+                          type: 'object',
+                          description: 'Optional data for charts/graphs',
+                          properties: {
+                            type: { type: 'string', enum: ['bar', 'line', 'pie', 'stat'] },
+                            description: { type: 'string' }
+                          }
+                        }
                       },
-                      required: ['slideNumber', 'title', 'content', 'speakerNotes', 'layout', 'suggestedImageQuery']
+                      required: ['slideNumber', 'title', 'content', 'keyMessage', 'speakerNotes', 'layout', 'suggestedImageQuery']
                     }
                   }
                 },
-                required: ['slides']
+                required: ['presentationTitle', 'slides']
               }
             }
           }
@@ -252,10 +357,12 @@ Return a JSON array of slides with: slideNumber, title, content (bullet points s
     }
 
     const slidesData = JSON.parse(toolCall.function.arguments);
+    console.log(`Generated ${slidesData.slides?.length} slides with enhanced prompting`);
     
     return new Response(
       JSON.stringify({
         status: 'completed',
+        presentationTitle: slidesData.presentationTitle,
         slides: slidesData.slides,
         source: 'lovable-ai',
       }),
