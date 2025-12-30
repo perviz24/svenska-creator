@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Settings as SettingsIcon, 
@@ -21,7 +21,9 @@ import {
   Presentation,
   Search,
   Globe,
-  Camera
+  Camera,
+  Shield,
+  TestTube
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,13 +44,19 @@ import { StockVideoProviderSettings } from '@/components/StockVideoProviderSetti
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserRoles } from '@/hooks/useUserRoles';
 import { StockVideoProvider } from '@/types/course';
 
 const Settings = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { currentRole, hasPermission } = useUserRoles();
   const [activeTab, setActiveTab] = useState('ai');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  
+  // Admin Demo Mode - enables all integrations for testing
+  const [adminDemoMode, setAdminDemoMode] = useState(false);
+  const isAdminOrOwner = currentRole === 'owner' || currentRole === 'admin';
   
   // AI Quality Mode state
   const [aiQualityMode, setAiQualityMode] = useState<'fast' | 'quality'>('quality');
@@ -255,6 +263,76 @@ const Settings = () => {
 
             {/* AI Quality Mode Tab */}
             <TabsContent value="ai" className="space-y-6">
+              {/* Admin Demo Mode - Only visible to owners/admins */}
+              {isAdminOrOwner && (
+                <Card className="border-amber-500/50 bg-amber-500/5">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <TestTube className="w-5 h-5 text-amber-500" />
+                      Admin Demoläge
+                      <Badge variant="outline" className="ml-2 bg-amber-500/10 text-amber-600 border-amber-500/30">
+                        Endast admin
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      Aktivera alla integrationer för testning. Kostnadsindikatorn är aktiv.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
+                      <div className="space-y-1">
+                        <Label htmlFor="admin-demo" className="text-base font-medium flex items-center gap-2">
+                          <Shield className="w-4 h-4 text-amber-500" />
+                          Aktivera alla integrationer
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          ElevenLabs, Perplexity, Firecrawl, Presenton, HeyGen, Bunny - allt aktivt
+                        </p>
+                      </div>
+                      <Switch
+                        id="admin-demo"
+                        checked={adminDemoMode}
+                        onCheckedChange={(checked) => {
+                          setAdminDemoMode(checked);
+                          // Auto-enable all integrations
+                          setElevenlabsSettings(prev => ({ ...prev, enabled: checked }));
+                          setPerplexitySettings(prev => ({ ...prev, enabled: checked }));
+                          setFirecrawlSettings(prev => ({ ...prev, enabled: checked }));
+                          setPresentonSettings(prev => ({ ...prev, enabled: checked }));
+                          setHeygenSettings(prev => ({ ...prev, enabled: checked }));
+                          setBunnySettings(prev => ({ ...prev, enabled: checked }));
+                          setGoogleSlidesSettings(prev => ({ ...prev, enabled: checked }));
+                          toast({
+                            title: checked ? "Demoläge aktiverat" : "Demoläge inaktiverat",
+                            description: checked 
+                              ? "Alla integrationer är nu aktiverade för testning" 
+                              : "Integrationer återställda",
+                          });
+                        }}
+                      />
+                    </div>
+                    
+                    {adminDemoMode && (
+                      <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <Info className="w-5 h-5 text-green-600 mt-0.5" />
+                          <div className="text-sm">
+                            <p className="font-medium text-green-700 mb-1">Demoläge aktivt</p>
+                            <ul className="text-green-600 space-y-1">
+                              <li>✓ Svensk röstsyntes (ElevenLabs - Daniel)</li>
+                              <li>✓ Medicinsk innehållsverifiering (Perplexity)</li>
+                              <li>✓ Webbskrapning (Firecrawl)</li>
+                              <li>✓ Slide-generering (Presenton + Lovable AI)</li>
+                              <li>✓ Video-avatarer (HeyGen)</li>
+                              <li>✓ Videohosting (Bunny)</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
