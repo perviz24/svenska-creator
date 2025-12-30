@@ -27,6 +27,7 @@ const Index = () => {
     uploadScript,
     generateSlides,
     updateSlide,
+    setModuleSlides,
     updateSettings,
     generateModuleAudio,
     updateVideoSettings,
@@ -124,6 +125,7 @@ const Index = () => {
             projectMode={state.settings.projectMode}
             onGenerateSlides={generateSlides}
             onUpdateSlide={updateSlide}
+            onSetModuleSlides={setModuleSlides}
             onContinue={nextStep}
             onContentUploaded={handleContentUploaded}
             onSkip={nextStep}
