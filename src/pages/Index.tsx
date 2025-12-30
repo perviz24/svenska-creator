@@ -210,23 +210,25 @@ const Index = () => {
           </div>
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className={`grid grid-cols-1 gap-8 ${state.currentStep === 'mode' ? 'lg:grid-cols-3' : ''}`}>
             {/* Main Content Area */}
-            <div className="lg:col-span-2">
+            <div className={state.currentStep === 'mode' ? 'lg:col-span-2' : ''}>
                   {renderCurrentStep()}
                 </div>
 
-                {/* Settings Panel */}
-                <div className="lg:col-span-1">
-                  <div className="sticky top-24">
-                    <SettingsPanel 
-                      settings={state.settings} 
-                      onSettingsChange={updateSettings}
-                      projectMode={state.settings.projectMode}
-                      onPresentationSettingsChange={handlePresentationSettingsChange}
-                    />
+                {/* Settings Panel - Only show on mode step */}
+                {state.currentStep === 'mode' && (
+                  <div className="lg:col-span-1">
+                    <div className="sticky top-24">
+                      <SettingsPanel 
+                        settings={state.settings} 
+                        onSettingsChange={updateSettings}
+                        projectMode={state.settings.projectMode}
+                        onPresentationSettingsChange={handlePresentationSettingsChange}
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
           </div>
         </div>
       </main>
