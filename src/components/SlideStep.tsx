@@ -83,6 +83,17 @@ export function SlideStep({
   const [presentonStatus, setPresentonStatus] = useState<'idle' | 'pending' | 'processing' | 'completed' | 'failed'>('idle');
   const [presentonDownloadUrl, setPresentonDownloadUrl] = useState<string | null>(null);
   const [presentonEditUrl, setPresentonEditUrl] = useState<string | null>(null);
+  
+  // Regeneration / alternatives state
+  const [generationHistory, setGenerationHistory] = useState<Array<{
+    id: string;
+    timestamp: Date;
+    downloadUrl?: string;
+    editUrl?: string;
+    slideCount?: number;
+    style: string;
+  }>>([]);
+  const [showAlternatives, setShowAlternatives] = useState(false);
 
   // Helper function to clean markdown from slide content
   const cleanMarkdown = (text: string): string => {
@@ -255,6 +266,15 @@ export function SlideStep({
           setPresentonDownloadUrl(data.downloadUrl);
           setPresentonEditUrl(data.editUrl);
           setIsGeneratingPresenton(false);
+          
+          // Save to generation history for alternatives
+          setGenerationHistory(prev => [...prev, {
+            id: taskId,
+            timestamp: new Date(),
+            downloadUrl: data.downloadUrl,
+            editUrl: data.editUrl,
+            style: exportTemplate,
+          }]);
           
           toast.success('Presentation genererad via Presenton!', {
             action: {
@@ -929,21 +949,64 @@ export function SlideStep({
               )}
             </div>
             
-            <Button onClick={handleGenerateSlides} disabled={isLoading || isGeneratingPresenton}>
-              {isLoading || isGeneratingPresenton ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {slideGenerator === 'presenton' ? 'Genererar via Presenton...' : 'Genererar slides...'}
-                </>
-              ) : (
-                <>
-                  {slideGenerator === 'presenton' ? <Zap className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                  Generera slides
-                </>
+            <div className="flex gap-2">
+              <Button onClick={handleGenerateSlides} disabled={isLoading || isGeneratingPresenton}>
+                {isLoading || isGeneratingPresenton ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {slideGenerator === 'presenton' ? 'Genererar...' : 'Genererar...'}
+                  </>
+                ) : (
+                  <>
+                    {slideGenerator === 'presenton' ? <Zap className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                    Generera slides
+                  </>
+                )}
+              </Button>
+              
+              {/* Regenerate / Alternatives button */}
+              {generationHistory.length > 0 && slideGenerator === 'presenton' && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon" title="Alternativ & regenerera">
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-popover z-50 w-64">
+                    <DropdownMenuLabel>Genererade alternativ</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {generationHistory.slice(-5).reverse().map((item, idx) => (
+                      <DropdownMenuItem 
+                        key={item.id} 
+                        className="flex flex-col items-start gap-1 cursor-pointer"
+                        onClick={() => item.downloadUrl && window.open(item.downloadUrl, '_blank')}
+                      >
+                        <span className="font-medium text-sm">
+                          {idx === 0 ? '✓ Senaste' : `Alternativ ${generationHistory.length - idx}`}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {item.style} • {item.timestamp.toLocaleTimeString('sv-SE')}
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={handleGenerateSlides} 
+                      disabled={isGeneratingPresenton}
+                      className="cursor-pointer"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Generera nytt alternativ
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
-            </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
             
-            {/* Presenton Progress Indicator */}
+            /* Presenton Progress Indicator */
             {isGeneratingPresenton && slideGenerator === 'presenton' && (
               <div className="mt-6 w-full max-w-md mx-auto">
                 <div className="bg-muted rounded-lg p-4 space-y-3">

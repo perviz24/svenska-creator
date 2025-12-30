@@ -26,7 +26,60 @@ interface PresentonRequest {
   // For status checking
   taskId?: string;
   action?: 'generate' | 'status';
+  // Context-aware generation parameters
+  audienceType?: string; // e.g., 'executives', 'students', 'general', 'technical'
+  purpose?: string; // e.g., 'inform', 'persuade', 'educate', 'inspire'
+  industry?: string; // e.g., 'healthcare', 'finance', 'tech', 'education'
+  imageStyle?: string; // e.g., 'photography', 'illustrations', 'icons', 'mixed'
 }
+
+// Context analysis utilities
+const analyzeTopicContext = (topic: string, additionalContext?: string): {
+  industry: string;
+  imageStyle: string;
+  colorScheme: string;
+  visualMood: string;
+} => {
+  const combined = `${topic} ${additionalContext || ''}`.toLowerCase();
+  
+  // Industry detection
+  let industry = 'general';
+  if (/health|medical|hospital|pharma|patient|doctor|clinic/i.test(combined)) industry = 'healthcare';
+  else if (/financ|bank|invest|money|stock|crypto|trading/i.test(combined)) industry = 'finance';
+  else if (/tech|software|digital|ai|machine learning|data|cloud|app/i.test(combined)) industry = 'technology';
+  else if (/education|school|learn|student|teach|course|training/i.test(combined)) industry = 'education';
+  else if (/market|brand|customer|sales|advertis|campaign/i.test(combined)) industry = 'marketing';
+  else if (/nature|environment|sustain|green|eco|climate/i.test(combined)) industry = 'environment';
+  else if (/food|restaurant|culinary|recipe|cook|nutrition/i.test(combined)) industry = 'food';
+  else if (/travel|tourism|hotel|vacation|destination/i.test(combined)) industry = 'travel';
+  else if (/law|legal|compliance|regulation|court/i.test(combined)) industry = 'legal';
+  else if (/construction|architect|building|real estate|property/i.test(combined)) industry = 'real-estate';
+  
+  // Image style recommendation based on industry and content
+  let imageStyle = 'photography';
+  if (industry === 'technology' || /diagram|process|workflow|system/i.test(combined)) imageStyle = 'illustrations';
+  else if (industry === 'education' || /concept|idea|abstract/i.test(combined)) imageStyle = 'mixed';
+  else if (industry === 'finance' || industry === 'legal') imageStyle = 'photography';
+  else if (/creative|art|design|visual/i.test(combined)) imageStyle = 'illustrations';
+  
+  // Color scheme suggestion
+  let colorScheme = 'professional-blue';
+  if (industry === 'healthcare') colorScheme = 'mint-blue';
+  else if (industry === 'finance') colorScheme = 'professional-dark';
+  else if (industry === 'technology') colorScheme = 'professional-blue';
+  else if (industry === 'education') colorScheme = 'light-rose';
+  else if (industry === 'environment') colorScheme = 'mint-blue';
+  else if (industry === 'marketing' || /creative|dynamic/i.test(combined)) colorScheme = 'edge-yellow';
+  
+  // Visual mood
+  let visualMood = 'confident';
+  if (/inspire|motivat|empower|success/i.test(combined)) visualMood = 'inspiring';
+  else if (/serious|important|critical|urgent/i.test(combined)) visualMood = 'serious';
+  else if (/fun|creative|innovate|exciting/i.test(combined)) visualMood = 'energetic';
+  else if (/calm|peace|wellness|relax/i.test(combined)) visualMood = 'calm';
+  
+  return { industry, imageStyle, colorScheme, visualMood };
+};
 
 // Presenton API endpoint
 const PRESENTON_API_URL = 'https://api.presenton.ai';
@@ -50,7 +103,16 @@ serve(async (req) => {
       courseTitle,
       taskId,
       action = 'generate',
+      audienceType = 'general',
+      purpose = 'inform',
+      industry: providedIndustry,
+      imageStyle: providedImageStyle,
     }: PresentonRequest & { scriptContent?: string; moduleTitle?: string; courseTitle?: string } = requestBody;
+    
+    // Analyze topic for context-aware styling
+    const topicContext = analyzeTopicContext(topic || moduleTitle || courseTitle || '', additionalContext);
+    const effectiveIndustry = providedIndustry || topicContext.industry;
+    const effectiveImageStyle = providedImageStyle || topicContext.imageStyle;
 
     const PRESENTON_API_KEY = Deno.env.get('PRESENTON_API_KEY');
 
@@ -147,57 +209,119 @@ serve(async (req) => {
         return 'general'; // Safe default
       };
 
-      // Map styles to Presenton themes for visual variety
+      // Map styles to Presenton themes - now context-aware
       // Available: edge-yellow, mint-blue, light-rose, professional-blue, professional-dark
-      const mapTheme = (inputStyle?: string, inputTone?: string): string => {
-        const style = (inputStyle || '').toLowerCase().trim();
-        const tone = (inputTone || '').toLowerCase().trim();
+      const mapTheme = (inputStyle?: string, inputTone?: string, contextTheme?: string): string => {
+        if (contextTheme) return contextTheme;
         
-        // Creative/dynamic styles get vibrant themes
-        if (style === 'creative') return 'edge-yellow';
-        if (style === 'minimal') return 'mint-blue';
-        if (style === 'classic') return 'light-rose';
+        const localStyle = (inputStyle || '').toLowerCase().trim();
+        const localTone = (inputTone || '').toLowerCase().trim();
         
-        // Corporate/formal tones get professional themes
-        if (style === 'corporate' || tone === 'formal' || tone === 'professional') return 'professional-blue';
-        if (tone === 'casual' || tone === 'friendly') return 'mint-blue';
+        if (localStyle === 'creative') return 'edge-yellow';
+        if (localStyle === 'minimal') return 'mint-blue';
+        if (localStyle === 'classic') return 'light-rose';
+        if (localStyle === 'corporate' || localTone === 'formal' || localTone === 'professional') return 'professional-blue';
+        if (localTone === 'casual' || localTone === 'friendly') return 'mint-blue';
+        if (localStyle === 'modern') return 'professional-blue';
         
-        // Modern default
-        if (style === 'modern') return 'professional-blue';
-        
-        return 'professional-blue'; // Safe professional default
+        return 'professional-blue';
       };
 
-      const effectiveTone = mapTone(tone || style);
-      const effectiveTemplate = mapTemplate(style);
-      const effectiveTheme = mapTheme(style, tone);
-
-      // Build instructions for better content generation
-      const buildInstructions = (styleName?: string, toneName?: string): string => {
+      // Enhanced instructions builder with context awareness
+      const buildInstructions = (
+        styleName?: string, 
+        toneName?: string, 
+        contextIndustry?: string,
+        contextImageStyle?: string,
+        contextMood?: string,
+        audience?: string,
+        presentationPurpose?: string
+      ): string => {
         const parts: string[] = [];
         
+        // Industry-specific guidance
+        if (contextIndustry === 'healthcare') {
+          parts.push('Use professional medical imagery. Clean, clinical aesthetics.');
+        } else if (contextIndustry === 'finance') {
+          parts.push('Use charts, graphs, professional imagery. Convey trust and stability.');
+        } else if (contextIndustry === 'technology') {
+          parts.push('Use modern tech imagery, abstract visuals, clean diagrams.');
+        } else if (contextIndustry === 'education') {
+          parts.push('Use engaging educational imagery and diagrams.');
+        } else if (contextIndustry === 'marketing') {
+          parts.push('Use dynamic, engaging visuals that capture attention.');
+        } else if (contextIndustry === 'environment') {
+          parts.push('Use nature photography and sustainability-focused visuals.');
+        }
+        
+        // Image style guidance
+        if (contextImageStyle === 'illustrations') {
+          parts.push('Prefer illustrations and diagrams over photography.');
+        } else if (contextImageStyle === 'photography') {
+          parts.push('Use high-quality professional photography.');
+        }
+        
+        // Mood guidance
+        if (contextMood === 'inspiring') {
+          parts.push('Use uplifting imagery with success themes.');
+        } else if (contextMood === 'serious') {
+          parts.push('Use professional, focused imagery.');
+        } else if (contextMood === 'energetic') {
+          parts.push('Use dynamic, vibrant imagery with energy.');
+        }
+        
+        // Audience guidance
+        if (audience === 'executives') {
+          parts.push('Focus on high-level insights and strategic value.');
+        } else if (audience === 'technical') {
+          parts.push('Include detailed diagrams and technical specifications.');
+        } else if (audience === 'students') {
+          parts.push('Use engaging, accessible language with clear explanations.');
+        }
+        
+        // Purpose guidance
+        if (presentationPurpose === 'persuade') {
+          parts.push('Structure for persuasion: problem-solution-benefit.');
+        } else if (presentationPurpose === 'educate') {
+          parts.push('Structure for learning: concept-example-practice.');
+        } else if (presentationPurpose === 'inspire') {
+          parts.push('Structure for inspiration: story-vision-action.');
+        }
+        
+        // Style guidance
         if (styleName === 'minimal') {
-          parts.push('Use minimal text, focus on key points only, maximize white space.');
+          parts.push('Use minimal text, maximize white space.');
         } else if (styleName === 'creative') {
-          parts.push('Use creative language, bold statements, and engaging visuals.');
+          parts.push('Use creative language and bold statements.');
         } else if (styleName === 'corporate') {
-          parts.push('Use formal business language, include data points and metrics where relevant.');
+          parts.push('Use formal business language with data points.');
         } else if (styleName === 'classic') {
-          parts.push('Use traditional presentation structure with clear hierarchy.');
+          parts.push('Use traditional presentation structure.');
         }
         
         if (toneName === 'casual' || toneName === 'friendly') {
-          parts.push('Keep the tone conversational and approachable.');
+          parts.push('Keep conversational and approachable.');
         } else if (toneName === 'inspirational') {
-          parts.push('Include motivational elements and inspiring language.');
+          parts.push('Include motivational elements.');
         }
         
-        parts.push('Ensure each slide has a clear single message. Use bullet points effectively.');
+        parts.push('Each slide: one clear message. Select images that directly relate to content.');
         
         return parts.join(' ');
       };
 
-      const effectiveInstructions = buildInstructions(style, tone);
+      const effectiveTone = mapTone(tone || style);
+      const effectiveTemplate = mapTemplate(style);
+      const effectiveTheme = mapTheme(style, tone, topicContext.colorScheme);
+      const effectiveInstructions = buildInstructions(
+        style, 
+        tone, 
+        effectiveIndustry, 
+        effectiveImageStyle, 
+        topicContext.visualMood, 
+        audienceType, 
+        purpose
+      );
 
       console.log('Presenton parameters:', { 
         template: effectiveTemplate, 
@@ -205,12 +329,15 @@ serve(async (req) => {
         tone: effectiveTone,
         n_slides: Math.min(numSlides, 50),
         style_input: style,
-        tone_input: tone
+        tone_input: tone,
+        detected_industry: effectiveIndustry,
+        detected_image_style: effectiveImageStyle,
+        detected_mood: topicContext.visualMood,
       });
 
       const presentonPayload = {
         content: contentText.substring(0, 10000),
-        n_slides: Math.min(numSlides, 50), // API supports 1-50
+        n_slides: Math.min(numSlides, 50),
         language: mapLanguage(language),
         template: effectiveTemplate,
         theme: effectiveTheme,
@@ -218,9 +345,9 @@ serve(async (req) => {
         instructions: effectiveInstructions,
         verbosity: 'standard',
         web_search: false,
-        image_type: 'ai-generated', // Use AI-generated for better visuals
+        image_type: effectiveImageStyle === 'illustrations' ? 'ai-generated' : 'ai-generated',
         include_title_slide: true,
-        include_table_of_contents: numSlides > 8, // Only for longer presentations
+        include_table_of_contents: numSlides > 8,
         export_as: 'pptx',
       };
 
