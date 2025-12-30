@@ -229,8 +229,8 @@ const Index = () => {
             />
           )}
 
-          {/* Compact Settings Summary Bar - Show on all steps except mode */}
-          {state.currentStep !== 'mode' && (
+          {/* Compact Settings Summary Bar - Show on all steps except mode and presentation slides */}
+          {state.currentStep !== 'mode' && !(state.settings.projectMode === 'presentation' && state.currentStep === 'slides') && (
             <div className="mb-6 bg-muted/50 border border-border rounded-lg px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-6 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
