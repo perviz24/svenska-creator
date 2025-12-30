@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { GraduationCap, LogOut, PlusCircle, Settings } from 'lucide-react';
+import { GraduationCap, LogOut, PlusCircle, Settings, TestTube } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useUserRoles } from '@/hooks/useUserRoles';
 
 interface HeaderProps {
   onNewCourse?: () => void;
@@ -17,6 +19,27 @@ interface HeaderProps {
 
 export function Header({ onNewCourse }: HeaderProps) {
   const { user, signOut } = useAuth();
+  const { currentRole } = useUserRoles();
+  const isAdminOrOwner = currentRole === 'owner' || currentRole === 'admin';
+  
+  // Check admin demo mode from localStorage
+  const [adminDemoMode, setAdminDemoMode] = useState(() => {
+    return localStorage.getItem('adminDemoMode') === 'true';
+  });
+  
+  // Listen for localStorage changes (when toggled in settings)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setAdminDemoMode(localStorage.getItem('adminDemoMode') === 'true');
+    };
+    window.addEventListener('storage', handleStorageChange);
+    // Also check periodically for same-tab updates
+    const interval = setInterval(handleStorageChange, 1000);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   const userInitials = user?.email
     ? user.email.substring(0, 2).toUpperCase()
@@ -57,6 +80,16 @@ export function Header({ onNewCourse }: HeaderProps) {
               <span className="hidden sm:inline">Inställningar</span>
             </Link>
           </Button>
+          
+          {isAdminOrOwner && adminDemoMode && (
+            <Link 
+              to="/settings" 
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-colors"
+            >
+              <TestTube className="w-3.5 h-3.5 text-amber-500" />
+              <span className="text-xs font-medium text-amber-600">Demo PÅ</span>
+            </Link>
+          )}
           
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/10 border border-success/20">
             <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
