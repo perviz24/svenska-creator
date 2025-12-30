@@ -22,43 +22,13 @@ interface PresentonRequest {
   language?: string;
   style?: 'professional' | 'creative' | 'minimal' | 'corporate';
   additionalContext?: string;
+  // For status checking
+  taskId?: string;
+  action?: 'generate' | 'status';
 }
 
 // Presenton API endpoint
 const PRESENTON_API_URL = 'https://api.presenton.ai';
-
-// Helper to poll for task completion
-async function pollTaskStatus(taskId: string, apiKey: string, maxAttempts = 30, delayMs = 2000): Promise<any> {
-  for (let i = 0; i < maxAttempts; i++) {
-    const statusResponse = await fetch(`${PRESENTON_API_URL}/api/v1/ppt/presentation/status/${taskId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-      },
-    });
-
-    if (!statusResponse.ok) {
-      const errorText = await statusResponse.text();
-      throw new Error(`Status check failed: ${statusResponse.status} ${errorText}`);
-    }
-
-    const statusData = await statusResponse.json();
-    console.log(`Task ${taskId} status: ${statusData.status}`);
-
-    if (statusData.status === 'completed') {
-      return statusData;
-    }
-
-    if (statusData.status === 'failed') {
-      throw new Error(`Presenton task failed: ${statusData.message || 'Unknown error'}`);
-    }
-
-    // Wait before next poll
-    await new Promise(resolve => setTimeout(resolve, delayMs));
-  }
-
-  throw new Error('Presenton task timeout - generation took too long');
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -66,6 +36,7 @@ serve(async (req) => {
   }
 
   try {
+    const requestBody = await req.json();
     const { 
       topic, 
       numSlides = 10, 
@@ -75,26 +46,79 @@ serve(async (req) => {
       scriptContent,
       moduleTitle,
       courseTitle,
-    }: PresentonRequest & { scriptContent?: string; moduleTitle?: string; courseTitle?: string } = await req.json();
+      taskId,
+      action = 'generate',
+    }: PresentonRequest & { scriptContent?: string; moduleTitle?: string; courseTitle?: string } = requestBody;
 
+    const PRESENTON_API_KEY = Deno.env.get('PRESENTON_API_KEY');
+
+    // Handle status check action
+    if (action === 'status' && taskId && PRESENTON_API_KEY) {
+      console.log('Checking Presenton task status:', taskId);
+      
+      const statusResponse = await fetch(`${PRESENTON_API_URL}/api/v1/ppt/presentation/status/${taskId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${PRESENTON_API_KEY}`,
+        },
+      });
+
+      if (!statusResponse.ok) {
+        const errorText = await statusResponse.text();
+        console.error('Status check failed:', statusResponse.status, errorText);
+        return new Response(
+          JSON.stringify({ error: 'Status check failed', status: 'error' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const statusData = await statusResponse.json();
+      console.log('Task status:', statusData.status);
+
+      if (statusData.status === 'completed') {
+        return new Response(
+          JSON.stringify({
+            status: 'completed',
+            presentationId: statusData.data?.presentation_id,
+            downloadUrl: statusData.data?.path,
+            editUrl: statusData.data?.edit_path,
+            creditsConsumed: statusData.data?.credits_consumed,
+            source: 'presenton',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (statusData.status === 'failed') {
+        return new Response(
+          JSON.stringify({ status: 'failed', error: statusData.message || 'Generation failed' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Still pending/processing
+      return new Response(
+        JSON.stringify({ status: statusData.status, taskId }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Generate action
     if (!topic && !scriptContent) {
       return new Response(
         JSON.stringify({ error: 'Topic or script content is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const PRESENTON_API_KEY = Deno.env.get('PRESENTON_API_KEY');
     
     // If Presenton API key is available, use their cloud API
     if (PRESENTON_API_KEY) {
       console.log('Using Presenton Cloud API for slide generation');
       
-      // Build content string for Presenton
       const contentText = scriptContent || additionalContext || topic || moduleTitle || courseTitle || '';
       
       const presentonPayload = {
-        content: contentText.substring(0, 10000), // Presenton content limit
+        content: contentText.substring(0, 10000),
         n_slides: Math.min(numSlides, 100),
         language: language === 'sv' ? 'Swedish' : 'English',
         template: 'general',
@@ -110,7 +134,6 @@ serve(async (req) => {
 
       console.log('Calling Presenton async endpoint...');
       
-      // Step 1: Start async generation
       const generateResponse = await fetch(`${PRESENTON_API_URL}/api/v1/ppt/presentation/generate/async`, {
         method: 'POST',
         headers: {
@@ -128,34 +151,20 @@ serve(async (req) => {
         const taskData = await generateResponse.json();
         console.log('Presenton task created:', taskData.id, 'status:', taskData.status);
 
-        // Step 2: Poll for completion
-        try {
-          const completedTask = await pollTaskStatus(taskData.id, PRESENTON_API_KEY);
-          console.log('Presenton task completed:', completedTask.data?.presentation_id);
-
-          // The async API returns download URLs, not individual slides
-          // We need to return the presentation info for the frontend to handle
-          return new Response(
-            JSON.stringify({
-              slides: [], // Presenton async doesn't return slide data directly
-              presentationId: completedTask.data?.presentation_id,
-              downloadUrl: completedTask.data?.path,
-              editUrl: completedTask.data?.edit_path,
-              source: 'presenton',
-              creditsConsumed: completedTask.data?.credits_consumed || numSlides,
-              // Signal that this is a PPTX download, not slide data
-              isPptxDownload: true,
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        } catch (pollError) {
-          console.error('Presenton polling error:', pollError);
-          console.log('Falling back to Lovable AI');
-        }
+        // Return task ID immediately for frontend to poll
+        return new Response(
+          JSON.stringify({
+            status: 'pending',
+            taskId: taskData.id,
+            source: 'presenton',
+            message: 'Presentation generation started. Poll for status.',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     }
 
-    // Fallback: Use Lovable AI to generate professional slides
+    // Fallback: Use Lovable AI to generate professional slides (synchronous)
     console.log('Using Lovable AI for slide generation');
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -246,9 +255,9 @@ Return a JSON array of slides with: slideNumber, title, content (bullet points s
     
     return new Response(
       JSON.stringify({
+        status: 'completed',
         slides: slidesData.slides,
         source: 'lovable-ai',
-        fallback: true,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -258,7 +267,7 @@ Return a JSON array of slides with: slideNumber, title, content (bullet points s
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : 'Unknown error',
-        fallback: true 
+        status: 'error',
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
