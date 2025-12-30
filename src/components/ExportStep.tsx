@@ -95,6 +95,10 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
   // Module to video mapping
   const [moduleVideoMap, setModuleVideoMap] = useState<Record<string, string>>({});
 
+  // Export state for presentation mode
+  const [isExportingPptx, setIsExportingPptx] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+
   // Load saved credentials on mount (skip for demo mode - user enters temporary credentials)
   useEffect(() => {
     if (!isDemoMode) {
@@ -103,6 +107,131 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
       setIsLoadingCredentials(false);
     }
   }, [isDemoMode]);
+
+  // Helper to collect all slides from outline
+  const collectAllSlides = () => {
+    if (!outline?.modules) return [];
+    const allSlides: Array<{
+      title: string;
+      content: string;
+      speakerNotes?: string;
+      layout: string;
+      imageUrl?: string;
+      backgroundColor?: string;
+    }> = [];
+    
+    outline.modules.forEach((module) => {
+      // Add module title slide
+      allSlides.push({
+        title: module.title,
+        content: module.description || '',
+        layout: 'title',
+        speakerNotes: '',
+      });
+      
+      // Add sub-topic slides
+      module.subTopics?.forEach((subTopic) => {
+        allSlides.push({
+          title: subTopic.title,
+          content: module.learningObjectives?.map(lo => `• ${lo.text}`).join('\n') || '',
+          layout: 'bullet-points',
+          speakerNotes: '',
+        });
+      });
+    });
+    
+    return allSlides;
+  };
+
+  // Download PPTX handler
+  const handleDownloadPptx = async () => {
+    setIsExportingPptx(true);
+    try {
+      const slides = collectAllSlides();
+      if (slides.length === 0) {
+        toast({ title: 'Inga slides att exportera', variant: 'destructive' });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('export-slides', {
+        body: {
+          slides,
+          courseTitle: courseTitle || 'Presentation',
+          moduleTitle: outline?.title || 'Module',
+          format: 'pptx',
+          demoMode: isDemoMode,
+          template: 'professional',
+        },
+      });
+
+      if (error) throw error;
+
+      // Create downloadable file
+      const blob = new Blob([data.content], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${courseTitle || 'presentation'}.pptx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast({ title: 'PowerPoint nedladdad!' });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({ title: 'Kunde inte exportera PowerPoint', variant: 'destructive' });
+    } finally {
+      setIsExportingPptx(false);
+    }
+  };
+
+  // Download PDF handler
+  const handleDownloadPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      const slides = collectAllSlides();
+      if (slides.length === 0) {
+        toast({ title: 'Inga slides att exportera', variant: 'destructive' });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('export-slides', {
+        body: {
+          slides,
+          courseTitle: courseTitle || 'Presentation',
+          moduleTitle: outline?.title || 'Module',
+          format: 'pdf',
+          demoMode: isDemoMode,
+          template: 'professional',
+        },
+      });
+
+      if (error) throw error;
+
+      // Create downloadable HTML that can be printed as PDF
+      const blob = new Blob([data.content], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      
+      // Open in new window for print-to-PDF
+      const printWindow = window.open(url, '_blank');
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+        };
+      }
+      
+      toast({ 
+        title: 'PDF öppnad!', 
+        description: 'Använd webbläsarens utskriftsfunktion för att spara som PDF.' 
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({ title: 'Kunde inte exportera PDF', variant: 'destructive' });
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
 
   const loadAllCredentials = async () => {
     try {
@@ -690,8 +819,8 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* PowerPoint Export */}
+        {/* PowerPoint and PDF Export */}
+        <div className="grid md:grid-cols-2 gap-4">
           <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-3">
@@ -708,14 +837,27 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
               <p className="text-sm text-muted-foreground mb-4">
                 Perfekt för att redigera och presentera i Microsoft PowerPoint eller Google Slides.
               </p>
-              <Button className="w-full" variant="outline" disabled={isDemoMode}>
-                <Download className="h-4 w-4 mr-2" />
-                Ladda ner PowerPoint
+              <Button 
+                className="w-full" 
+                variant="outline" 
+                disabled={isExportingPptx || !outline?.modules?.length}
+                onClick={handleDownloadPptx}
+              >
+                {isExportingPptx ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Exporterar...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Ladda ner PowerPoint
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
 
-          {/* PDF Export */}
           <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-3">
@@ -732,9 +874,23 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
               <p className="text-sm text-muted-foreground mb-4">
                 Idealisk för utskrift och delning som statiskt dokument.
               </p>
-              <Button className="w-full" variant="outline" disabled={isDemoMode}>
-                <Download className="h-4 w-4 mr-2" />
-                Ladda ner PDF
+              <Button 
+                className="w-full" 
+                variant="outline" 
+                disabled={isExportingPdf || !outline?.modules?.length}
+                onClick={handleDownloadPdf}
+              >
+                {isExportingPdf ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Exporterar...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Ladda ner PDF
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -757,9 +913,22 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
             <p className="text-sm text-muted-foreground mb-4">
               Exportera din presentation direkt till Google Slides för realtidssamarbete och molnlagring.
             </p>
-            <Button className="w-full" disabled={isDemoMode}>
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Exportera till Google Slides
+            <Button 
+              className="w-full" 
+              disabled={isExportingPptx || !outline?.modules?.length}
+              onClick={handleDownloadPptx}
+            >
+              {isExportingPptx ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Exporterar...
+                </>
+              ) : (
+                <>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Exportera till Google Slides
+                </>
+              )}
             </Button>
           </CardContent>
         </Card>
@@ -782,15 +951,6 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
             </div>
           </CardContent>
         </Card>
-
-        {isDemoMode && (
-          <div className="text-center text-sm text-muted-foreground">
-            <p>Export är tillgängligt i fullversionen.</p>
-            <a href="/auth" className="text-primary hover:underline">
-              Logga in för att exportera →
-            </a>
-          </div>
-        )}
       </div>
     );
   }

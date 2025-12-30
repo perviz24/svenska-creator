@@ -1,5 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -14,159 +12,153 @@ interface SlideData {
   backgroundColor?: string;
 }
 
-function escapeXml(text: string): string {
+function escapeHtml(text: string): string {
   if (!text) return '';
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+    .replace(/"/g, '&quot;');
 }
 
-function generateSlideXml(slide: SlideData, slideIndex: number): string {
-  const bgColor = slide.backgroundColor?.replace('#', '') || 'FFFFFF';
-  
-  // Parse content into bullet points
-  const contentLines = slide.content?.split('\n').filter(line => line.trim()) || [];
-  
-  let contentElements = '';
-  const startY = 1800000; // Starting Y position
-  const lineHeight = 400000;
-  
-  contentLines.forEach((line, i) => {
-    const cleanLine = line.replace(/^[-•*]\s*/, '').trim();
-    contentElements += `
-      <a:p>
-        <a:pPr marL="342900" indent="-342900">
-          <a:buChar char="•"/>
-        </a:pPr>
-        <a:r>
-          <a:rPr lang="sv-SE" sz="2000" dirty="0"/>
-          <a:t>${escapeXml(cleanLine)}</a:t>
-        </a:r>
-      </a:p>`;
-  });
+// Generate HTML that's optimized for Google Slides import
+function generateGoogleSlidesHtml(slides: SlideData[], courseTitle: string, moduleTitle: string): string {
+  const slidePages = slides.map((slide, index) => {
+    const bgColor = slide.backgroundColor || '#FFFFFF';
+    const contentLines = slide.content?.split('\n').filter(line => line.trim()) || [];
+    
+    return `
+    <div class="slide" style="width: 960px; height: 540px; background: ${bgColor}; border: 1px solid #e0e0e0; margin: 20px auto; padding: 50px; box-sizing: border-box; position: relative; page-break-after: always; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+      <div style="font-size: 11px; color: #9e9e9e; position: absolute; top: 15px; right: 20px;">Slide ${index + 1} av ${slides.length}</div>
+      
+      <h2 style="font-size: 36px; font-weight: 700; color: #1a237e; margin: 0 0 30px 0; line-height: 1.2;">
+        ${escapeHtml(slide.title)}
+      </h2>
+      
+      <div style="font-size: 20px; color: #333; line-height: 1.6;">
+        ${contentLines.length > 0 ? `
+          <ul style="margin: 0; padding-left: 25px; list-style: disc;">
+            ${contentLines.map(line => `
+              <li style="margin-bottom: 12px;">${escapeHtml(line.replace(/^[-•*]\s*/, '').trim())}</li>
+            `).join('')}
+          </ul>
+        ` : ''}
+      </div>
+      
+      ${slide.speakerNotes ? `
+        <div style="position: absolute; bottom: 15px; left: 50px; right: 50px; font-size: 11px; color: #757575; border-top: 1px solid #e0e0e0; padding-top: 10px;">
+          <strong>Noteringar:</strong> ${escapeHtml(slide.speakerNotes.substring(0, 150))}${slide.speakerNotes.length > 150 ? '...' : ''}
+        </div>
+      ` : ''}
+    </div>`;
+  }).join('\n');
 
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" 
-       xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" 
-       xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
-  <p:cSld>
-    <p:bg>
-      <p:bgPr>
-        <a:solidFill>
-          <a:srgbClr val="${bgColor}"/>
-        </a:solidFill>
-        <a:effectLst/>
-      </p:bgPr>
-    </p:bg>
-    <p:spTree>
-      <p:nvGrpSpPr>
-        <p:cNvPr id="1" name=""/>
-        <p:cNvGrpSpPr/>
-        <p:nvPr/>
-      </p:nvGrpSpPr>
-      <p:grpSpPr>
-        <a:xfrm>
-          <a:off x="0" y="0"/>
-          <a:ext cx="0" cy="0"/>
-          <a:chOff x="0" y="0"/>
-          <a:chExt cx="0" cy="0"/>
-        </a:xfrm>
-      </p:grpSpPr>
-      <p:sp>
-        <p:nvSpPr>
-          <p:cNvPr id="2" name="Title"/>
-          <p:cNvSpPr>
-            <a:spLocks noGrp="1"/>
-          </p:cNvSpPr>
-          <p:nvPr>
-            <p:ph type="title"/>
-          </p:nvPr>
-        </p:nvSpPr>
-        <p:spPr>
-          <a:xfrm>
-            <a:off x="457200" y="274638"/>
-            <a:ext cx="8229600" cy="1143000"/>
-          </a:xfrm>
-        </p:spPr>
-        <p:txBody>
-          <a:bodyPr/>
-          <a:lstStyle/>
-          <a:p>
-            <a:r>
-              <a:rPr lang="sv-SE" sz="4400" b="1" dirty="0"/>
-              <a:t>${escapeXml(slide.title)}</a:t>
-            </a:r>
-          </a:p>
-        </p:txBody>
-      </p:sp>
-      <p:sp>
-        <p:nvSpPr>
-          <p:cNvPr id="3" name="Content"/>
-          <p:cNvSpPr>
-            <a:spLocks noGrp="1"/>
-          </p:cNvSpPr>
-          <p:nvPr>
-            <p:ph idx="1"/>
-          </p:nvPr>
-        </p:nvSpPr>
-        <p:spPr>
-          <a:xfrm>
-            <a:off x="457200" y="1600200"/>
-            <a:ext cx="8229600" cy="4525963"/>
-          </a:xfrm>
-        </p:spPr>
-        <p:txBody>
-          <a:bodyPr/>
-          <a:lstStyle/>
-          ${contentElements || '<a:p><a:endParaRPr lang="sv-SE"/></a:p>'}
-        </p:txBody>
-      </p:sp>
-    </p:spTree>
-  </p:cSld>
-  <p:clrMapOvr>
-    <a:masterClrMapping/>
-  </p:clrMapOvr>
-  ${slide.speakerNotes ? `
-  <p:notes>
-    <p:cSld>
-      <p:spTree>
-        <p:nvGrpSpPr>
-          <p:cNvPr id="1" name=""/>
-          <p:cNvGrpSpPr/>
-          <p:nvPr/>
-        </p:nvGrpSpPr>
-        <p:grpSpPr/>
-        <p:sp>
-          <p:nvSpPr>
-            <p:cNvPr id="2" name="Notes"/>
-            <p:cNvSpPr/>
-            <p:nvPr>
-              <p:ph type="body" idx="1"/>
-            </p:nvPr>
-          </p:nvSpPr>
-          <p:spPr/>
-          <p:txBody>
-            <a:bodyPr/>
-            <a:lstStyle/>
-            <a:p>
-              <a:r>
-                <a:rPr lang="sv-SE"/>
-                <a:t>${escapeXml(slide.speakerNotes)}</a:t>
-              </a:r>
-            </a:p>
-          </p:txBody>
-        </p:sp>
-      </p:spTree>
-    </p:cSld>
-  </p:notes>
-  ` : ''}
-</p:sld>`;
+  return `<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(courseTitle)} - ${escapeHtml(moduleTitle)}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    
+    .instructions {
+      max-width: 960px;
+      margin: 0 auto 30px;
+      padding: 25px;
+      background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+      border-radius: 12px;
+      border: 1px solid #a5d6a7;
+    }
+    
+    .instructions h3 {
+      color: #2e7d32;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .instructions ol {
+      margin: 0;
+      padding-left: 25px;
+      color: #1b5e20;
+      line-height: 1.8;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .header h1 {
+      color: #1a237e;
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+    
+    .header p {
+      color: #5c6bc0;
+      font-size: 18px;
+    }
+    
+    @media print {
+      body { background: white; padding: 0; }
+      .instructions { display: none; }
+      .header { display: none; }
+      .slide { 
+        box-shadow: none !important; 
+        margin: 0 !important;
+        border: none !important;
+        page-break-after: always;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="instructions">
+    <h3>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2e7d32" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+      Importera till Google Slides
+    </h3>
+    <ol>
+      <li>Tryck <strong>Ctrl+P</strong> (eller ⌘+P på Mac)</li>
+      <li>Välj <strong>"Spara som PDF"</strong> som destination</li>
+      <li>Öppna <a href="https://slides.google.com" target="_blank" style="color: #1565c0; font-weight: 600;">slides.google.com</a></li>
+      <li>Skapa ny presentation → <strong>Arkiv</strong> → <strong>Importera slides</strong></li>
+      <li>Välj <strong>Ladda upp</strong> och välj PDF-filen du sparade</li>
+    </ol>
+  </div>
+
+  <div class="header">
+    <h1>${escapeHtml(courseTitle)}</h1>
+    <p>${escapeHtml(moduleTitle)} • ${slides.length} slides</p>
+  </div>
+  
+  ${slidePages}
+  
+  <div style="text-align: center; padding: 30px; color: #9e9e9e; font-size: 13px;">
+    Genererad ${new Date().toLocaleDateString('sv-SE', { year: 'numeric', month: 'long', day: 'numeric' })}
+  </div>
+</body>
+</html>`;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -181,63 +173,19 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Exporting ${slides.length} slides to Google Slides format`);
+    console.log(`Exporting ${slides.length} slides for Google Slides import`);
 
-    // Generate presentation XML structure
-    const presentationXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
-                xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
-                xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
-                saveSubsetFonts="1">
-  <p:sldMasterIdLst>
-    <p:sldMasterId id="2147483648" r:id="rId1"/>
-  </p:sldMasterIdLst>
-  <p:sldIdLst>
-    ${slides.map((_: SlideData, i: number) => `<p:sldId id="${256 + i}" r:id="rId${10 + i}"/>`).join('\n    ')}
-  </p:sldIdLst>
-  <p:sldSz cx="9144000" cy="6858000" type="screen4x3"/>
-  <p:notesSz cx="6858000" cy="9144000"/>
-</p:presentation>`;
-
-    // Create a simple HTML-based export that can be copy-pasted
-    const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>${escapeXml(courseTitle)} - ${escapeXml(moduleTitle)}</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-    .slide { border: 1px solid #ccc; padding: 30px; margin: 20px 0; border-radius: 8px; page-break-after: always; }
-    .slide-number { color: #666; font-size: 12px; margin-bottom: 10px; }
-    .slide h2 { margin: 0 0 20px 0; color: #333; }
-    .slide-content { line-height: 1.6; }
-    .slide-content ul { margin: 10px 0; padding-left: 20px; }
-    .speaker-notes { margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 4px; font-size: 14px; color: #666; }
-    .speaker-notes strong { color: #333; }
-    @media print { .slide { page-break-after: always; } }
-  </style>
-</head>
-<body>
-  <h1>${escapeXml(courseTitle)}</h1>
-  <h2>${escapeXml(moduleTitle)}</h2>
-  ${slides.map((slide: SlideData, i: number) => `
-  <div class="slide" style="background-color: ${slide.backgroundColor || '#ffffff'}">
-    <div class="slide-number">Slide ${i + 1}</div>
-    <h2>${escapeXml(slide.title)}</h2>
-    <div class="slide-content">
-      ${slide.content ? `<ul>${slide.content.split('\n').filter((l: string) => l.trim()).map((line: string) => `<li>${escapeXml(line.replace(/^[-•*]\s*/, ''))}</li>`).join('')}</ul>` : ''}
-    </div>
-    ${slide.speakerNotes ? `<div class="speaker-notes"><strong>Talarnoteringar:</strong> ${escapeXml(slide.speakerNotes)}</div>` : ''}
-  </div>`).join('')}
-</body>
-</html>`;
-
-    // Create a data URL for download
-    const base64Content = btoa(unescape(encodeURIComponent(htmlContent)));
+    // Generate HTML content
+    const htmlContent = generateGoogleSlidesHtml(slides, courseTitle, moduleTitle);
+    
+    // Create base64 data URL for download
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(htmlContent);
+    const base64Content = btoa(String.fromCharCode(...bytes));
     const downloadUrl = `data:text/html;base64,${base64Content}`;
-
-    const filename = `${moduleTitle.replace(/[^a-zA-Z0-9]/g, '-')}-presentation.html`;
+    
+    const safeTitle = (moduleTitle || 'presentation').replace(/[^a-zA-Z0-9åäöÅÄÖ\s]/g, '').replace(/\s+/g, '-');
+    const filename = `${safeTitle}-google-slides.html`;
 
     return new Response(
       JSON.stringify({
@@ -245,7 +193,7 @@ serve(async (req) => {
         filename,
         format: 'html',
         slideCount: slides.length,
-        message: 'Open this HTML file in your browser and use File > Print > Save as PDF, then upload to Google Slides'
+        message: 'Spara som PDF och importera till Google Slides'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
