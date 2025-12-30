@@ -15,6 +15,7 @@ import { UserInvitePanel } from '@/components/UserInvitePanel';
 import { VoiceControlPanel } from '@/components/VoiceControlPanel';
 import { PresentationPreviewCard } from '@/components/PresentationPreviewCard';
 import { CustomTemplateUpload } from '@/components/CustomTemplateUpload';
+import { ThemePreviewSelector } from '@/components/ThemePreviewSelector';
 import { StockVideoProviderSettings } from '@/components/StockVideoProviderSettings';
 
 interface SettingsPanelProps {
@@ -135,29 +136,18 @@ export function SettingsPanel({ settings, onSettingsChange, projectMode, onPrese
               </TabsList>
 
               <TabsContent value="style" className="space-y-6 mt-0">
-                {/* Presentation Style */}
+                {/* Visual Theme Selector */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-sm font-medium">
                     <Palette className="w-4 h-4 text-muted-foreground" />
                     Presentationsstil
                   </Label>
-                  <Select
-                    value={presentationSettings?.style || 'modern'}
-                    onValueChange={(value: PresentationStyle) => 
-                      updatePresentationSettings({ style: value })
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Välj stil" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {presentationStyles.map((style) => (
-                        <SelectItem key={style.value} value={style.value}>
-                          {style.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <ThemePreviewSelector
+                    selectedStyle={presentationSettings?.style || 'modern'}
+                    onStyleChange={(style) => updatePresentationSettings({ style })}
+                    showCustomOption={true}
+                    onCustomClick={() => setActiveTab('template')}
+                  />
                 </div>
 
                 {/* Primary Color */}
