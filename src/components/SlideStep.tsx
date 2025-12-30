@@ -267,7 +267,7 @@ export function SlideStep({
     } catch (error) {
       console.error('Presenton generation error:', error);
       setPresentonStatus('failed');
-      
+
       // Check if we should retry
       if (retryCount < maxRetries) {
         console.log(`Retrying slide generation (attempt ${retryCount + 1}/${maxRetries})...`);
@@ -275,11 +275,18 @@ export function SlideStep({
         await new Promise(resolve => setTimeout(resolve, 1500));
         return handleGeneratePresenton(retryCount + 1);
       }
-      
-      // Final fallback to internal generator
-      toast.error('Presenton misslyckades. Använder intern generator.');
-      setSlideGenerator('internal');
-      await fallbackToInternalGenerator();
+
+      const msg = error instanceof Error ? error.message : 'Okänt fel';
+      const isCredits = /credits|payment required|402/i.test(msg);
+
+      toast.error(
+        isCredits
+          ? 'Presenton har inte tillräckliga krediter för att generera presentationen.'
+          : 'Presenton misslyckades. Kontrollera inställningar och försök igen.'
+      );
+
+      // Do NOT auto-fallback here: user explicitly chose Presenton.
+      // They can switch to "Intern" manually if they want.
     } finally {
       if (presentonStatus !== 'pending' && presentonStatus !== 'processing') {
         setIsGeneratingPresenton(false);

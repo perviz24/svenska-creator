@@ -382,7 +382,39 @@ serve(async (req) => {
       if (!generateResponse.ok) {
         const errorText = await generateResponse.text();
         console.error('Presenton API error:', generateResponse.status, errorText);
-        console.log('Presenton API unavailable, falling back to Lovable AI');
+
+        // If Presenton returns a client error (4xx), do NOT silently fall back.
+        // This is almost always a configuration / credits / auth issue.
+        if (generateResponse.status >= 400 && generateResponse.status < 500) {
+          // Try to keep the original error detail if it's JSON
+          let detail: string | undefined;
+          try {
+            const parsed = JSON.parse(errorText);
+            detail = parsed?.detail || parsed?.message;
+          } catch {
+            detail = errorText;
+          }
+
+          const msg = detail || 'Presenton request failed.';
+          const isCredits = /not enough credits/i.test(msg);
+
+          return new Response(
+            JSON.stringify({
+              status: 'failed',
+              source: 'presenton',
+              error: msg,
+              code: isCredits ? 'presenton_insufficient_credits' : 'presenton_request_failed',
+              retryable: false,
+            }),
+            {
+              status: isCredits ? 402 : 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        }
+
+        // For transient errors (5xx), fall back to Lovable AI
+        console.log('Presenton API unavailable (server error), falling back to Lovable AI');
       } else {
         const taskData = await generateResponse.json();
         console.log('Presenton task created:', taskData.id, 'status:', taskData.status);
