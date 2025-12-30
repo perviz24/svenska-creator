@@ -92,3 +92,9 @@ verify_jwt = false
 
 [functions.search-stock-videos]
 verify_jwt = false
+
+[functions.presenton-slides]
+verify_jwt = false
+
+[functions.analyze-course-structure]
+verify_jwt = false
