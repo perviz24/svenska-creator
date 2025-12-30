@@ -632,24 +632,77 @@ export function SlideStep({
                 ? `Generera slides för "${courseTitle}"`
                 : `Generera slides för ${currentScript?.moduleTitle}`}
             </h3>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-muted-foreground mb-4">
               {isPresentation 
                 ? 'AI skapar professionella presentationsslides baserat på ditt ämne.'
                 : 'AI analyserar manuset och skapar professionella presentationsslides.'}
             </p>
-            <Button onClick={handleGenerateSlides} disabled={isLoading}>
-              {isLoading ? (
+            
+            {/* Generator Selection */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Generator:</span>
+                <Select value={slideGenerator} onValueChange={(v) => setSlideGenerator(v as SlideGenerator)}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="internal">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-3 w-3" />
+                        Intern AI
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="presenton">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-3 w-3" />
+                        Presenton
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {slideGenerator === 'presenton' && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Antal slides:</span>
+                  <Select value={numSlides.toString()} onValueChange={(v) => setNumSlides(parseInt(v))}>
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="15">15</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="30">30</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+            
+            <Button onClick={handleGenerateSlides} disabled={isLoading || isGeneratingPresenton}>
+              {isLoading || isGeneratingPresenton ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Genererar slides...
+                  {slideGenerator === 'presenton' ? 'Genererar via Presenton...' : 'Genererar slides...'}
                 </>
               ) : (
                 <>
-                  <Sparkles className="mr-2 h-4 w-4" />
+                  {slideGenerator === 'presenton' ? <Zap className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}
                   Generera slides
                 </>
               )}
             </Button>
+            
+            {slideGenerator === 'presenton' && (
+              <p className="text-xs text-muted-foreground mt-3">
+                Presenton använder avancerad AI för att skapa professionella slides. 
+                Kräver API-nyckel i Cloud-secrets.
+              </p>
+            )}
           </CardContent>
         </Card>
       ) : (
