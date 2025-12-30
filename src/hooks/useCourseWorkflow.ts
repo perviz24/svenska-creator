@@ -1,9 +1,19 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { WorkflowState, WorkflowStep, TitleSuggestion, CourseOutline, CourseSettings, ModuleScript, Slide, ModuleAudio, VideoSettings, ModuleQuiz, ModuleExercises, ModuleSummary } from '@/types/course';
 import { supabase } from '@/integrations/supabase/client';
 import { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+
+// Demo limits applied when Admin Demo Mode is active
+const adminDemoLimits = {
+  enabled: true,
+  maxSlides: 3,
+  maxModules: 1,
+  maxAudioDurationSeconds: 60,
+  maxVideoDurationSeconds: 30,
+  watermarkEnabled: true,
+};
 
 const initialSettings: CourseSettings = {
   voiceId: 'JBFqnCBsd6RMkjVDRZzb',
@@ -62,6 +72,32 @@ export function useCourseWorkflow() {
   const { user } = useAuth();
   const [state, setState] = useState<WorkflowState>(initialState);
   const [courseId, setCourseId] = useState<string | null>(null);
+  
+  // Check if Admin Demo Mode is active (from localStorage)
+  const [isAdminDemoMode, setIsAdminDemoMode] = useState(() => {
+    return localStorage.getItem('adminDemoMode') === 'true';
+  });
+  
+  // Listen for Admin Demo Mode changes
+  useEffect(() => {
+    const checkAdminDemo = () => {
+      setIsAdminDemoMode(localStorage.getItem('adminDemoMode') === 'true');
+    };
+    window.addEventListener('storage', checkAdminDemo);
+    const interval = setInterval(checkAdminDemo, 1000);
+    return () => {
+      window.removeEventListener('storage', checkAdminDemo);
+      clearInterval(interval);
+    };
+  }, []);
+  
+  // Effective demo mode: enabled if regular demo OR admin demo is active
+  const effectiveDemoMode = useMemo(() => {
+    if (isAdminDemoMode) {
+      return adminDemoLimits; // Admin demo applies demo limits
+    }
+    return state.settings.demoMode;
+  }, [isAdminDemoMode, state.settings.demoMode]);
 
   // Load existing courses on mount
   useEffect(() => {
@@ -556,8 +592,7 @@ export function useCourseWorkflow() {
 
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
     
-    const demoMode = state.settings.demoMode;
-    const isDemoMode = demoMode?.enabled || false;
+    const isDemoMode = effectiveDemoMode?.enabled || false;
     
     try {
       const { data, error } = await supabase.functions.invoke('generate-outline', {
@@ -566,7 +601,7 @@ export function useCourseWorkflow() {
           targetDuration: isDemoMode ? 5 : state.settings.targetDuration, // Very short for demo
           style: state.settings.style,
           language: state.settings.language,
-          maxModules: isDemoMode ? demoMode.maxModules : state.settings.structureLimits?.maxModules,
+          maxModules: isDemoMode ? effectiveDemoMode.maxModules : state.settings.structureLimits?.maxModules,
           demoMode: isDemoMode,
         }
       });
@@ -615,8 +650,7 @@ export function useCourseWorkflow() {
 
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
     
-    const demoMode = state.settings.demoMode;
-    const isDemoMode = demoMode?.enabled || false;
+    const isDemoMode = effectiveDemoMode?.enabled || false;
     
     try {
       const { data, error } = await supabase.functions.invoke('generate-script', {
@@ -705,8 +739,7 @@ export function useCourseWorkflow() {
   const generateSlides = useCallback(async (moduleId: string, script: ModuleScript) => {
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
     
-    const demoMode = state.settings.demoMode;
-    const isDemoMode = demoMode?.enabled || false;
+    const isDemoMode = effectiveDemoMode?.enabled || false;
     
     try {
       const scriptText = script.sections.map(s => s.content).join('\n\n');
@@ -717,7 +750,7 @@ export function useCourseWorkflow() {
           moduleTitle: script.moduleTitle,
           courseTitle: state.title,
           language: state.settings.language,
-          maxSlides: isDemoMode ? demoMode.maxSlides : undefined,
+          maxSlides: isDemoMode ? effectiveDemoMode.maxSlides : undefined,
           demoMode: isDemoMode,
         },
       });
@@ -744,8 +777,8 @@ export function useCourseWorkflow() {
       }));
       
       // Limit slides in demo mode
-      if (isDemoMode && demoMode?.maxSlides) {
-        slides = slides.slice(0, demoMode.maxSlides);
+      if (isDemoMode && effectiveDemoMode?.maxSlides) {
+        slides = slides.slice(0, effectiveDemoMode.maxSlides);
       }
 
       setState(prev => ({
@@ -863,6 +896,8 @@ export function useCourseWorkflow() {
     state,
     courseId,
     uploadedContent,
+    isAdminDemoMode, // Expose admin demo mode status
+    effectiveDemoMode, // Expose effective demo limits
     setTitle,
     generateTitleSuggestions,
     selectTitle,

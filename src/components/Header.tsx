@@ -85,9 +85,10 @@ export function Header({ onNewCourse }: HeaderProps) {
             <Link 
               to="/settings" 
               className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-colors"
+              title="Admin Demo: Alla integrationer aktiva + begränsningar (1 modul, 3 slides)"
             >
               <TestTube className="w-3.5 h-3.5 text-amber-500" />
-              <span className="text-xs font-medium text-amber-600">Demo PÅ</span>
+              <span className="text-xs font-medium text-amber-600">Demo PÅ (1M/3S)</span>
             </Link>
           )}
           
