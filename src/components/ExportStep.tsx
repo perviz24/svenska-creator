@@ -29,6 +29,7 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { CourseOutline, ModuleAudio, DemoModeSettings } from '@/types/course';
 import { DemoWatermark } from '@/components/DemoWatermark';
+import pptxgen from 'pptxgenjs';
 
 interface BunnyVideo {
   id: string;
@@ -143,7 +144,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
     return allSlides;
   };
 
-  // Download PPTX handler
+  // Download PPTX handler using pptxgenjs
   const handleDownloadPptx = async () => {
     setIsExportingPptx(true);
     try {
@@ -153,29 +154,129 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('export-slides', {
-        body: {
-          slides,
-          courseTitle: courseTitle || 'Presentation',
-          moduleTitle: outline?.title || 'Module',
-          format: 'pptx',
-          demoMode: isDemoMode,
-          template: 'professional',
-        },
+      // Create a new presentation
+      const pptx = new pptxgen();
+      pptx.author = 'Course Generator';
+      pptx.title = courseTitle || 'Presentation';
+      pptx.subject = 'Generated Presentation';
+      pptx.company = 'Course Platform';
+      
+      // Define master slide layouts
+      pptx.defineSlideMaster({
+        title: 'TITLE_SLIDE',
+        background: { color: '1a1a2e' },
+        objects: [
+          { placeholder: { options: { name: 'title', type: 'title', x: 0.5, y: 2.5, w: 9, h: 1.5, color: 'FFFFFF', fontSize: 44, bold: true, align: 'center' } } },
+          { placeholder: { options: { name: 'subtitle', type: 'body', x: 0.5, y: 4.2, w: 9, h: 1, color: 'AAAAAA', fontSize: 20, align: 'center' } } },
+        ],
       });
 
-      if (error) throw error;
+      pptx.defineSlideMaster({
+        title: 'CONTENT_SLIDE',
+        background: { color: 'FFFFFF' },
+        objects: [
+          { rect: { x: 0, y: 0, w: '100%', h: 0.8, fill: { color: '1a1a2e' } } },
+          { placeholder: { options: { name: 'title', type: 'title', x: 0.5, y: 0.15, w: 9, h: 0.5, color: 'FFFFFF', fontSize: 24, bold: true } } },
+          { placeholder: { options: { name: 'body', type: 'body', x: 0.5, y: 1.2, w: 9, h: 4.3, color: '333333', fontSize: 18 } } },
+        ],
+      });
 
-      // Create downloadable file
-      const blob = new Blob([data.content], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${courseTitle || 'presentation'}.pptx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // Add slides
+      slides.forEach((slideData, index) => {
+        if (slideData.layout === 'title' || index === 0) {
+          // Title slide
+          const slide = pptx.addSlide({ masterName: 'TITLE_SLIDE' });
+          slide.addText(slideData.title, {
+            x: 0.5,
+            y: 2.2,
+            w: 9,
+            h: 1.5,
+            fontSize: 44,
+            bold: true,
+            color: 'FFFFFF',
+            align: 'center',
+            fontFace: 'Arial',
+          });
+          if (slideData.content) {
+            slide.addText(slideData.content, {
+              x: 0.5,
+              y: 4,
+              w: 9,
+              h: 1,
+              fontSize: 20,
+              color: 'AAAAAA',
+              align: 'center',
+              fontFace: 'Arial',
+            });
+          }
+        } else {
+          // Content slide
+          const slide = pptx.addSlide({ masterName: 'CONTENT_SLIDE' });
+          
+          // Header bar
+          slide.addShape('rect', {
+            x: 0,
+            y: 0,
+            w: '100%',
+            h: 0.8,
+            fill: { color: '1a1a2e' },
+          });
+          
+          // Title
+          slide.addText(slideData.title, {
+            x: 0.5,
+            y: 0.15,
+            w: 9,
+            h: 0.5,
+            fontSize: 24,
+            bold: true,
+            color: 'FFFFFF',
+            fontFace: 'Arial',
+          });
+          
+          // Content - handle bullet points
+          if (slideData.content) {
+            const contentLines = slideData.content.split('\n').filter(line => line.trim());
+            const textContent = contentLines.map(line => ({
+              text: line.replace(/^[•\-]\s*/, ''),
+              options: { bullet: { type: 'bullet' as const }, breakLine: true },
+            }));
+            
+            slide.addText(textContent, {
+              x: 0.5,
+              y: 1.2,
+              w: 9,
+              h: 4.3,
+              fontSize: 18,
+              color: '333333',
+              fontFace: 'Arial',
+              valign: 'top',
+            });
+          }
+
+          // Add speaker notes if available
+          if (slideData.speakerNotes) {
+            slide.addNotes(slideData.speakerNotes);
+          }
+        }
+      });
+
+      // Add demo watermark if in demo mode
+      if (isDemoMode) {
+        pptx.addSlide().addText('DEMO - Generated with Demo Mode', {
+          x: 0,
+          y: 5,
+          w: '100%',
+          h: 0.5,
+          fontSize: 12,
+          color: 'AAAAAA',
+          align: 'center',
+          fontFace: 'Arial',
+        });
+      }
+
+      // Generate and download
+      await pptx.writeFile({ fileName: `${courseTitle || 'presentation'}.pptx` });
       
       toast({ title: 'PowerPoint nedladdad!' });
     } catch (error) {
@@ -186,7 +287,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
     }
   };
 
-  // Download PDF handler
+  // Download PDF handler - generates HTML for print-to-PDF
   const handleDownloadPdf = async () => {
     setIsExportingPdf(true);
     try {
@@ -196,28 +297,89 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('export-slides', {
-        body: {
-          slides,
-          courseTitle: courseTitle || 'Presentation',
-          moduleTitle: outline?.title || 'Module',
-          format: 'pdf',
-          demoMode: isDemoMode,
-          template: 'professional',
-        },
-      });
-
-      if (error) throw error;
+      // Generate HTML content for PDF
+      const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${courseTitle || 'Presentation'}</title>
+  <style>
+    @page {
+      size: landscape;
+      margin: 0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; }
+    .slide {
+      width: 100vw;
+      height: 100vh;
+      page-break-after: always;
+      display: flex;
+      flex-direction: column;
+      padding: 40px;
+    }
+    .slide:last-child { page-break-after: auto; }
+    .title-slide {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+    .title-slide h1 { font-size: 48px; margin-bottom: 20px; }
+    .title-slide p { font-size: 24px; color: #aaa; }
+    .content-slide { background: #fff; }
+    .content-slide .header {
+      background: #1a1a2e;
+      color: white;
+      padding: 20px 40px;
+      margin: -40px -40px 30px -40px;
+    }
+    .content-slide h2 { font-size: 28px; margin-bottom: 20px; }
+    .content-slide .body { flex: 1; font-size: 20px; line-height: 1.6; }
+    .content-slide ul { padding-left: 30px; }
+    .content-slide li { margin-bottom: 12px; }
+    ${isDemoMode ? '.demo-watermark { position: fixed; bottom: 10px; right: 10px; color: #ccc; font-size: 12px; }' : ''}
+  </style>
+</head>
+<body>
+  ${slides.map((slide, index) => {
+    if (slide.layout === 'title' || index === 0) {
+      return `
+        <div class="slide title-slide">
+          <h1>${slide.title}</h1>
+          ${slide.content ? `<p>${slide.content}</p>` : ''}
+        </div>
+      `;
+    } else {
+      const contentLines = slide.content?.split('\n').filter(line => line.trim()) || [];
+      const bulletPoints = contentLines.map(line => `<li>${line.replace(/^[•\-]\s*/, '')}</li>`).join('');
+      return `
+        <div class="slide content-slide">
+          <div class="header">
+            <h2>${slide.title}</h2>
+          </div>
+          <div class="body">
+            ${bulletPoints ? `<ul>${bulletPoints}</ul>` : ''}
+          </div>
+        </div>
+      `;
+    }
+  }).join('')}
+  ${isDemoMode ? '<div class="demo-watermark">DEMO MODE</div>' : ''}
+</body>
+</html>`;
 
       // Create downloadable HTML that can be printed as PDF
-      const blob = new Blob([data.content], { type: 'text/html' });
+      const blob = new Blob([htmlContent], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       
       // Open in new window for print-to-PDF
       const printWindow = window.open(url, '_blank');
       if (printWindow) {
         printWindow.onload = () => {
-          printWindow.print();
+          setTimeout(() => printWindow.print(), 500);
         };
       }
       
