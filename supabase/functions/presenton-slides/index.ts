@@ -78,50 +78,38 @@ serve(async (req) => {
         const errorText = await presentonResponse.text();
         console.error('Presenton API error:', presentonResponse.status, errorText);
         
-        if (presentonResponse.status === 429) {
-          return new Response(
-            JSON.stringify({ error: 'Presenton rate limit exceeded. Try again later.', fallback: true }),
-            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        
-        // Return fallback flag so frontend can use internal generation
+        // For 404 or other errors, fall through to Lovable AI fallback instead of returning error
+        console.log('Presenton API unavailable, falling back to Lovable AI');
+      } else {
+        const presentonData = await presentonResponse.json();
+        console.log('Presenton response received:', presentonData.presentation_id);
+
+        // Transform Presenton response to our slide format
+        const slides: SlideContent[] = (presentonData.slides || []).map((slide: any, index: number) => ({
+          slideNumber: index + 1,
+          title: slide.title || `Slide ${index + 1}`,
+          content: slide.content || slide.bullet_points?.join('\n') || '',
+          speakerNotes: slide.speaker_notes || slide.notes || '',
+          layout: mapPresentonLayout(slide.layout || 'content'),
+          imageUrl: slide.image_url,
+          imageSource: slide.image_url ? 'presenton' : undefined,
+          imageAttribution: slide.image_attribution,
+          suggestedImageQuery: slide.image_query || slide.title,
+        }));
+
         return new Response(
-          JSON.stringify({ 
-            error: `Presenton API error: ${presentonResponse.status}`,
-            fallback: true 
+          JSON.stringify({
+            slides,
+            presentationId: presentonData.presentation_id,
+            downloadUrl: presentonData.path,
+            editUrl: presentonData.edit_path,
+            source: 'presenton',
+            creditsConsumed: presentonData.credits_consumed || slides.length,
           }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      const presentonData = await presentonResponse.json();
-      console.log('Presenton response received:', presentonData.presentation_id);
-
-      // Transform Presenton response to our slide format
-      const slides: SlideContent[] = (presentonData.slides || []).map((slide: any, index: number) => ({
-        slideNumber: index + 1,
-        title: slide.title || `Slide ${index + 1}`,
-        content: slide.content || slide.bullet_points?.join('\n') || '',
-        speakerNotes: slide.speaker_notes || slide.notes || '',
-        layout: mapPresentonLayout(slide.layout || 'content'),
-        imageUrl: slide.image_url,
-        imageSource: slide.image_url ? 'presenton' : undefined,
-        imageAttribution: slide.image_attribution,
-        suggestedImageQuery: slide.image_query || slide.title,
-      }));
-
-      return new Response(
-        JSON.stringify({
-          slides,
-          presentationId: presentonData.presentation_id,
-          downloadUrl: presentonData.path,
-          editUrl: presentonData.edit_path,
-          source: 'presenton',
-          creditsConsumed: presentonData.credits_consumed || slides.length,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
     // Fallback: Use Lovable AI to generate professional slides
