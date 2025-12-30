@@ -190,6 +190,8 @@ const Index = () => {
             outline={state.outline}
             moduleAudio={state.moduleAudio}
             courseTitle={state.title}
+            scripts={state.scripts}
+            slides={state.slides}
             demoMode={state.settings.demoMode}
             projectMode={state.settings.projectMode}
           />

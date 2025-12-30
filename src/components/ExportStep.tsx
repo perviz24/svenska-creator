@@ -46,12 +46,23 @@ interface ExportStepProps {
   outline: CourseOutline | null;
   moduleAudio: Record<string, ModuleAudio>;
   courseTitle: string;
+  scripts?: Array<{
+    moduleId: string;
+    moduleTitle: string;
+    sections: Array<{ id: string; title: string; content: string }>;
+  }>;
+  slides?: Record<string, Array<{
+    title: string;
+    content: string;
+    speakerNotes?: string;
+    layout: string;
+  }>>;
   onComplete?: () => void;
   demoMode?: DemoModeSettings;
   projectMode?: 'course' | 'presentation';
 }
 
-export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demoMode, projectMode = 'course' }: ExportStepProps) {
+export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides: providedSlides, onComplete, demoMode, projectMode = 'course' }: ExportStepProps) {
   const isDemoMode = demoMode?.enabled || false;
   // Bunny.net state
   const [bunnyVideos, setBunnyVideos] = useState<BunnyVideo[]>([]);
@@ -110,8 +121,39 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
     }
   }, [isDemoMode]);
 
-  // Helper to collect all slides from outline
+  // Helper to collect all slides from outline with proper script content as speaker notes
   const collectAllSlides = () => {
+    // If slides are provided (generated), use them directly
+    if (providedSlides && Object.keys(providedSlides).length > 0) {
+      const allSlides: Array<{
+        title: string;
+        content: string;
+        speakerNotes?: string;
+        layout: string;
+        imageUrl?: string;
+        backgroundColor?: string;
+      }> = [];
+      
+      Object.entries(providedSlides).forEach(([moduleId, moduleSlides]) => {
+        // Find the corresponding script for this module to get speaker notes
+        const moduleScript = scripts?.find(s => s.moduleId === moduleId);
+        const scriptContent = moduleScript?.sections?.map(s => s.content).join('\n\n') || '';
+        
+        moduleSlides.forEach((slide, index) => {
+          allSlides.push({
+            title: slide.title,
+            content: slide.content || '',
+            // Use slide's speaker notes if available, or distribute script content
+            speakerNotes: slide.speakerNotes || (index === 0 ? scriptContent : ''),
+            layout: slide.layout || 'title-content',
+          });
+        });
+      });
+      
+      return allSlides;
+    }
+    
+    // Fallback: generate slides from outline
     if (!outline?.modules) return [];
     const allSlides: Array<{
       title: string;
@@ -123,21 +165,29 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
     }> = [];
     
     outline.modules.forEach((module) => {
-      // Add module title slide
+      // Find the script for this module
+      const moduleScript = scripts?.find(s => s.moduleId === module.id);
+      const scriptContent = moduleScript?.sections?.map(s => s.content).join('\n\n') || '';
+      
+      // Add module title slide with full script as speaker notes
       allSlides.push({
         title: module.title,
         content: module.description || '',
         layout: 'title',
-        speakerNotes: '',
+        speakerNotes: scriptContent, // Full script in speaker notes
       });
       
-      // Add sub-topic slides
-      module.subTopics?.forEach((subTopic) => {
+      // Add sub-topic slides with relevant script sections
+      module.subTopics?.forEach((subTopic, index) => {
+        // Try to match subtopic to script section
+        const relevantSection = moduleScript?.sections?.[index];
+        const sectionContent = relevantSection?.content || '';
+        
         allSlides.push({
           title: subTopic.title,
           content: module.learningObjectives?.map(lo => `• ${lo.text}`).join('\n') || '',
           layout: 'bullet-points',
-          speakerNotes: '',
+          speakerNotes: sectionContent, // Section-specific script as speaker notes
         });
       });
     });
@@ -190,6 +240,10 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
               fontFace: 'Arial',
             });
           }
+          // Add speaker notes to title slide as well (contains full script)
+          if (slideData.speakerNotes) {
+            slide.addNotes(slideData.speakerNotes);
+          }
         } else {
           // Clean content slide
           slide.addText(slideData.title, {
@@ -222,6 +276,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
             });
           }
 
+          // Add speaker notes (script content for this slide)
           if (slideData.speakerNotes) {
             slide.addNotes(slideData.speakerNotes);
           }
@@ -297,6 +352,10 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
               fontFace: 'Arial',
             });
           }
+          // Add speaker notes to title slide (contains full script)
+          if (slideData.speakerNotes) {
+            slide.addNotes(slideData.speakerNotes);
+          }
         } else {
           // Styled content slide with header bar
           slide.background = { color: 'FFFFFF' };
@@ -339,6 +398,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, onComplete, demo
             });
           }
 
+          // Add speaker notes (script content)
           if (slideData.speakerNotes) {
             slide.addNotes(slideData.speakerNotes);
           }
