@@ -1002,11 +1002,8 @@ export function SlideStep({
                 </DropdownMenu>
               )}
             </div>
-          </CardContent>
-        </Card>
-      ) : (
             
-            /* Presenton Progress Indicator */
+            {/* Presenton Progress Indicator */}
             {isGeneratingPresenton && slideGenerator === 'presenton' && (
               <div className="mt-6 w-full max-w-md mx-auto">
                 <div className="bg-muted rounded-lg p-4 space-y-3">
@@ -1076,18 +1073,40 @@ export function SlideStep({
                       Generera igen
                     </Button>
                   </div>
+                  
+                  {/* Alternatives display */}
+                  {generationHistory.length > 1 && (
+                    <div className="pt-2 border-t border-border/50">
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {generationHistory.length} alternativ genererade
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {generationHistory.slice(-5).map((item, idx) => (
+                          <Button
+                            key={item.id}
+                            size="sm"
+                            variant={item.downloadUrl === presentonDownloadUrl ? "default" : "outline"}
+                            className="text-xs h-7"
+                            onClick={() => item.downloadUrl && window.open(item.downloadUrl, '_blank')}
+                          >
+                            {idx === generationHistory.length - 1 ? 'Senaste' : `Alt ${idx + 1}`}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
             
             {slideGenerator === 'presenton' && presentonStatus === 'idle' && (
-              <p className="text-xs text-muted-foreground mt-3">
-                Presenton använder avancerad AI för att skapa professionella slides. 
-                Genererar en nedladdningsbar PPTX-fil.
+              <p className="text-xs text-muted-foreground mt-3 text-center">
+                Presenton använder avancerad AI för att skapa professionella slides.
               </p>
             )}
           </CardContent>
         </Card>
+        </>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Slide Preview */}
@@ -1347,8 +1366,6 @@ export function SlideStep({
             </CardContent>
           </Card>
         </div>
-      )}
-      </>
       )}
 
       {/* Action Buttons */}
