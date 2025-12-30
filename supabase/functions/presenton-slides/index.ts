@@ -436,6 +436,29 @@ Generate exactly ${numSlides} slides with variety in layouts. Ensure each slide 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Lovable AI error:', response.status, errorText);
+      
+      // Return user-friendly error messages
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Rate limit exceeded. Please try again in a moment.',
+            status: 'error',
+            retryable: true,
+          }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Payment required. Please add credits to continue.',
+            status: 'error',
+            retryable: false,
+          }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       throw new Error(`AI API error: ${response.status}`);
     }
 
@@ -443,11 +466,24 @@ Generate exactly ${numSlides} slides with variety in layouts. Ensure each slide 
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     
     if (!toolCall) {
-      throw new Error('Unexpected AI response format');
+      console.error('No tool call in AI response:', JSON.stringify(data).substring(0, 500));
+      throw new Error('Unexpected AI response format - no structured slide data returned');
     }
 
-    const slidesData = JSON.parse(toolCall.function.arguments);
-    console.log(`Generated ${slidesData.slides?.length} slides with enhanced prompting`);
+    let slidesData;
+    try {
+      slidesData = JSON.parse(toolCall.function.arguments);
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', toolCall.function.arguments?.substring(0, 500));
+      throw new Error('Failed to parse slide data from AI');
+    }
+    
+    if (!slidesData.slides || slidesData.slides.length === 0) {
+      console.error('No slides in parsed response:', slidesData);
+      throw new Error('AI did not generate any slides');
+    }
+    
+    console.log(`Successfully generated ${slidesData.slides.length} slides with enhanced prompting`);
     
     return new Response(
       JSON.stringify({
@@ -455,6 +491,7 @@ Generate exactly ${numSlides} slides with variety in layouts. Ensure each slide 
         presentationTitle: slidesData.presentationTitle,
         slides: slidesData.slides,
         source: 'lovable-ai',
+        slideCount: slidesData.slides.length,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
