@@ -155,28 +155,51 @@ serve(async (req) => {
       ? 'IMPORTANT: This is a demo version. Keep content VERY short and concise. Only 1 module with 2 subtopics. Total max 3 minutes.'
       : '';
 
+    // Medical domain-specific guidelines for Swedish healthcare education
+    const medicalGuidelinesSv = `
+MEDICINSKA KURSRIKTLINJER:
+- Strukturera innehållet enligt klinisk praxis och evidensbaserad medicin
+- Inkludera lärandemål som är mätbara och kliniskt relevanta
+- Täck både teoretisk kunskap och praktisk tillämpning
+- Följ svensk vårdpraxis och Socialstyrelsens riktlinjer
+- Inkludera patentsäkerhet och kvalitetssäkring som genomgående tema
+- Varje modul bör ha ett kliniskt fokus med praktiska tillämpningar`;
+
+    const medicalGuidelinesEn = `
+MEDICAL COURSE GUIDELINES:
+- Structure content according to clinical practice and evidence-based medicine
+- Include learning objectives that are measurable and clinically relevant
+- Cover both theoretical knowledge and practical application
+- Follow evidence-based practice standards
+- Include patient safety and quality assurance as recurring themes
+- Each module should have a clinical focus with practical applications`;
+
     const systemPrompt = language === 'sv'
-      ? `Du är en expert på att skapa kursplaner för vårdutbildning.
+      ? `Du är en expert på att skapa kursplaner för medicinsk utbildning och vårdutbildning.
          Skapa en detaljerad kursöversikt med ${moduleCount} moduler för en kurs som är cirka ${promptDuration} minuter lång.
          Kursen ska vara på ${levelDescSv}.
-         Stilen ska vara ${style === 'professional' ? 'professionell' : style === 'conversational' ? 'konversationell' : 'akademisk'}.
+         Stilen ska vara ${style === 'professional' ? 'professionell med klinisk auktoritet' : style === 'conversational' ? 'konversationell men kliniskt korrekt' : 'akademisk med vetenskaplig precision'}.
          ${demoInstructionSv}
+         ${medicalGuidelinesSv}
          
          Svara ENDAST med giltig JSON i detta format:
          {
            "outline": {
              "title": "Kurstitel",
-             "description": "En kort, engagerande beskrivning av kursen (1-2 meningar)",
+             "description": "En kort, engagerande beskrivning av kursen med klinisk relevans (1-2 meningar)",
              "totalDuration": ${promptDuration},
+             "targetAudience": "Målgrupp (t.ex. läkare, sjuksköterskor, vårdpersonal)",
+             "prerequisites": ["Förkunskapskrav 1", "Förkunskapskrav 2"],
              "modules": [
                {
                  "id": "module-1",
                  "number": 1,
                  "title": "Modultitel",
-                 "description": "Kort beskrivning av modulen",
+                 "description": "Kort beskrivning med klinisk relevans",
                  "duration": ${demoMode ? 2 : 8},
+                 "clinicalFocus": "Primärt kliniskt fokusområde",
                  "learningObjectives": [
-                   {"id": "lo-1-1", "text": "Lärandemål 1"},
+                   {"id": "lo-1-1", "text": "Lärandemål 1 (mätbart, kliniskt relevant)"},
                    {"id": "lo-1-2", "text": "Lärandemål 2"}
                  ],
                  "subTopics": [
@@ -190,27 +213,31 @@ serve(async (req) => {
          
          Varje modul ska ha ${learningObjectivesPerModule} lärandemål och ${subTopicsPerModule} delteman.
          Summan av alla modulers längd ska vara ungefär ${promptDuration} minuter.`
-      : `You are an expert at creating course outlines for healthcare education.
+      : `You are an expert at creating course outlines for medical and healthcare education.
          Create a detailed course outline with ${moduleCount} modules for a course that is approximately ${promptDuration} minutes long.
          The course should be at ${comprehensiveLevel} level.
-         The style should be ${style}.
+         The style should be ${style === 'professional' ? 'professional with clinical authority' : style === 'conversational' ? 'conversational but clinically accurate' : 'academic with scientific precision'}.
          ${demoInstructionEn}
+         ${medicalGuidelinesEn}
          
          Respond ONLY with valid JSON in this format:
          {
            "outline": {
              "title": "Course Title",
-             "description": "A short, engaging description of the course (1-2 sentences)",
+             "description": "A short, engaging description with clinical relevance (1-2 sentences)",
              "totalDuration": ${promptDuration},
+             "targetAudience": "Target audience (e.g., physicians, nurses, healthcare workers)",
+             "prerequisites": ["Prerequisite 1", "Prerequisite 2"],
              "modules": [
                {
                  "id": "module-1",
                  "number": 1,
                  "title": "Module Title",
-                 "description": "Brief description of the module",
+                 "description": "Brief description with clinical relevance",
                  "duration": ${demoMode ? 2 : 8},
+                 "clinicalFocus": "Primary clinical focus area",
                  "learningObjectives": [
-                   {"id": "lo-1-1", "text": "Learning objective 1"},
+                   {"id": "lo-1-1", "text": "Learning objective 1 (measurable, clinically relevant)"},
                    {"id": "lo-1-2", "text": "Learning objective 2"}
                  ],
                  "subTopics": [

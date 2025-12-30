@@ -32,8 +32,11 @@ serve(async (req) => {
     
     console.log(`Generating voice for ${text.length} characters with voice ${effectiveVoiceId} (original: ${voiceId || 'none'})`);
 
+    // Parse voice settings from request or use optimized defaults for Swedish medical content
+    const { stability = 0.65, similarityBoost = 0.80, style = 0.25, speed = 0.95 } = await req.json().catch(() => ({}));
+    
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${effectiveVoiceId}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${effectiveVoiceId}?output_format=mp3_44100_128`,
       {
         method: 'POST',
         headers: {
@@ -42,13 +45,13 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           text,
-          model_id: 'eleven_multilingual_v2',
-          output_format: 'mp3_44100_128',
+          model_id: 'eleven_multilingual_v2', // Best for Swedish pronunciation
           voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0.3,
-            use_speaker_boost: true,
+            stability: stability, // Higher for medical terminology consistency
+            similarity_boost: similarityBoost, // Strong voice clarity
+            style: style, // Lower for professional tone
+            use_speaker_boost: true, // Enhanced clarity
+            speed: speed, // Slightly slower for medical terms
           },
         }),
       }

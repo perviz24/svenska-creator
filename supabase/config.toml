@@ -98,3 +98,9 @@ verify_jwt = false
 
 [functions.analyze-course-structure]
 verify_jwt = false
+
+[functions.estimate-audio-timing]
+verify_jwt = false
+
+[functions.verify-medical-content]
+verify_jwt = false
