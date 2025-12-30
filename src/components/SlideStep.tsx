@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage, Upload, Palette, SkipForward, Layers, FileSpreadsheet, Zap, Settings2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Presentation, Image, Sparkles, ChevronLeft, ChevronRight, Loader2, Search, RefreshCw, Wand2, Download, FileText, FileImage, Upload, Palette, SkipForward, Layers, FileSpreadsheet, Zap, Settings2, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -73,6 +73,13 @@ export function SlideStep({
   const [exportTemplate, setExportTemplate] = useState<ExportTemplate>('professional');
   const [isGeneratingPresenton, setIsGeneratingPresenton] = useState(false);
   const [numSlides, setNumSlides] = useState(10);
+  
+  // Presenton async polling state
+  const [presentonTaskId, setPresentonTaskId] = useState<string | null>(null);
+  const [presentonProgress, setPresentonProgress] = useState(0);
+  const [presentonStatus, setPresentonStatus] = useState<'idle' | 'pending' | 'processing' | 'completed' | 'failed'>('idle');
+  const [presentonDownloadUrl, setPresentonDownloadUrl] = useState<string | null>(null);
+  const [presentonEditUrl, setPresentonEditUrl] = useState<string | null>(null);
 
   // Helper function to clean markdown from slide content
   const cleanMarkdown = (text: string): string => {
@@ -140,11 +147,18 @@ export function SlideStep({
 
   const handleGeneratePresenton = async () => {
     setIsGeneratingPresenton(true);
+    setPresentonStatus('pending');
+    setPresentonProgress(0);
+    setPresentonDownloadUrl(null);
+    setPresentonEditUrl(null);
+    
     try {
       const scriptContent = currentScript?.sections?.map(s => `${s.title}\n${s.content}`).join('\n\n') || '';
       
+      // Step 1: Start async generation
       const { data, error } = await supabase.functions.invoke('presenton-slides', {
         body: {
+          action: 'generate',
           topic: isPresentation ? courseTitle : currentScript?.moduleTitle,
           numSlides: numSlides,
           language: 'sv',
@@ -157,68 +171,136 @@ export function SlideStep({
 
       if (error) throw error;
 
-      if (data.fallback && data.error) {
-        toast.info('Använder intern AI för slide-generering');
-      }
-
-      if (data.slides && data.slides.length > 0) {
-        // Apply generated slides using setModuleSlides
-        const moduleId = isPresentation ? presentationModuleId : currentScript?.moduleId;
-        if (moduleId && onSetModuleSlides) {
-          const newSlides: Slide[] = data.slides.map((slide: any, index: number) => ({
-            moduleId,
-            slideNumber: index + 1,
-            title: slide.title,
-            content: slide.content,
-            speakerNotes: slide.speakerNotes,
-            layout: slide.layout as Slide['layout'] || 'title-content',
-            imageUrl: slide.imageUrl,
-            imageSource: slide.imageSource as Slide['imageSource'],
-            imageAttribution: slide.imageAttribution,
-            suggestedImageQuery: slide.suggestedImageQuery,
-          }));
-          onSetModuleSlides(moduleId, newSlides);
-        }
+      // Check if it's an async response (Presenton) or sync response (Lovable AI fallback)
+      if (data.status === 'pending' && data.taskId) {
+        // Presenton async - start polling
+        setPresentonTaskId(data.taskId);
+        setPresentonProgress(10);
+        toast.info('Presentation genereras via Presenton...');
         
-        toast.success(`${data.slides.length} slides genererade${data.source === 'presenton' ? ' via Presenton' : ''}!`);
-        setSelectedSlideIndex(0);
-        
-        if (data.editUrl) {
-          toast.info('Slides kan redigeras i Presenton', {
-            action: {
-              label: 'Öppna',
-              onClick: () => window.open(data.editUrl, '_blank'),
-            },
-          });
-        }
-      } else {
-        throw new Error('Inga slides genererades');
+        // Poll for completion
+        await pollPresentonStatus(data.taskId);
+      } else if (data.status === 'completed' && data.slides) {
+        // Lovable AI sync response - apply slides directly
+        handleSlidesReceived(data.slides, data.source);
+        setPresentonStatus('completed');
+      } else if (data.error) {
+        throw new Error(data.error);
       }
     } catch (error) {
       console.error('Presenton generation error:', error);
+      setPresentonStatus('failed');
       toast.error('Kunde inte generera slides. Försöker med intern generator.');
       // Fallback to internal generator
       setSlideGenerator('internal');
-      if (isPresentation) {
-        const presentationScript: ModuleScript = {
-          moduleId: presentationModuleId,
-          moduleTitle: courseTitle || 'Presentation',
-          totalWords: 0,
-          estimatedDuration: 0,
-          citations: [],
-          sections: [{
-            id: 'section-1',
-            title: courseTitle || 'Presentation',
-            content: courseTitle || 'Presentation content',
-            slideMarkers: [],
-          }],
-        };
-        await onGenerateSlides(presentationModuleId, presentationScript);
-      } else if (currentScript) {
-        await onGenerateSlides(currentScript.moduleId, currentScript);
-      }
+      await fallbackToInternalGenerator();
     } finally {
-      setIsGeneratingPresenton(false);
+      if (presentonStatus !== 'pending' && presentonStatus !== 'processing') {
+        setIsGeneratingPresenton(false);
+      }
+    }
+  };
+
+  const pollPresentonStatus = async (taskId: string) => {
+    const maxAttempts = 60; // 2 minutes max
+    const pollInterval = 2000; // 2 seconds
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const { data, error } = await supabase.functions.invoke('presenton-slides', {
+          body: {
+            action: 'status',
+            taskId,
+          },
+        });
+
+        if (error) throw error;
+
+        // Update progress based on attempt (simulate progress)
+        const progress = Math.min(10 + (attempt * 1.5), 90);
+        setPresentonProgress(progress);
+
+        if (data.status === 'completed') {
+          setPresentonStatus('completed');
+          setPresentonProgress(100);
+          setPresentonDownloadUrl(data.downloadUrl);
+          setPresentonEditUrl(data.editUrl);
+          setIsGeneratingPresenton(false);
+          
+          toast.success('Presentation genererad via Presenton!', {
+            action: {
+              label: 'Ladda ner PPTX',
+              onClick: () => window.open(data.downloadUrl, '_blank'),
+            },
+          });
+          
+          // Presenton returns PPTX, not slide data - show download options
+          return;
+        }
+
+        if (data.status === 'failed') {
+          throw new Error(data.error || 'Generation failed');
+        }
+
+        setPresentonStatus(data.status);
+
+        // Wait before next poll
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+      } catch (error) {
+        console.error('Polling error:', error);
+        setPresentonStatus('failed');
+        setIsGeneratingPresenton(false);
+        toast.error('Fel vid hämtning av presentation status');
+        return;
+      }
+    }
+
+    // Timeout
+    setPresentonStatus('failed');
+    setIsGeneratingPresenton(false);
+    toast.error('Timeout - presentationen tog för lång tid att generera');
+  };
+
+  const handleSlidesReceived = (slidesData: any[], source: string) => {
+    const moduleId = isPresentation ? presentationModuleId : currentScript?.moduleId;
+    if (moduleId && onSetModuleSlides) {
+      const newSlides: Slide[] = slidesData.map((slide: any, index: number) => ({
+        moduleId,
+        slideNumber: index + 1,
+        title: slide.title,
+        content: slide.content,
+        speakerNotes: slide.speakerNotes,
+        layout: slide.layout as Slide['layout'] || 'title-content',
+        imageUrl: slide.imageUrl,
+        imageSource: slide.imageSource as Slide['imageSource'],
+        imageAttribution: slide.imageAttribution,
+        suggestedImageQuery: slide.suggestedImageQuery,
+      }));
+      onSetModuleSlides(moduleId, newSlides);
+    }
+    
+    toast.success(`${slidesData.length} slides genererade${source === 'presenton' ? ' via Presenton' : ''}!`);
+    setSelectedSlideIndex(0);
+  };
+
+  const fallbackToInternalGenerator = async () => {
+    if (isPresentation) {
+      const presentationScript: ModuleScript = {
+        moduleId: presentationModuleId,
+        moduleTitle: courseTitle || 'Presentation',
+        totalWords: 0,
+        estimatedDuration: 0,
+        citations: [],
+        sections: [{
+          id: 'section-1',
+          title: courseTitle || 'Presentation',
+          content: courseTitle || 'Presentation content',
+          slideMarkers: [],
+        }],
+      };
+      await onGenerateSlides(presentationModuleId, presentationScript);
+    } else if (currentScript) {
+      await onGenerateSlides(currentScript.moduleId, currentScript);
     }
   };
 
@@ -819,10 +901,84 @@ export function SlideStep({
               )}
             </Button>
             
-            {slideGenerator === 'presenton' && (
+            {/* Presenton Progress Indicator */}
+            {isGeneratingPresenton && slideGenerator === 'presenton' && (
+              <div className="mt-6 w-full max-w-md mx-auto">
+                <div className="bg-muted rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {presentonStatus === 'pending' && 'Startar generering...'}
+                      {presentonStatus === 'processing' && 'Skapar presentation...'}
+                      {presentonStatus === 'completed' && 'Klart!'}
+                      {presentonStatus === 'failed' && 'Fel uppstod'}
+                    </span>
+                    <span className="font-medium">{Math.round(presentonProgress)}%</span>
+                  </div>
+                  <div className="w-full bg-background rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all duration-500 ease-out rounded-full"
+                      style={{ width: `${presentonProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Presenton genererar din presentation. Detta kan ta upp till 2 minuter.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Presenton Download/Edit Options */}
+            {presentonStatus === 'completed' && (presentonDownloadUrl || presentonEditUrl) && (
+              <div className="mt-6 w-full max-w-md mx-auto">
+                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                    <Sparkles className="h-4 w-4" />
+                    <span className="font-medium">Presentation genererad via Presenton!</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Din presentation är klar. Ladda ner som PPTX eller redigera i Presenton.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {presentonDownloadUrl && (
+                      <Button 
+                        size="sm" 
+                        onClick={() => window.open(presentonDownloadUrl, '_blank')}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Ladda ner PPTX
+                      </Button>
+                    )}
+                    {presentonEditUrl && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => window.open(presentonEditUrl, '_blank')}
+                      >
+                        <Layers className="h-4 w-4 mr-2" />
+                        Redigera i Presenton
+                      </Button>
+                    )}
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      onClick={() => {
+                        setPresentonStatus('idle');
+                        setPresentonDownloadUrl(null);
+                        setPresentonEditUrl(null);
+                      }}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Generera igen
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {slideGenerator === 'presenton' && presentonStatus === 'idle' && (
               <p className="text-xs text-muted-foreground mt-3">
                 Presenton använder avancerad AI för att skapa professionella slides. 
-                Kräver API-nyckel i Cloud-secrets.
+                Genererar en nedladdningsbar PPTX-fil.
               </p>
             )}
           </CardContent>
