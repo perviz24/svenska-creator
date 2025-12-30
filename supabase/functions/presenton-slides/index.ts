@@ -335,16 +335,20 @@ serve(async (req) => {
         detected_mood: topicContext.visualMood,
       });
 
-      // Build optimized instructions for best visual output
+      // Build optimized instructions for best visual output (keep it short + design-first)
       const enhancedInstructions = [
         effectiveInstructions,
-        'Create visually stunning, professional slides with modern design.',
-        'Use high-quality images that directly relate to the content.',
-        'Ensure clear visual hierarchy with impactful headings.',
-        'Apply consistent branding and color scheme throughout.',
-        'Include data visualizations where appropriate.',
+        'Prioritize premium visual design: strong layout, consistent spacing, and clear hierarchy.',
+        'Keep text concise (max 5 bullets). Use impactful headings.',
+        'Use relevant high-quality imagery and icons that directly support the slide message.',
+        'Ensure consistent theme styling across all slides.',
       ].filter(Boolean).join(' ');
 
+      // Presenton docs: https://docs.presenton.ai/api-reference/presentation/generate-presentation-async
+      // Key changes for quality:
+      // - image_type: "stock" (typically higher, more consistent quality than AI-generated images)
+      // - include allow_access_to_user_info + trigger_webhook fields (doc parity)
+      // - web_search: false (reduce off-topic drift)
       const presentonPayload = {
         content: contentText.substring(0, 10000),
         n_slides: Math.min(numSlides, 50),
@@ -354,12 +358,14 @@ serve(async (req) => {
         tone: effectiveTone,
         instructions: enhancedInstructions,
         verbosity: 'standard',
-        web_search: true, // Enable web search for better content grounding
-        image_type: 'ai-generated', // AI-generated images for unique, relevant visuals
-        markdown_emphasis: true, // Enable markdown formatting
+        markdown_emphasis: true,
+        web_search: false,
+        image_type: 'stock',
         include_title_slide: true,
         include_table_of_contents: numSlides > 8,
+        allow_access_to_user_info: true,
         export_as: 'pptx',
+        trigger_webhook: false,
       };
 
       console.log('Calling Presenton async endpoint with payload:', JSON.stringify(presentonPayload, null, 2));
