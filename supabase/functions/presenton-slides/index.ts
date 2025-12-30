@@ -24,8 +24,41 @@ interface PresentonRequest {
   additionalContext?: string;
 }
 
-// Presenton API endpoint (self-hosted or cloud)
-const PRESENTON_API_URL = Deno.env.get('PRESENTON_API_URL') || 'https://api.presenton.ai';
+// Presenton API endpoint
+const PRESENTON_API_URL = 'https://api.presenton.ai';
+
+// Helper to poll for task completion
+async function pollTaskStatus(taskId: string, apiKey: string, maxAttempts = 30, delayMs = 2000): Promise<any> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const statusResponse = await fetch(`${PRESENTON_API_URL}/api/v1/ppt/presentation/status/${taskId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+    });
+
+    if (!statusResponse.ok) {
+      const errorText = await statusResponse.text();
+      throw new Error(`Status check failed: ${statusResponse.status} ${errorText}`);
+    }
+
+    const statusData = await statusResponse.json();
+    console.log(`Task ${taskId} status: ${statusData.status}`);
+
+    if (statusData.status === 'completed') {
+      return statusData;
+    }
+
+    if (statusData.status === 'failed') {
+      throw new Error(`Presenton task failed: ${statusData.message || 'Unknown error'}`);
+    }
+
+    // Wait before next poll
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+  }
+
+  throw new Error('Presenton task timeout - generation took too long');
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -57,15 +90,28 @@ serve(async (req) => {
     if (PRESENTON_API_KEY) {
       console.log('Using Presenton Cloud API for slide generation');
       
+      // Build content string for Presenton
+      const contentText = scriptContent || additionalContext || topic || moduleTitle || courseTitle || '';
+      
       const presentonPayload = {
-        topic: topic || moduleTitle || courseTitle,
-        n_slides: Math.min(numSlides, 100), // Presenton supports up to 100 slides
+        content: contentText.substring(0, 10000), // Presenton content limit
+        n_slides: Math.min(numSlides, 100),
         language: language === 'sv' ? 'Swedish' : 'English',
-        style: style,
-        additional_context: additionalContext || scriptContent?.substring(0, 5000) || '',
+        template: 'general',
+        tone: style === 'professional' ? 'default' : style,
+        verbosity: 'standard',
+        markdown_emphasis: true,
+        web_search: false,
+        image_type: 'stock',
+        include_title_slide: true,
+        include_table_of_contents: false,
+        export_as: 'pptx',
       };
 
-      const presentonResponse = await fetch(`${PRESENTON_API_URL}/v1/presentations/generate`, {
+      console.log('Calling Presenton async endpoint...');
+      
+      // Step 1: Start async generation
+      const generateResponse = await fetch(`${PRESENTON_API_URL}/api/v1/ppt/presentation/generate/async`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${PRESENTON_API_KEY}`,
@@ -74,46 +120,43 @@ serve(async (req) => {
         body: JSON.stringify(presentonPayload),
       });
 
-      if (!presentonResponse.ok) {
-        const errorText = await presentonResponse.text();
-        console.error('Presenton API error:', presentonResponse.status, errorText);
-        
-        // For 404 or other errors, fall through to Lovable AI fallback instead of returning error
+      if (!generateResponse.ok) {
+        const errorText = await generateResponse.text();
+        console.error('Presenton API error:', generateResponse.status, errorText);
         console.log('Presenton API unavailable, falling back to Lovable AI');
       } else {
-        const presentonData = await presentonResponse.json();
-        console.log('Presenton response received:', presentonData.presentation_id);
+        const taskData = await generateResponse.json();
+        console.log('Presenton task created:', taskData.id, 'status:', taskData.status);
 
-        // Transform Presenton response to our slide format
-        const slides: SlideContent[] = (presentonData.slides || []).map((slide: any, index: number) => ({
-          slideNumber: index + 1,
-          title: slide.title || `Slide ${index + 1}`,
-          content: slide.content || slide.bullet_points?.join('\n') || '',
-          speakerNotes: slide.speaker_notes || slide.notes || '',
-          layout: mapPresentonLayout(slide.layout || 'content'),
-          imageUrl: slide.image_url,
-          imageSource: slide.image_url ? 'presenton' : undefined,
-          imageAttribution: slide.image_attribution,
-          suggestedImageQuery: slide.image_query || slide.title,
-        }));
+        // Step 2: Poll for completion
+        try {
+          const completedTask = await pollTaskStatus(taskData.id, PRESENTON_API_KEY);
+          console.log('Presenton task completed:', completedTask.data?.presentation_id);
 
-        return new Response(
-          JSON.stringify({
-            slides,
-            presentationId: presentonData.presentation_id,
-            downloadUrl: presentonData.path,
-            editUrl: presentonData.edit_path,
-            source: 'presenton',
-            creditsConsumed: presentonData.credits_consumed || slides.length,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+          // The async API returns download URLs, not individual slides
+          // We need to return the presentation info for the frontend to handle
+          return new Response(
+            JSON.stringify({
+              slides: [], // Presenton async doesn't return slide data directly
+              presentationId: completedTask.data?.presentation_id,
+              downloadUrl: completedTask.data?.path,
+              editUrl: completedTask.data?.edit_path,
+              source: 'presenton',
+              creditsConsumed: completedTask.data?.credits_consumed || numSlides,
+              // Signal that this is a PPTX download, not slide data
+              isPptxDownload: true,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (pollError) {
+          console.error('Presenton polling error:', pollError);
+          console.log('Falling back to Lovable AI');
+        }
       }
-
     }
 
     // Fallback: Use Lovable AI to generate professional slides
-    console.log('Presenton API key not configured, using Lovable AI fallback');
+    console.log('Using Lovable AI for slide generation');
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -221,18 +264,3 @@ Return a JSON array of slides with: slideNumber, title, content (bullet points s
     );
   }
 });
-
-function mapPresentonLayout(layout: string): string {
-  const layoutMap: Record<string, string> = {
-    'title': 'title',
-    'title_slide': 'title',
-    'content': 'title-content',
-    'two_column': 'two-column',
-    'image': 'image-focus',
-    'image_left': 'image-focus',
-    'image_right': 'image-focus',
-    'bullets': 'bullet-points',
-    'quote': 'quote',
-  };
-  return layoutMap[layout.toLowerCase()] || 'title-content';
-}
