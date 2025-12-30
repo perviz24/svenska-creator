@@ -51,7 +51,8 @@ export function SlideStep({
   onContentUploaded,
   onSkip,
 }: SlideStepProps) {
-  const isDemoMode = demoMode?.enabled && demoMode?.watermarkEnabled;
+  const isDemoMode = demoMode?.enabled || false;
+  const showWatermark = isDemoMode && (demoMode?.watermarkEnabled !== false);
   const [selectedModuleIndex, setSelectedModuleIndex] = useState(0);
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
   const [isSearchingPhotos, setIsSearchingPhotos] = useState(false);
@@ -895,7 +896,7 @@ export function SlideStep({
                   </div>
                   
                   {/* Demo Watermark */}
-                  {isDemoMode && <DemoWatermark />}
+                  {showWatermark && <DemoWatermark />}
                 </div>
               )}
 

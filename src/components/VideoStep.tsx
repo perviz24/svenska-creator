@@ -84,10 +84,21 @@ export function VideoStep({
     setIsGeneratingAudio(true);
     try {
       // Combine all speaker notes into one script
-      const fullScript = currentModuleSlides
+      let fullScript = currentModuleSlides
         .map(slide => slide.speakerNotes || slide.content)
         .filter(Boolean)
         .join('\n\n');
+
+      // In demo mode, limit the script length based on audio duration limit
+      // Approximately 150 words per minute, so we limit characters accordingly
+      if (isDemoMode && demoMode?.maxAudioDurationSeconds) {
+        const maxWords = Math.floor((demoMode.maxAudioDurationSeconds / 60) * 150);
+        const words = fullScript.split(/\s+/);
+        if (words.length > maxWords) {
+          fullScript = words.slice(0, maxWords).join(' ');
+          toast.info(`Demo-läge: Ljud begränsat till ${demoMode.maxAudioDurationSeconds} sekunder`);
+        }
+      }
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-voice`,
@@ -254,6 +265,16 @@ export function VideoStep({
 
   return (
     <div className="space-y-6">
+      {/* Demo Mode Notice */}
+      {isDemoMode && (
+        <div className="flex items-center justify-center gap-2 py-2 px-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+          <Video className="w-4 h-4 text-amber-500" />
+          <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+            Demoläge: Ljud begränsat till {demoMode?.maxAudioDurationSeconds || 60} sekunder
+          </span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
