@@ -138,8 +138,14 @@ serve(async (req) => {
 
       const statusData = await statusResponse.json();
       console.log('Task status:', statusData.status);
+      console.log('Full Presenton status response:', JSON.stringify(statusData, null, 2));
 
       if (statusData.status === 'completed') {
+        console.log('Presenton completed! Presentation ID:', statusData.data?.presentation_id);
+        console.log('Download URL:', statusData.data?.path);
+        console.log('Edit URL:', statusData.data?.edit_path);
+        console.log('Credits consumed:', statusData.data?.credits_consumed);
+        
         return new Response(
           JSON.stringify({
             status: 'completed',
