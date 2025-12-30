@@ -12,6 +12,9 @@ import { ExportStep } from '@/components/ExportStep';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { useCourseWorkflow } from '@/hooks/useCourseWorkflow';
 import { ProjectMode, PresentationSettings, CourseStructureLimits, DemoModeSettings } from '@/types/course';
+import { Globe, Volume2, Sparkles, Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const Index = () => {
   const {
@@ -208,6 +211,42 @@ const Index = () => {
               onStepClick={goToStep}
             />
           </div>
+
+          {/* Compact Settings Summary Bar - Show on all steps except mode */}
+          {state.currentStep !== 'mode' && (
+            <div className="mb-6 bg-muted/50 border border-border rounded-lg px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-6 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Globe className="h-4 w-4" />
+                  <span className="font-medium">{state.settings.language === 'sv' ? 'Svenska' : 'English'}</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Volume2 className="h-4 w-4" />
+                  <span className="font-medium">{state.settings.voiceName || 'Standard'}</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Sparkles className="h-4 w-4" />
+                  <span className="font-medium">{state.settings.aiQualityMode === 'quality' ? 'Hög kvalitet' : 'Snabb'}</span>
+                </div>
+              </div>
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Ändra inställningar
+                  </Button>
+                </SheetTrigger>
+                <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+                  <SettingsPanel 
+                    settings={state.settings} 
+                    onSettingsChange={updateSettings}
+                    projectMode={state.settings.projectMode}
+                    onPresentationSettingsChange={handlePresentationSettingsChange}
+                  />
+                </SheetContent>
+              </Sheet>
+            </div>
+          )}
 
           {/* Main Content Grid */}
           <div className={`grid grid-cols-1 gap-8 ${state.currentStep === 'mode' ? 'lg:grid-cols-3' : ''}`}>
