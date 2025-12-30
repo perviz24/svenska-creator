@@ -121,46 +121,110 @@ serve(async (req) => {
 
       const mapLanguage = (lang?: string) => (lang === 'sv' ? 'Swedish' : 'English');
 
-      const mapTone = (input?: string) => {
+      // Map to valid Presenton tones: default, casual, professional, funny, educational, sales_pitch
+      const mapTone = (input?: string): string => {
         const raw = (input || '').toLowerCase().trim();
-        // Presenton allowed: default, casual, professional, funny, educational, sales_pitch
-        if (['default', 'casual', 'professional', 'funny', 'educational', 'sales_pitch'].includes(raw)) return raw;
-        // Common app synonyms → Presenton tones
-        if (['modern', 'corporate', 'formal', 'business'].includes(raw)) return 'professional';
-        if (['friendly', 'relaxed'].includes(raw)) return 'casual';
-        if (['learning', 'training', 'course'].includes(raw)) return 'educational';
-        if (['sales', 'pitch'].includes(raw)) return 'sales_pitch';
-        return 'default';
+        const validTones = ['default', 'casual', 'professional', 'funny', 'educational', 'sales_pitch'];
+        if (validTones.includes(raw)) return raw;
+        // Map app tones to Presenton tones
+        if (['formal', 'very-formal'].includes(raw)) return 'professional';
+        if (['friendly', 'relaxed', 'very-casual'].includes(raw)) return 'casual';
+        if (['inspirational'].includes(raw)) return 'educational';
+        return 'professional'; // Default to professional for best quality
       };
 
-      const mapTemplate = (input?: string) => {
+      // Map to valid Presenton templates: general, modern, standard, swift
+      const mapTemplate = (input?: string): string => {
         const raw = (input || '').toLowerCase().trim();
-        // Keep conservative defaults to improve consistency
-        if (raw.includes('minimal')) return 'minimal';
-        if (raw.includes('creative')) return 'creative';
-        if (raw.includes('corporate') || raw.includes('professional') || raw.includes('modern')) return 'corporate';
-        return 'general';
+        // Direct matches
+        if (raw === 'modern') return 'modern';
+        if (raw === 'standard' || raw === 'classic') return 'standard';
+        if (raw === 'swift') return 'swift';
+        // Map app styles to best matching Presenton templates
+        if (raw === 'minimal') return 'modern'; // Modern is cleanest
+        if (raw === 'creative') return 'swift'; // Swift is most dynamic
+        if (raw === 'corporate') return 'standard'; // Standard is most conservative
+        return 'general'; // Safe default
+      };
+
+      // Map styles to Presenton themes for visual variety
+      // Available: edge-yellow, mint-blue, light-rose, professional-blue, professional-dark
+      const mapTheme = (inputStyle?: string, inputTone?: string): string => {
+        const style = (inputStyle || '').toLowerCase().trim();
+        const tone = (inputTone || '').toLowerCase().trim();
+        
+        // Creative/dynamic styles get vibrant themes
+        if (style === 'creative') return 'edge-yellow';
+        if (style === 'minimal') return 'mint-blue';
+        if (style === 'classic') return 'light-rose';
+        
+        // Corporate/formal tones get professional themes
+        if (style === 'corporate' || tone === 'formal' || tone === 'professional') return 'professional-blue';
+        if (tone === 'casual' || tone === 'friendly') return 'mint-blue';
+        
+        // Modern default
+        if (style === 'modern') return 'professional-blue';
+        
+        return 'professional-blue'; // Safe professional default
       };
 
       const effectiveTone = mapTone(tone || style);
       const effectiveTemplate = mapTemplate(style);
+      const effectiveTheme = mapTheme(style, tone);
+
+      // Build instructions for better content generation
+      const buildInstructions = (styleName?: string, toneName?: string): string => {
+        const parts: string[] = [];
+        
+        if (styleName === 'minimal') {
+          parts.push('Use minimal text, focus on key points only, maximize white space.');
+        } else if (styleName === 'creative') {
+          parts.push('Use creative language, bold statements, and engaging visuals.');
+        } else if (styleName === 'corporate') {
+          parts.push('Use formal business language, include data points and metrics where relevant.');
+        } else if (styleName === 'classic') {
+          parts.push('Use traditional presentation structure with clear hierarchy.');
+        }
+        
+        if (toneName === 'casual' || toneName === 'friendly') {
+          parts.push('Keep the tone conversational and approachable.');
+        } else if (toneName === 'inspirational') {
+          parts.push('Include motivational elements and inspiring language.');
+        }
+        
+        parts.push('Ensure each slide has a clear single message. Use bullet points effectively.');
+        
+        return parts.join(' ');
+      };
+
+      const effectiveInstructions = buildInstructions(style, tone);
+
+      console.log('Presenton parameters:', { 
+        template: effectiveTemplate, 
+        theme: effectiveTheme, 
+        tone: effectiveTone,
+        n_slides: Math.min(numSlides, 50),
+        style_input: style,
+        tone_input: tone
+      });
 
       const presentonPayload = {
         content: contentText.substring(0, 10000),
-        n_slides: Math.min(numSlides, 100),
+        n_slides: Math.min(numSlides, 50), // API supports 1-50
         language: mapLanguage(language),
         template: effectiveTemplate,
+        theme: effectiveTheme,
         tone: effectiveTone,
+        instructions: effectiveInstructions,
         verbosity: 'standard',
-        markdown_emphasis: true,
         web_search: false,
-        image_type: 'stock',
+        image_type: 'ai-generated', // Use AI-generated for better visuals
         include_title_slide: true,
-        include_table_of_contents: false,
+        include_table_of_contents: numSlides > 8, // Only for longer presentations
         export_as: 'pptx',
       };
 
-      console.log('Calling Presenton async endpoint...', { tone: effectiveTone, template: effectiveTemplate, n_slides: presentonPayload.n_slides });
+      console.log('Calling Presenton async endpoint with payload:', JSON.stringify(presentonPayload, null, 2));
 
       const generateResponse = await fetch(`${PRESENTON_API_URL}/api/v1/ppt/presentation/generate/async`, {
         method: 'POST',
