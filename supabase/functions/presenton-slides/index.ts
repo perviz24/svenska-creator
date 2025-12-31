@@ -189,30 +189,13 @@ serve(async (req) => {
     if (PRESENTON_API_KEY) {
       console.log('Using Presenton Cloud API for slide generation');
 
-      const sanitizeForPresenton = (input: string, lang?: string) => {
+      const normalizeForPresenton = (input: string) => {
         // Normalize to avoid strange combining-character issues
-        let text = (input || '').normalize('NFC');
-
-        // Presenton currently mangles Nordic characters in some outputs (å/ä/ö -> e5/e4/f6).
-        // As a safe fallback, transliterate when generating Swedish decks.
-        if ((lang || '').toLowerCase().trim() === 'sv') {
-          text = text
-            .replace(/å/g, 'a')
-            .replace(/ä/g, 'a')
-            .replace(/ö/g, 'o')
-            .replace(/Å/g, 'A')
-            .replace(/Ä/g, 'A')
-            .replace(/Ö/g, 'O');
-
-          // Strip any remaining diacritics to keep text readable
-          text = text.normalize('NFD').replace(/\p{Diacritic}/gu, '').normalize('NFC');
-        }
-
-        return text;
+        return (input || '').normalize('NFC');
       };
 
       const rawContentText = scriptContent || additionalContext || topic || moduleTitle || courseTitle || '';
-      const contentText = sanitizeForPresenton(rawContentText, language);
+      const contentText = normalizeForPresenton(rawContentText);
 
       const mapLanguage = (lang?: string) => (lang === 'sv' ? 'Swedish' : 'English');
 
@@ -237,10 +220,10 @@ serve(async (req) => {
         if (raw === 'swift') return 'swift';
         if (raw === 'general') return 'general';
         // Map app styles to best matching Presenton templates
-        if (raw === 'minimal') return 'modern'; // Modern is cleanest
-        if (raw === 'creative') return 'swift'; // Swift is most dynamic
-        if (raw === 'corporate') return 'standard'; // Standard is most conservative
-        return 'modern'; // Default to modern for better visual quality
+        if (raw === 'minimal') return 'modern'; // clean
+        if (raw === 'creative') return 'swift'; // most dynamic
+        if (raw === 'corporate') return 'standard'; // conservative
+        return 'swift'; // Default to swift for less-minimal, more designed output
       };
 
       // Map styles to Presenton themes - now context-aware
@@ -404,13 +387,23 @@ serve(async (req) => {
 
       console.log('Calling Presenton async endpoint with payload:', JSON.stringify(presentonPayload, null, 2));
 
+      // Presenton seems to sometimes mis-handle UTF-8 in request bodies (mojibake like "innehÃ¥llsfÃ¶rteckning").
+      // To make the payload encoding unambiguous, we escape all non-ASCII characters as \uXXXX sequences.
+      const escapeUnicodeInJson = (json: string) =>
+        json.replace(/[\u0080-\uFFFF]/g, (ch) => {
+          const code = ch.charCodeAt(0);
+          return `\\u${code.toString(16).padStart(4, '0')}`;
+        });
+
+      const presentonBody = escapeUnicodeInJson(JSON.stringify(presentonPayload));
+
       const generateResponse = await fetch(`${PRESENTON_API_URL}/api/v1/ppt/presentation/generate/async`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${PRESENTON_API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(presentonPayload),
+        body: presentonBody,
       });
 
       if (!generateResponse.ok) {
