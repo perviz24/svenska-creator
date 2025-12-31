@@ -66,6 +66,29 @@ const TEMPLATES = {
   },
 };
 
+// Helper to fetch image as base64 data URL
+async function fetchImageAsBase64(url: string): Promise<string | null> {
+  try {
+    console.log(`Fetching image: ${url}`);
+    const response = await fetch(url, { 
+      headers: { 'Accept': 'image/*' },
+      signal: AbortSignal.timeout(10000) // 10s timeout
+    });
+    if (!response.ok) {
+      console.error(`Failed to fetch image: ${response.status}`);
+      return null;
+    }
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    console.log(`Successfully fetched image (${Math.round(arrayBuffer.byteLength / 1024)}KB)`);
+    return `data:${contentType};base64,${base64}`;
+  } catch (err) {
+    console.error(`Error fetching image: ${err}`);
+    return null;
+  }
+}
+
 // Generate native PPTX with layout-specific designs
 async function generateNativePPTX(
   slides: Slide[],
@@ -82,6 +105,21 @@ async function generateNativePPTX(
 
   const SLIDE_W = 10;
   const SLIDE_H = 7.5;
+
+  // Pre-fetch all images in parallel for slides that have imageUrl
+  console.log('Pre-fetching stock images for embedding...');
+  const imageCache: Map<string, string | null> = new Map();
+  const imageUrls = slides
+    .map(s => s.imageUrl)
+    .filter((url): url is string => Boolean(url && url.startsWith('http')));
+  
+  const uniqueUrls = [...new Set(imageUrls)];
+  const imagePromises = uniqueUrls.map(async url => {
+    const base64 = await fetchImageAsBase64(url);
+    imageCache.set(url, base64);
+  });
+  await Promise.all(imagePromises);
+  console.log(`Cached ${imageCache.size} images for embedding`);
 
   pptx.author = 'Kursgeneratorn';
   pptx.title = courseTitle;
@@ -191,14 +229,38 @@ async function generateNativePPTX(
     const masterName = ['quote', 'stats'].includes(layout) ? 'ACCENT_SLIDE' : 'CONTENT_SLIDE';
     const contentSlide = pptx.addSlide({ masterName });
 
-    // Header for content slides
+    // === FULL-BLEED BACKGROUND IMAGE WITH OVERLAY ===
+    const slideImageUrl = slide.imageUrl;
+    const cachedImage = slideImageUrl ? imageCache.get(slideImageUrl) : null;
+    
+    if (cachedImage) {
+      // Add full-bleed background image
+      contentSlide.addImage({
+        data: cachedImage,
+        x: 0,
+        y: 0,
+        w: SLIDE_W,
+        h: SLIDE_H,
+        sizing: { type: 'cover', w: SLIDE_W, h: SLIDE_H },
+      });
+      // Add dark overlay for text readability (semi-transparent black)
+      contentSlide.addShape('rect', {
+        x: 0,
+        y: 0,
+        w: SLIDE_W,
+        h: SLIDE_H,
+        fill: { color: '000000', transparency: 50 },
+      });
+    }
+
+    // Header for content slides (render on top of image/overlay)
     if (masterName === 'CONTENT_SLIDE') {
       contentSlide.addShape('rect', {
         x: 0,
         y: 0,
         w: 10,
         h: 0.5,
-        fill: { color: colors.primary.replace('#', '') },
+        fill: { color: cachedImage ? '000000' : colors.primary.replace('#', ''), transparency: cachedImage ? 30 : 0 },
       });
       contentSlide.addText(moduleTitle, {
         x: 0.3, y: 0.12, w: 6.2, h: 0.3,
@@ -218,31 +280,36 @@ async function generateNativePPTX(
       });
     }
 
-    // Layout-specific rendering
+    // Layout-specific rendering - use white text if image background present
+    const hasImageBg = Boolean(cachedImage);
+    const textColor = hasImageBg ? 'FFFFFF' : colors.text.replace('#', '');
+    const mutedColor = hasImageBg ? 'E5E7EB' : colors.muted.replace('#', '');
+    const accentColor = hasImageBg ? 'FFFFFF' : colors.accent.replace('#', '');
+
     switch (layout) {
       case 'key-point': {
         // Title
         contentSlide.addText(slide.title, {
           x: 0.5, y: 0.72, w: 9, h: 0.55,
-          fontSize: 26, color: colors.text.replace('#', ''), bold: true, fontFace: 'Arial', fit: 'shrink',
+          fontSize: 26, color: textColor, bold: true, fontFace: 'Arial', fit: 'shrink',
         });
         // Subtitle
         if (slide.subtitle) {
           contentSlide.addText(slide.subtitle, {
             x: 0.5, y: 1.22, w: 9, h: 0.35,
-            fontSize: 14, color: colors.muted.replace('#', ''), fontFace: 'Arial',
+            fontSize: 14, color: mutedColor, fontFace: 'Arial',
           });
         }
-        // Key takeaway box
+        // Key takeaway box - semi-transparent on image bg
         if (slide.keyTakeaway) {
           contentSlide.addShape('roundRect', {
             x: 0.5, y: 1.7, w: 9, h: 1.5,
-            fill: { color: colors.highlight.replace('#', '') },
-            line: { color: colors.accent.replace('#', ''), width: 2 },
+            fill: { color: hasImageBg ? '000000' : colors.highlight.replace('#', ''), transparency: hasImageBg ? 40 : 0 },
+            line: { color: hasImageBg ? 'FFFFFF' : colors.accent.replace('#', ''), width: 2 },
           });
           contentSlide.addText(slide.keyTakeaway, {
             x: 0.75, y: 1.85, w: 8.5, h: 1.2,
-            fontSize: 22, color: colors.text.replace('#', ''), bold: true, fontFace: 'Arial',
+            fontSize: 22, color: textColor, bold: true, fontFace: 'Arial',
             valign: 'middle', fit: 'shrink',
           });
         }
@@ -250,11 +317,11 @@ async function generateNativePPTX(
         if (bullets.length > 0) {
           const bulletRuns = bullets.slice(0, 4).map(t => ({
             text: t,
-            options: { bullet: { type: 'bullet' as const, color: colors.accent.replace('#', '') }, indentLevel: 0 },
+            options: { bullet: { type: 'bullet' as const, color: accentColor }, indentLevel: 0 },
           }));
           contentSlide.addText(bulletRuns, {
             x: 0.6, y: 3.4, w: 8.9, h: 3.2,
-            fontSize: 16, color: colors.text.replace('#', ''), lineSpacing: 26, fontFace: 'Arial', valign: 'top',
+            fontSize: 16, color: textColor, lineSpacing: 26, fontFace: 'Arial', valign: 'top',
           });
         }
         break;
@@ -300,38 +367,38 @@ async function generateNativePPTX(
         // Comparison layout: two columns
         contentSlide.addText(slide.title, {
           x: 0.5, y: 0.72, w: 9, h: 0.55,
-          fontSize: 26, color: colors.text.replace('#', ''), bold: true, fontFace: 'Arial', fit: 'shrink',
+          fontSize: 26, color: textColor, bold: true, fontFace: 'Arial', fit: 'shrink',
         });
         const leftBullets = bullets.filter((_, idx) => idx % 2 === 0);
         const rightBullets = bullets.filter((_, idx) => idx % 2 === 1);
-        // Left column
+        // Left column - semi-transparent on image bg
         contentSlide.addShape('rect', {
           x: 0.4, y: 1.5, w: 4.4, h: 4.8,
-          fill: { color: colors.highlight.replace('#', '') },
+          fill: { color: hasImageBg ? '000000' : colors.highlight.replace('#', ''), transparency: hasImageBg ? 50 : 0 },
         });
         if (leftBullets.length > 0) {
           const leftRuns = leftBullets.map(t => ({
             text: t,
-            options: { bullet: { type: 'bullet' as const, color: colors.accent.replace('#', '') }, indentLevel: 0 },
+            options: { bullet: { type: 'bullet' as const, color: accentColor }, indentLevel: 0 },
           }));
           contentSlide.addText(leftRuns, {
             x: 0.6, y: 1.7, w: 4.0, h: 4.4,
-            fontSize: 15, color: colors.text.replace('#', ''), lineSpacing: 24, fontFace: 'Arial', valign: 'top',
+            fontSize: 15, color: textColor, lineSpacing: 24, fontFace: 'Arial', valign: 'top',
           });
         }
-        // Right column
+        // Right column - semi-transparent on image bg
         contentSlide.addShape('rect', {
           x: 5.2, y: 1.5, w: 4.4, h: 4.8,
-          fill: { color: colors.accent.replace('#', ''), transparency: 90 },
+          fill: { color: hasImageBg ? '000000' : colors.accent.replace('#', ''), transparency: hasImageBg ? 50 : 90 },
         });
         if (rightBullets.length > 0) {
           const rightRuns = rightBullets.map(t => ({
             text: t,
-            options: { bullet: { type: 'bullet' as const, color: colors.primary.replace('#', '') }, indentLevel: 0 },
+            options: { bullet: { type: 'bullet' as const, color: hasImageBg ? 'FFFFFF' : colors.primary.replace('#', '') }, indentLevel: 0 },
           }));
           contentSlide.addText(rightRuns, {
             x: 5.4, y: 1.7, w: 4.0, h: 4.4,
-            fontSize: 15, color: colors.text.replace('#', ''), lineSpacing: 24, fontFace: 'Arial', valign: 'top',
+            fontSize: 15, color: textColor, lineSpacing: 24, fontFace: 'Arial', valign: 'top',
           });
         }
         break;
@@ -361,32 +428,34 @@ async function generateNativePPTX(
       }
 
       case 'image-focus': {
-        // Image focus: minimal text, emphasis on visual
+        // Image focus: text over the embedded image background
         contentSlide.addText(slide.title, {
           x: 0.5, y: 0.72, w: 9, h: 0.55,
-          fontSize: 26, color: colors.text.replace('#', ''), bold: true, fontFace: 'Arial', fit: 'shrink',
+          fontSize: 26, color: textColor, bold: true, fontFace: 'Arial', fit: 'shrink',
         });
         // Show 1-2 bullets only
         if (bullets.length > 0) {
           const shortBullets = bullets.slice(0, 2).map(t => ({
             text: t,
-            options: { bullet: { type: 'bullet' as const, color: colors.accent.replace('#', '') }, indentLevel: 0 },
+            options: { bullet: { type: 'bullet' as const, color: accentColor }, indentLevel: 0 },
           }));
           contentSlide.addText(shortBullets, {
             x: 0.6, y: 1.5, w: 8.9, h: 1.5,
-            fontSize: 16, color: colors.text.replace('#', ''), lineSpacing: 24, fontFace: 'Arial', valign: 'top',
+            fontSize: 16, color: textColor, lineSpacing: 24, fontFace: 'Arial', valign: 'top',
           });
         }
-        // Placeholder for image area
-        contentSlide.addShape('rect', {
-          x: 1.5, y: 3.2, w: 7, h: 3.3,
-          fill: { color: colors.muted.replace('#', ''), transparency: 80 },
-          line: { color: colors.muted.replace('#', ''), dashType: 'dash' },
-        });
-        contentSlide.addText('[Bild]', {
-          x: 1.5, y: 4.5, w: 7, h: 0.5,
-          fontSize: 14, color: colors.muted.replace('#', ''), align: 'center', fontFace: 'Arial',
-        });
+        // Only show placeholder if no image background
+        if (!hasImageBg) {
+          contentSlide.addShape('rect', {
+            x: 1.5, y: 3.2, w: 7, h: 3.3,
+            fill: { color: mutedColor, transparency: 80 },
+            line: { color: mutedColor, dashType: 'dash' },
+          });
+          contentSlide.addText('[Bild]', {
+            x: 1.5, y: 4.5, w: 7, h: 0.5,
+            fontSize: 14, color: mutedColor, align: 'center', fontFace: 'Arial',
+          });
+        }
         break;
       }
 
@@ -394,28 +463,28 @@ async function generateNativePPTX(
         // Default bullet-points layout
         contentSlide.addText(slide.title, {
           x: 0.5, y: 0.72, w: 9, h: 0.55,
-          fontSize: 26, color: colors.text.replace('#', ''), bold: true, fontFace: 'Arial', fit: 'shrink',
+          fontSize: 26, color: textColor, bold: true, fontFace: 'Arial', fit: 'shrink',
         });
         if (slide.subtitle) {
           contentSlide.addText(slide.subtitle, {
             x: 0.5, y: 1.22, w: 9, h: 0.35,
-            fontSize: 14, color: colors.muted.replace('#', ''), fontFace: 'Arial',
+            fontSize: 14, color: mutedColor, fontFace: 'Arial',
           });
         }
         const yStart = slide.subtitle ? 1.75 : 1.55;
         if (bullets.length > 0) {
           const bulletRuns = bullets.slice(0, 6).map(t => ({
             text: t,
-            options: { bullet: { type: 'bullet' as const, color: colors.accent.replace('#', '') }, indentLevel: 0 },
+            options: { bullet: { type: 'bullet' as const, color: accentColor }, indentLevel: 0 },
           }));
           contentSlide.addText(bulletRuns, {
             x: 0.6, y: yStart, w: 8.9, h: 5.0,
-            fontSize: 18, color: colors.text.replace('#', ''), lineSpacing: 28, fontFace: 'Arial', valign: 'top',
+            fontSize: 18, color: textColor, lineSpacing: 28, fontFace: 'Arial', valign: 'top',
           });
         } else if (slide.keyTakeaway) {
           contentSlide.addText(slide.keyTakeaway, {
             x: 0.6, y: yStart, w: 8.9, h: 5.0,
-            fontSize: 22, color: colors.text.replace('#', ''), bold: true, fontFace: 'Arial', valign: 'top', fit: 'shrink',
+            fontSize: 22, color: textColor, bold: true, fontFace: 'Arial', valign: 'top', fit: 'shrink',
           });
         }
         break;
