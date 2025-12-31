@@ -544,52 +544,67 @@ function generatePDFHtml(slides: Slide[], courseTitle: string, moduleTitle: stri
     const cleanSubtitle = slide.subtitle ? cleanMarkdown(slide.subtitle) : '';
     const cleanKeyTakeaway = slide.keyTakeaway ? cleanMarkdown(slide.keyTakeaway) : '';
     const cleanSpeakerNotes = slide.speakerNotes ? cleanMarkdown(slide.speakerNotes) : '';
-    
+
+    const hasImageBg = Boolean(slide.imageUrl);
+    const textColor = hasImageBg ? '#ffffff' : colors.text;
+    const mutedColor = hasImageBg ? 'rgba(255,255,255,0.75)' : colors.muted;
+    const titleColor = hasImageBg ? '#ffffff' : colors.primary;
+    const highlightBg = hasImageBg ? 'rgba(0,0,0,0.35)' : colors.highlight;
+    const accentColor = hasImageBg ? 'rgba(255,255,255,0.95)' : colors.accent;
+
     const bullets = (slide.bulletPoints && slide.bulletPoints.length > 0)
       ? slide.bulletPoints.map(b => cleanMarkdown(String(b)))
       : (slide.content || '').split('\n').filter(line => line.trim()).map(l => cleanMarkdown(l));
+
+    const bgStyle = hasImageBg
+      ? `background-image: url('${escapeHtml(slide.imageUrl as string)}'); background-size: cover; background-position: center;`
+      : `background: ${colors.background};`;
     
     return `
-    <div class="slide-page" style="page-break-after: always; width: 100%; min-height: 100vh; box-sizing: border-box; position: relative; background: ${colors.background}; padding: 60px;">
+    <div class="slide-page" style="page-break-after: always; width: 100%; min-height: 100vh; box-sizing: border-box; position: relative; ${bgStyle} padding: 60px;">
       ${demoMode ? `
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); opacity: 0.1; font-size: 120px; font-weight: bold; color: #F59E0B; pointer-events: none;">DEMO</div>
-        <div style="position: absolute; top: 20px; right: 20px; background: #F59E0B; color: white; padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: bold;">DEMO</div>
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); opacity: 0.1; font-size: 120px; font-weight: bold; color: #F59E0B; pointer-events: none; z-index: 3;">DEMO</div>
+        <div style="position: absolute; top: 20px; right: 20px; background: #F59E0B; color: white; padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: bold; z-index: 3;">DEMO</div>
       ` : ''}
-      
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 3px solid ${colors.accent};">
-        <span style="font-size: 14px; color: ${colors.muted}; font-weight: 500;">${escapeHtml(moduleTitle)}</span>
-        <span style="font-size: 14px; color: ${colors.muted};">${index + 1} / ${slides.length}</span>
-      </div>
-      
-      <h1 style="font-size: 36px; font-weight: 700; color: ${colors.primary}; margin-bottom: 16px; line-height: 1.2;">
-        ${escapeHtml(cleanTitle)}
-      </h1>
-      
-      ${cleanSubtitle ? `<p style="font-size: 18px; color: ${colors.muted}; margin-bottom: 24px;">${escapeHtml(cleanSubtitle)}</p>` : ''}
-      
-      ${cleanKeyTakeaway ? `
-        <div style="background: ${colors.highlight}; border-left: 4px solid ${colors.accent}; padding: 16px 20px; margin-bottom: 24px; border-radius: 4px;">
-          <p style="font-size: 20px; font-weight: 600; color: ${colors.text}; margin: 0;">${escapeHtml(cleanKeyTakeaway)}</p>
+
+      ${hasImageBg ? `<div style="position: absolute; inset: 0; background: rgba(0,0,0,0.55); z-index: 1;"></div>` : ''}
+
+      <div style="position: relative; z-index: 2; display: flex; flex-direction: column; min-height: calc(100vh - 120px);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 3px solid ${colors.accent};">
+          <span style="font-size: 14px; color: ${mutedColor}; font-weight: 500;">${escapeHtml(moduleTitle)}</span>
+          <span style="font-size: 14px; color: ${mutedColor};">${index + 1} / ${slides.length}</span>
         </div>
-      ` : ''}
-      
-      <div style="flex: 1;">
-        <ul style="list-style: none; padding: 0; margin: 0;">
-          ${bullets.map(item => `
-          <li style="display: flex; align-items: flex-start; margin-bottom: 16px; font-size: 18px; line-height: 1.5; color: ${colors.text};">
-            <span style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; min-width: 24px; background: ${colors.highlight}; color: ${colors.accent}; border-radius: 50%; margin-right: 14px; font-weight: 600; font-size: 12px;">•</span>
-            <span>${escapeHtml(item)}</span>
-          </li>
-          `).join('')}
-        </ul>
+        
+        <h1 style="font-size: 36px; font-weight: 700; color: ${titleColor}; margin-bottom: 16px; line-height: 1.2;">
+          ${escapeHtml(cleanTitle)}
+        </h1>
+        
+        ${cleanSubtitle ? `<p style="font-size: 18px; color: ${mutedColor}; margin-bottom: 24px;">${escapeHtml(cleanSubtitle)}</p>` : ''}
+        
+        ${cleanKeyTakeaway ? `
+          <div style="background: ${highlightBg}; border-left: 4px solid ${colors.accent}; padding: 16px 20px; margin-bottom: 24px; border-radius: 6px;">
+            <p style="font-size: 20px; font-weight: 600; color: ${textColor}; margin: 0;">${escapeHtml(cleanKeyTakeaway)}</p>
+          </div>
+        ` : ''}
+        
+        <div style="flex: 1;">
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            ${bullets.map(item => `
+            <li style="display: flex; align-items: flex-start; margin-bottom: 16px; font-size: 18px; line-height: 1.5; color: ${textColor};">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; min-width: 24px; background: ${highlightBg}; color: ${accentColor}; border-radius: 50%; margin-right: 14px; font-weight: 600; font-size: 12px;">•</span>
+              <span>${escapeHtml(item)}</span>
+            </li>
+            `).join('')}
+          </ul>
+        </div>
+        
+        ${cleanSpeakerNotes ? `
+        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid ${hasImageBg ? 'rgba(255,255,255,0.25)' : colors.muted + '30'};">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: ${mutedColor}; margin-bottom: 8px; font-weight: 600;">Talarnoteringar</div>
+          <p style="font-size: 13px; color: ${mutedColor}; line-height: 1.6; margin: 0;">${escapeHtml(cleanSpeakerNotes)}</p>
+        </div>
+        ` : ''}
       </div>
-      
-      ${cleanSpeakerNotes ? `
-      <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid ${colors.muted}30;">
-        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: ${colors.muted}; margin-bottom: 8px; font-weight: 600;">Talarnoteringar</div>
-        <p style="font-size: 13px; color: ${colors.muted}; line-height: 1.6; margin: 0;">${escapeHtml(cleanSpeakerNotes)}</p>
-      </div>
-      ` : ''}
     </div>
   `;
   }).join('\n');
