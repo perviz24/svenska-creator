@@ -24,6 +24,19 @@ interface SlideContent {
   imageAttribution?: string;
 }
 
+// Generation parameters inspired by Presenton API
+type Tone = 'default' | 'casual' | 'professional' | 'educational' | 'sales_pitch';
+type Verbosity = 'concise' | 'standard' | 'text-heavy';
+
+interface GenerationOptions {
+  tone?: Tone;
+  verbosity?: Verbosity;
+  includeTableOfContents?: boolean;
+  includeTitleSlide?: boolean;
+  industry?: string;
+  audienceType?: string;
+}
+
 interface StockPhoto {
   id: string;
   url: string;
@@ -185,13 +198,60 @@ function cleanMarkdown(text: string): string {
     .trim();
 }
 
+// Industry detection for context-aware generation
+function detectIndustry(content: string): string {
+  const lower = content.toLowerCase();
+  if (/health|medical|hospital|patient|doctor|clinic|anatomy|diagnos|treatment|medicin|läkare|sjukhus/i.test(lower)) return 'healthcare';
+  if (/financ|bank|invest|stock|crypto|trading/i.test(lower)) return 'finance';
+  if (/tech|software|digital|ai|machine learning|data|cloud/i.test(lower)) return 'technology';
+  if (/education|school|learn|student|teach|course/i.test(lower)) return 'education';
+  if (/market|brand|customer|sales|advertis/i.test(lower)) return 'marketing';
+  if (/nature|environment|sustain|green|eco|climate/i.test(lower)) return 'environment';
+  if (/law|legal|compliance|regulation/i.test(lower)) return 'legal';
+  return 'general';
+}
+
+// Get image keywords based on industry
+function getIndustryImageGuidance(industry: string): string {
+  const guidance: Record<string, string> = {
+    healthcare: 'Use medical professional photos, clinical settings, anatomical diagrams. Keywords: doctor, hospital, medical equipment, patient care, surgery, diagnosis.',
+    finance: 'Use business professional photos, charts, graphs, office settings. Keywords: business meeting, financial charts, corporate office, investment.',
+    technology: 'Use modern tech imagery, abstract digital visuals, clean interfaces. Keywords: technology, digital, innovation, software, data visualization.',
+    education: 'Use classroom, learning, books, students. Keywords: education, learning, classroom, students, teaching, knowledge.',
+    marketing: 'Use dynamic, engaging visuals with people. Keywords: marketing, branding, team collaboration, creative.',
+    environment: 'Use nature photography, sustainability themes. Keywords: nature, environment, sustainable, green energy.',
+    legal: 'Use professional settings, documents, courtrooms. Keywords: legal, law, contract, professional.',
+    general: 'Use professional business photography. Keywords: professional, business, teamwork, success.',
+  };
+  return guidance[industry] || guidance.general;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { script, moduleTitle, courseTitle, language = 'sv', autoFetchImages = true, maxSlides = 10, demoMode = false, skipCache = false } = await req.json();
+    const { 
+      script, 
+      moduleTitle, 
+      courseTitle, 
+      language = 'sv', 
+      autoFetchImages = true, 
+      maxSlides = 10, 
+      demoMode = false, 
+      skipCache = false,
+      // New Presenton-inspired options
+      tone = 'professional',
+      verbosity = 'standard',
+      includeTableOfContents = false,
+      includeTitleSlide = true,
+      audienceType = 'general',
+    } = await req.json();
+
+    // Type-safe accessors for tone and verbosity
+    const effectiveTone = (tone as Tone) || 'professional';
+    const effectiveVerbosity = (verbosity as Verbosity) || 'standard';
 
     const scriptContent = typeof script === 'object' ? JSON.stringify(script.sections || script) : script;
     const effectiveModuleTitle = moduleTitle || (typeof script === 'object' ? script.moduleTitle : 'Module');
@@ -248,73 +308,100 @@ serve(async (req) => {
     }
 
     const effectiveMaxSlides = demoMode ? Math.min(maxSlides, 3) : maxSlides;
+    
+    // Detect industry from content for context-aware generation
+    const detectedIndustry = detectIndustry(scriptContent);
+    const industryImageGuidance = getIndustryImageGuidance(detectedIndustry);
+    
     console.log('Cache MISS - generating slides. Demo mode:', demoMode, 'Max slides:', effectiveMaxSlides);
+    console.log('Generation params: tone=', tone, ', verbosity=', verbosity, ', industry=', detectedIndustry, ', audience=', audienceType);
 
-    // IMPROVED SYSTEM PROMPT - forces structured, rich content
+    // Build tone guidance
+    const toneGuidance: Record<Tone, string> = {
+      default: 'Use neutral, balanced language.',
+      casual: 'Use conversational, approachable language. Be friendly and accessible.',
+      professional: 'Use formal, authoritative language. Be precise and credible.',
+      educational: 'Use clear, instructive language. Focus on teaching and explaining concepts step-by-step.',
+      sales_pitch: 'Use persuasive, compelling language. Focus on benefits and call-to-action.',
+    };
+
+    // Build verbosity guidance
+    const verbosityGuidance: Record<Verbosity, { bullets: string; notes: string }> = {
+      concise: { bullets: '2-3 very short bullets per slide. Maximum 8 words per bullet.', notes: '1 sentence speaker notes.' },
+      standard: { bullets: '3-5 bullets per slide. 5-12 words per bullet.', notes: '2-3 sentences speaker notes with key talking points.' },
+      'text-heavy': { bullets: '5-7 detailed bullets per slide. Full sentences allowed.', notes: 'Detailed speaker notes with full explanations.' },
+    };
+
+    // Build audience guidance
+    const audienceGuidance: Record<string, string> = {
+      executives: 'Focus on high-level insights, strategic value, and ROI. Skip technical details.',
+      technical: 'Include detailed specifications, diagrams, and technical terminology.',
+      students: 'Use engaging, accessible language. Include examples and clear explanations.',
+      general: 'Balance detail with accessibility. Avoid jargon.',
+    };
+
+    // ENHANCED SYSTEM PROMPT with Presenton-inspired structure
     const systemPrompt = language === 'sv' 
       ? `Du är en EXPERT-presentationsdesigner. Du skapar PROFESSIONELLA och VISUELLT IMPONERANDE slides.
 
+TON: ${toneGuidance[effectiveTone]}
+DETALJNIVÅ: ${verbosityGuidance[effectiveVerbosity].bullets}
+MÅLGRUPP: ${audienceGuidance[audienceType] || audienceGuidance.general}
+BRANSCH: ${detectedIndustry.toUpperCase()} - ${industryImageGuidance}
+
 ABSOLUTA REGLER:
 1. ENDAST PLAIN TEXT - aldrig markdown (*#_\`)
-2. VARJE SLIDE MÅSTE HA 3-5 BULLET POINTS med KONKRET INNEHÅLL
+2. ${verbosityGuidance[effectiveVerbosity].bullets}
 3. VARIERA LAYOUTER - använd ALLA typer, inte bara bullet-points
 4. SKRIV SPECIFIKA BILDTERMER på engelska för varje slide
 
 LAYOUT-TYPER OCH NÄR DE ANVÄNDS:
-- "title": ENDAST första sliden. Har INGEN bulletPoints.
+- "title": ENDAST första sliden${includeTitleSlide ? '' : ' (HOPPA ÖVER OM EJ BEHÖVS)'}. Har INGEN bulletPoints.
 - "key-point": En STOR huvudpoäng. Kräver keyTakeaway-fält. 1-2 stödjande bullets.
-- "bullet-points": Standard 3-5 punkter med fakta.
+- "bullet-points": Standard punkter med fakta.
 - "stats": Siffror/statistik. Bullets ska vara "XX% av Y" eller "X miljoner Z".
 - "comparison": Jämför två alternativ. Bullets: "A: beskrivning", "B: beskrivning".
 - "quote": Viktigt citat. keyTakeaway = citatet. subtitle = vem som sa det.
 - "image-focus": Stor bild. Endast 1-2 bullets för kontext.
 
-EXEMPEL PÅ BRA BULLETS (konkreta, korta):
-✓ "Endoskopi visualiserar slemhinnan i realtid"
-✓ "CT identifierar anatomiska variationer"
-✓ "80% av patienter upplever förbättring"
-✓ "Minimalinvasiv teknik ger kortare läktid"
+LUCIDE IKONER - använd relevanta för varje slide:
+Healthcare: Stethoscope, Heart, Activity, Scan, Pill, Brain, Eye, Ear, Syringe
+Technology: Cpu, Code, Cloud, Database, Wifi, Monitor, Smartphone
+Education: BookOpen, GraduationCap, Lightbulb, PenTool, Users
+Business: TrendingUp, Target, BarChart3, PieChart, Briefcase, Building2
+General: CheckCircle, Star, Award, Zap, Shield, Clock, Calendar
 
-EXEMPEL PÅ DÅLIGA BULLETS (vaga, för långa):
-✗ "Det är viktigt att förstå diagnostik"
-✗ "Man bör överväga olika behandlingsalternativ för patienten"
-
-BILDTERMER (suggestedImageQuery) - SPECIFIKA på engelska:
-✓ "ENT doctor examining patient nasal endoscopy"
-✓ "CT scan sinus anatomy medical"
-✓ "surgeon performing minimally invasive procedure"
-✗ "medical concept" (för vagt)
-✗ "healthcare" (för generellt)`
+SPEAKER NOTES: ${verbosityGuidance[effectiveVerbosity].notes}`
       : `You are an EXPERT presentation designer creating PROFESSIONAL, VISUALLY IMPRESSIVE slides.
+
+TONE: ${toneGuidance[effectiveTone]}
+VERBOSITY: ${verbosityGuidance[effectiveVerbosity].bullets}
+AUDIENCE: ${audienceGuidance[audienceType] || audienceGuidance.general}
+INDUSTRY: ${detectedIndustry.toUpperCase()} - ${industryImageGuidance}
 
 ABSOLUTE RULES:
 1. PLAIN TEXT ONLY - never use markdown (*#_\`)
-2. EVERY SLIDE MUST HAVE 3-5 BULLET POINTS with CONCRETE CONTENT
+2. ${verbosityGuidance[effectiveVerbosity].bullets}
 3. VARY LAYOUTS - use ALL types, not just bullet-points
 4. WRITE SPECIFIC IMAGE TERMS in English for each slide
 
 LAYOUT TYPES AND WHEN TO USE:
-- "title": ONLY first slide. Has NO bulletPoints.
+- "title": ONLY first slide${includeTitleSlide ? '' : ' (SKIP IF NOT NEEDED)'}. Has NO bulletPoints.
 - "key-point": One BIG main point. Requires keyTakeaway field. 1-2 supporting bullets.
-- "bullet-points": Standard 3-5 points with facts.
+- "bullet-points": Standard points with facts.
 - "stats": Numbers/statistics. Bullets should be "XX% of Y" or "X million Z".
 - "comparison": Compare two options. Bullets: "A: description", "B: description".
 - "quote": Important quote. keyTakeaway = the quote. subtitle = who said it.
 - "image-focus": Large image. Only 1-2 bullets for context.
 
-EXAMPLE GOOD BULLETS (concrete, short):
-✓ "Endoscopy visualizes mucosa in real-time"
-✓ "CT identifies anatomical variations"
-✓ "80% of patients experience improvement"
+LUCIDE ICONS - use relevant ones for each slide:
+Healthcare: Stethoscope, Heart, Activity, Scan, Pill, Brain, Eye, Ear, Syringe
+Technology: Cpu, Code, Cloud, Database, Wifi, Monitor, Smartphone
+Education: BookOpen, GraduationCap, Lightbulb, PenTool, Users
+Business: TrendingUp, Target, BarChart3, PieChart, Briefcase, Building2
+General: CheckCircle, Star, Award, Zap, Shield, Clock, Calendar
 
-EXAMPLE BAD BULLETS (vague, too long):
-✗ "It is important to understand diagnostics"
-✗ "One should consider various treatment options"
-
-IMAGE TERMS (suggestedImageQuery) - SPECIFIC in English:
-✓ "ENT doctor examining patient nasal endoscopy"
-✓ "CT scan sinus anatomy medical"
-✗ "medical concept" (too vague)`;
+SPEAKER NOTES: ${verbosityGuidance[effectiveVerbosity].notes}`;
 
     const demoInstruction = demoMode 
       ? (language === 'sv' 
@@ -322,10 +409,16 @@ IMAGE TERMS (suggestedImageQuery) - SPECIFIC in English:
         : `\n\nDEMO MODE: Create EXACTLY ${effectiveMaxSlides} slides.`)
       : '';
 
+    const tocInstruction = includeTableOfContents
+      ? (language === 'sv' 
+        ? '\nInkludera en "Innehållsförteckning" slide som slide 2.'
+        : '\nInclude a "Table of Contents" slide as slide 2.')
+      : '';
+
     const userPrompt = language === 'sv'
       ? `MODUL: "${effectiveModuleTitle}"
 KURS: "${courseTitle}"
-${demoInstruction}
+${demoInstruction}${tocInstruction}
 
 MANUS ATT TRANSFORMERA:
 ${scriptContent}
@@ -333,16 +426,16 @@ ${scriptContent}
 SKAPA ${demoMode ? effectiveMaxSlides : '6-10'} PROFESSIONELLA SLIDES.
 
 KRAV:
-1. Slide 1: layout="title", title=modulnamn, subtitle=kort beskrivning
+1. ${includeTitleSlide ? 'Slide 1: layout="title", title=modulnamn, subtitle=kort beskrivning' : 'Börja direkt med innehåll, hoppa över title slide'}
 2. Slides 2-N: VARIERA mellan key-point, bullet-points, stats, comparison
-3. VARJE SLIDE (utom title): 3-5 konkreta bulletPoints
+3. VARJE SLIDE (utom title): ${verbosity === 'concise' ? '2-3' : verbosity === 'text-heavy' ? '5-7' : '3-5'} konkreta bulletPoints
 4. keyTakeaway för key-point och quote slides
-5. suggestedImageQuery: SPECIFIK engelsk sökterm (3-5 ord)
-6. iconSuggestion: Lucide-ikon (Brain, Heart, Target, Scan, etc.)
+5. suggestedImageQuery: SPECIFIK engelsk sökterm (3-5 ord) - ${industryImageGuidance}
+6. iconSuggestion: Lucide-ikon passande för innehållet
 7. suggestedBackgroundColor: Mörk HEX-färg (#1a365d, #0f172a, etc.)`
       : `MODULE: "${effectiveModuleTitle}"
 COURSE: "${courseTitle}"
-${demoInstruction}
+${demoInstruction}${tocInstruction}
 
 SCRIPT TO TRANSFORM:
 ${scriptContent}
@@ -350,12 +443,12 @@ ${scriptContent}
 CREATE ${demoMode ? effectiveMaxSlides : '6-10'} PROFESSIONAL SLIDES.
 
 REQUIREMENTS:
-1. Slide 1: layout="title", title=module name, subtitle=short description
+1. ${includeTitleSlide ? 'Slide 1: layout="title", title=module name, subtitle=short description' : 'Start directly with content, skip title slide'}
 2. Slides 2-N: VARY between key-point, bullet-points, stats, comparison
-3. EVERY SLIDE (except title): 3-5 concrete bulletPoints
+3. EVERY SLIDE (except title): ${verbosity === 'concise' ? '2-3' : verbosity === 'text-heavy' ? '5-7' : '3-5'} concrete bulletPoints
 4. keyTakeaway for key-point and quote slides
-5. suggestedImageQuery: SPECIFIC English search term (3-5 words)
-6. iconSuggestion: Lucide icon (Brain, Heart, Target, Scan, etc.)
+5. suggestedImageQuery: SPECIFIC English search term (3-5 words) - ${industryImageGuidance}
+6. iconSuggestion: Lucide icon matching the content
 7. suggestedBackgroundColor: Dark HEX color (#1a365d, #0f172a, etc.)`;
 
     console.log('Generating slides for module:', effectiveModuleTitle);
