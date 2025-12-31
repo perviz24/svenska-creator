@@ -11,30 +11,21 @@ interface SlidePreviewCardProps {
   className?: string;
 }
 
-// Helper to clean markdown from content - ROBUST version
+// Helper to clean markdown from content
 const cleanMarkdown = (text: string): string => {
   if (!text) return '';
   return text
-    // Remove bold formatting: **text** or __text__
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/__([^_]+)__/g, '$1')
-    // Remove italic formatting: *text* or _text_
     .replace(/\*([^*]+)\*/g, '$1')
     .replace(/_([^_]+)_/g, '$1')
-    // Remove any remaining asterisks
     .replace(/\*/g, '')
-    // Remove headers: # ## ### etc
     .replace(/^#{1,6}\s*/gm, '')
-    // Remove bullet prefixes (we add our own later)
     .replace(/^[\s]*[-•]\s*/gm, '')
-    // Remove numbered list prefixes
     .replace(/^[\s]*\d+\.\s*/gm, '')
-    // Remove code backticks
     .replace(/`([^`]+)`/g, '$1')
     .replace(/`/g, '')
-    // Remove excessive newlines
     .replace(/\n{3,}/g, '\n\n')
-    // Clean up any double spaces
     .replace(/  +/g, ' ')
     .trim();
 };
@@ -86,6 +77,56 @@ const getLayoutLabel = (layout: Slide['layout']) => {
   return labels[layout] || layout;
 };
 
+// Image position styles
+const getImageStyles = (position: Slide['imagePosition'], hasImage: boolean) => {
+  if (!hasImage) return { containerClass: '', imageClass: '', contentClass: '' };
+  
+  switch (position) {
+    case 'background':
+      return {
+        containerClass: '',
+        imageClass: 'absolute inset-0 w-full h-full object-cover',
+        contentClass: '',
+      };
+    case 'left':
+      return {
+        containerClass: 'flex flex-row',
+        imageClass: 'w-1/3 h-full object-cover rounded-lg',
+        contentClass: 'flex-1 pl-4',
+      };
+    case 'right':
+      return {
+        containerClass: 'flex flex-row-reverse',
+        imageClass: 'w-1/3 h-full object-cover rounded-lg',
+        contentClass: 'flex-1 pr-4',
+      };
+    case 'top':
+      return {
+        containerClass: 'flex flex-col',
+        imageClass: 'w-full h-1/3 object-cover rounded-lg mb-2',
+        contentClass: 'flex-1',
+      };
+    case 'corner':
+      return {
+        containerClass: '',
+        imageClass: 'absolute top-3 right-3 w-16 h-16 md:w-24 md:h-24 object-cover rounded-lg shadow-lg border-2 border-white/20',
+        contentClass: 'pr-20 md:pr-28',
+      };
+    case 'inline':
+      return {
+        containerClass: '',
+        imageClass: 'w-20 h-20 md:w-28 md:h-28 object-cover rounded-lg float-right ml-3 mb-2 shadow-lg',
+        contentClass: '',
+      };
+    default:
+      return {
+        containerClass: '',
+        imageClass: 'absolute inset-0 w-full h-full object-cover',
+        contentClass: '',
+      };
+  }
+};
+
 export const SlidePreviewCard = React.forwardRef<HTMLDivElement, SlidePreviewCardProps>(
   ({ slide, showWatermark, className }, ref) => {
   const IconComponent = getIcon(slide.iconSuggestion);
@@ -95,10 +136,14 @@ export const SlidePreviewCard = React.forwardRef<HTMLDivElement, SlidePreviewCar
   const cleanedContent = cleanMarkdown(slide.content);
   const cleanedKeyTakeaway = slide.keyTakeaway ? cleanMarkdown(slide.keyTakeaway) : null;
   
-  // Extract bullet points from content if not provided
   const effectiveBulletPoints = bulletPoints.length > 0 
     ? bulletPoints.map(cleanMarkdown).filter(Boolean)
     : cleanedContent.split('\n').filter(line => line.trim()).slice(0, 5);
+
+  const imagePosition = slide.imagePosition || 'background';
+  const hasImage = !!slide.imageUrl;
+  const isBackgroundImage = imagePosition === 'background' || slide.layout === 'title' || slide.layout === 'image-focus';
+  const imageStyles = getImageStyles(isBackgroundImage ? 'background' : imagePosition, hasImage);
 
   return (
     <div 
@@ -108,195 +153,229 @@ export const SlidePreviewCard = React.forwardRef<HTMLDivElement, SlidePreviewCar
         className
       )}
       style={{ 
-        background: slide.imageUrl 
+        background: (hasImage && isBackgroundImage)
           ? undefined
           : getLayoutBackground(slide.layout, slide.backgroundColor)
       }}
     >
-      {/* Background Image */}
-      {slide.imageUrl && (
+      {/* Background Image (full-bleed) */}
+      {hasImage && isBackgroundImage && (
         <img 
           src={slide.imageUrl} 
           alt=""
-          className="absolute inset-0 w-full h-full object-cover"
+          className={imageStyles.imageClass}
         />
       )}
       
-      {/* Gradient Overlay */}
-      <div className={cn(
-        "absolute inset-0",
-        slide.imageUrl 
-          ? "bg-gradient-to-t from-black/85 via-black/50 to-black/30"
-          : "bg-gradient-to-br from-white/5 to-transparent"
-      )} />
+      {/* Gradient Overlay for background images */}
+      {hasImage && isBackgroundImage && (
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/30" />
+      )}
+      
+      {/* Subtle gradient for non-background images */}
+      {(!hasImage || !isBackgroundImage) && (
+        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
+      )}
 
-      {/* Layout-specific content */}
-      <div className="relative z-10 p-4 md:p-6 h-full flex flex-col">
-        {/* Title Slide Layout */}
-        {slide.layout === 'title' && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center space-y-3">
-            {IconComponent && (
-              <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center mb-2">
-                <IconComponent className="w-6 h-6 md:w-8 md:h-8 text-white" />
-              </div>
-            )}
-            <h2 className="text-xl md:text-3xl lg:text-4xl font-bold text-white drop-shadow-lg leading-tight">
-              {cleanedTitle}
-            </h2>
-            {cleanedSubtitle && (
-              <p className="text-base md:text-lg text-white/80 max-w-md">
-                {cleanedSubtitle}
-              </p>
-            )}
-          </div>
+      {/* Main content wrapper */}
+      <div className={cn("relative z-10 p-4 md:p-6 h-full flex flex-col", imageStyles.containerClass)}>
+        
+        {/* Positioned Image (non-background) */}
+        {hasImage && !isBackgroundImage && imagePosition !== 'corner' && imagePosition !== 'inline' && (
+          <img 
+            src={slide.imageUrl} 
+            alt=""
+            className={imageStyles.imageClass}
+          />
+        )}
+        
+        {/* Corner Image */}
+        {hasImage && imagePosition === 'corner' && (
+          <img 
+            src={slide.imageUrl} 
+            alt=""
+            className={imageStyles.imageClass}
+          />
         )}
 
-        {/* Key Point Layout */}
-        {slide.layout === 'key-point' && (
-          <div className="flex-1 flex flex-col justify-center space-y-3">
-            <Badge variant="secondary" className="self-start text-xs bg-white/20 text-white backdrop-blur-sm border-0">
-              {getLayoutLabel(slide.layout)}
-            </Badge>
-            <h3 className="text-lg md:text-xl font-bold text-white drop-shadow-lg">
-              {cleanedTitle}
-            </h3>
-            {cleanedKeyTakeaway && (
-              <div className="p-3 md:p-4 bg-white/15 backdrop-blur-sm rounded-lg border border-white/25">
-                <p className="text-base md:text-lg text-white font-semibold leading-relaxed">
+        {/* Content area */}
+        <div className={cn("flex-1 flex flex-col", imageStyles.contentClass)}>
+          
+          {/* Inline Image */}
+          {hasImage && imagePosition === 'inline' && (
+            <img 
+              src={slide.imageUrl} 
+              alt=""
+              className={imageStyles.imageClass}
+            />
+          )}
+
+          {/* Title Slide Layout */}
+          {slide.layout === 'title' && (
+            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-3">
+              {IconComponent && (
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center mb-2">
+                  <IconComponent className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                </div>
+              )}
+              <h2 className="text-xl md:text-3xl lg:text-4xl font-bold text-white drop-shadow-lg leading-tight">
+                {cleanedTitle}
+              </h2>
+              {cleanedSubtitle && (
+                <p className="text-base md:text-lg text-white/80 max-w-md">
+                  {cleanedSubtitle}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Key Point Layout */}
+          {slide.layout === 'key-point' && (
+            <div className="flex-1 flex flex-col justify-center space-y-3">
+              <Badge variant="secondary" className="self-start text-xs bg-white/20 text-white backdrop-blur-sm border-0">
+                {getLayoutLabel(slide.layout)}
+              </Badge>
+              <h3 className="text-lg md:text-xl font-bold text-white drop-shadow-lg">
+                {cleanedTitle}
+              </h3>
+              {cleanedKeyTakeaway && (
+                <div className="p-3 md:p-4 bg-white/15 backdrop-blur-sm rounded-lg border border-white/25">
+                  <p className="text-base md:text-lg text-white font-semibold leading-relaxed">
+                    {cleanedKeyTakeaway}
+                  </p>
+                </div>
+              )}
+              {effectiveBulletPoints.length > 0 && (
+                <ul className="space-y-1.5 mt-2">
+                  {effectiveBulletPoints.slice(0, 3).map((point, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-white/90">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 mt-2 flex-shrink-0" />
+                      <span className="text-sm leading-relaxed">{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {/* Stats Layout */}
+          {slide.layout === 'stats' && (
+            <div className="flex-1 flex flex-col justify-center space-y-3">
+              <Badge variant="secondary" className="self-start text-xs bg-white/20 text-white backdrop-blur-sm border-0">
+                Statistik
+              </Badge>
+              <h3 className="text-lg md:text-xl font-bold text-white drop-shadow-lg">
+                {cleanedTitle}
+              </h3>
+              <div className="grid grid-cols-2 gap-2 md:gap-3 mt-2">
+                {effectiveBulletPoints.slice(0, 4).map((point, idx) => (
+                  <div key={idx} className="bg-white/15 backdrop-blur-sm rounded-lg p-2 md:p-3 text-center border border-white/20">
+                    <p className="text-white/95 text-xs md:text-sm font-medium">{point}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Quote Layout */}
+          {slide.layout === 'quote' && (
+            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-2 px-2">
+              <div className="text-4xl md:text-5xl text-white/30 font-serif">"</div>
+              <blockquote className="text-base md:text-lg text-white italic font-medium leading-relaxed max-w-lg">
+                {cleanedKeyTakeaway || effectiveBulletPoints[0] || cleanedContent}
+              </blockquote>
+              <div className="text-4xl md:text-5xl text-white/30 font-serif">"</div>
+              {(cleanedSubtitle || cleanedTitle) && (
+                <p className="text-white/70 text-xs md:text-sm mt-1">— {cleanedSubtitle || cleanedTitle}</p>
+              )}
+            </div>
+          )}
+
+          {/* Comparison Layout */}
+          {slide.layout === 'comparison' && (
+            <div className="flex-1 flex flex-col justify-center space-y-3">
+              <h3 className="text-lg md:text-xl font-bold text-white drop-shadow-lg text-center">
+                {cleanedTitle}
+              </h3>
+              <div className="grid grid-cols-2 gap-2 md:gap-3 mt-2">
+                {effectiveBulletPoints.slice(0, 4).map((point, idx) => (
+                  <div 
+                    key={idx} 
+                    className={cn(
+                      "p-2 md:p-3 rounded-lg border",
+                      idx % 2 === 0 
+                        ? "bg-emerald-500/20 border-emerald-500/30" 
+                        : "bg-blue-500/20 border-blue-500/30"
+                    )}
+                  >
+                    <p className="text-white/90 text-xs md:text-sm">{point}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bullet Points Layout */}
+          {slide.layout === 'bullet-points' && (
+            <div className="flex-1 flex flex-col justify-end space-y-2">
+              <Badge variant="secondary" className="self-start mb-1 text-xs bg-white/20 text-white backdrop-blur-sm border-0">
+                {getLayoutLabel(slide.layout)}
+              </Badge>
+              <h3 className="text-lg md:text-xl font-bold mb-2 text-white drop-shadow-lg">
+                {cleanedTitle}
+              </h3>
+              {cleanedSubtitle && (
+                <p className="text-white/70 text-xs mb-1">{cleanedSubtitle}</p>
+              )}
+              <ul className="space-y-1.5">
+                {effectiveBulletPoints.slice(0, 5).map((point, idx) => (
+                  <li key={idx} className="flex items-start gap-2 text-white/90">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white/60 mt-2 flex-shrink-0" />
+                    <span className="text-xs md:text-sm leading-relaxed">{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Default / Title-Content / Image-Focus Layout */}
+          {!['title', 'key-point', 'stats', 'quote', 'bullet-points', 'comparison'].includes(slide.layout) && (
+            <div className="flex-1 flex flex-col justify-end space-y-2">
+              <Badge variant="secondary" className="self-start mb-1 text-xs bg-white/20 text-white backdrop-blur-sm border-0">
+                {getLayoutLabel(slide.layout)}
+              </Badge>
+              <h3 className="text-lg md:text-xl font-bold mb-2 text-white drop-shadow-lg line-clamp-2">
+                {cleanedTitle}
+              </h3>
+              {cleanedSubtitle && (
+                <p className="text-white/70 text-xs mb-1">{cleanedSubtitle}</p>
+              )}
+              {effectiveBulletPoints.length > 0 ? (
+                <ul className="space-y-1.5">
+                  {effectiveBulletPoints.slice(0, 4).map((point, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-white/90">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 mt-2 flex-shrink-0" />
+                      <span className="text-xs md:text-sm leading-relaxed line-clamp-2">{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : cleanedKeyTakeaway && (
+                <p className="text-sm text-white/90 whitespace-pre-wrap line-clamp-3 leading-relaxed">
                   {cleanedKeyTakeaway}
                 </p>
-              </div>
-            )}
-            {effectiveBulletPoints.length > 0 && (
-              <ul className="space-y-1.5 mt-2">
-                {effectiveBulletPoints.slice(0, 3).map((point, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-white/90">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white/60 mt-2 flex-shrink-0" />
-                    <span className="text-sm leading-relaxed">{point}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-
-        {/* Stats Layout */}
-        {slide.layout === 'stats' && (
-          <div className="flex-1 flex flex-col justify-center space-y-3">
-            <Badge variant="secondary" className="self-start text-xs bg-white/20 text-white backdrop-blur-sm border-0">
-              Statistik
-            </Badge>
-            <h3 className="text-lg md:text-xl font-bold text-white drop-shadow-lg">
-              {cleanedTitle}
-            </h3>
-            <div className="grid grid-cols-2 gap-2 md:gap-3 mt-2">
-              {effectiveBulletPoints.slice(0, 4).map((point, idx) => (
-                <div key={idx} className="bg-white/15 backdrop-blur-sm rounded-lg p-2 md:p-3 text-center border border-white/20">
-                  <p className="text-white/95 text-xs md:text-sm font-medium">{point}</p>
-                </div>
-              ))}
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Quote Layout */}
-        {slide.layout === 'quote' && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center space-y-2 px-2">
-            <div className="text-4xl md:text-5xl text-white/30 font-serif">"</div>
-            <blockquote className="text-base md:text-lg text-white italic font-medium leading-relaxed max-w-lg">
-              {cleanedKeyTakeaway || effectiveBulletPoints[0] || cleanedContent}
-            </blockquote>
-            <div className="text-4xl md:text-5xl text-white/30 font-serif">"</div>
-            {(cleanedSubtitle || cleanedTitle) && (
-              <p className="text-white/70 text-xs md:text-sm mt-1">— {cleanedSubtitle || cleanedTitle}</p>
-            )}
-          </div>
-        )}
-
-        {/* Comparison Layout */}
-        {slide.layout === 'comparison' && (
-          <div className="flex-1 flex flex-col justify-center space-y-3">
-            <h3 className="text-lg md:text-xl font-bold text-white drop-shadow-lg text-center">
-              {cleanedTitle}
-            </h3>
-            <div className="grid grid-cols-2 gap-2 md:gap-3 mt-2">
-              {effectiveBulletPoints.slice(0, 4).map((point, idx) => (
-                <div 
-                  key={idx} 
-                  className={cn(
-                    "p-2 md:p-3 rounded-lg border",
-                    idx % 2 === 0 
-                      ? "bg-emerald-500/20 border-emerald-500/30" 
-                      : "bg-blue-500/20 border-blue-500/30"
-                  )}
-                >
-                  <p className="text-white/90 text-xs md:text-sm">{point}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Bullet Points Layout */}
-        {slide.layout === 'bullet-points' && (
-          <div className="flex-1 flex flex-col justify-end space-y-2">
-            <Badge variant="secondary" className="self-start mb-1 text-xs bg-white/20 text-white backdrop-blur-sm border-0">
-              {getLayoutLabel(slide.layout)}
-            </Badge>
-            <h3 className="text-lg md:text-xl font-bold mb-2 text-white drop-shadow-lg">
-              {cleanedTitle}
-            </h3>
-            {cleanedSubtitle && (
-              <p className="text-white/70 text-xs mb-1">{cleanedSubtitle}</p>
-            )}
-            <ul className="space-y-1.5">
-              {effectiveBulletPoints.slice(0, 5).map((point, idx) => (
-                <li key={idx} className="flex items-start gap-2 text-white/90">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white/60 mt-2 flex-shrink-0" />
-                  <span className="text-xs md:text-sm leading-relaxed">{point}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Default / Title-Content / Image-Focus Layout */}
-        {!['title', 'key-point', 'stats', 'quote', 'bullet-points', 'comparison'].includes(slide.layout) && (
-          <div className="flex-1 flex flex-col justify-end space-y-2">
-            <Badge variant="secondary" className="self-start mb-1 text-xs bg-white/20 text-white backdrop-blur-sm border-0">
-              {getLayoutLabel(slide.layout)}
-            </Badge>
-            <h3 className="text-lg md:text-xl font-bold mb-2 text-white drop-shadow-lg line-clamp-2">
-              {cleanedTitle}
-            </h3>
-            {cleanedSubtitle && (
-              <p className="text-white/70 text-xs mb-1">{cleanedSubtitle}</p>
-            )}
-            {effectiveBulletPoints.length > 0 ? (
-              <ul className="space-y-1.5">
-                {effectiveBulletPoints.slice(0, 4).map((point, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-white/90">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white/60 mt-2 flex-shrink-0" />
-                    <span className="text-xs md:text-sm leading-relaxed line-clamp-2">{point}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : cleanedKeyTakeaway && (
-              <p className="text-sm text-white/90 whitespace-pre-wrap line-clamp-3 leading-relaxed">
-                {cleanedKeyTakeaway}
+          {/* Key Takeaway Footer */}
+          {cleanedKeyTakeaway && !['key-point', 'quote', 'title'].includes(slide.layout) && (
+            <div className="mt-auto pt-2 border-t border-white/20">
+              <p className="text-xs text-white/80 italic line-clamp-2">
+                💡 {cleanedKeyTakeaway}
               </p>
-            )}
-          </div>
-        )}
-
-        {/* Key Takeaway Footer (for non-key-point/quote layouts with takeaway) */}
-        {cleanedKeyTakeaway && !['key-point', 'quote', 'title'].includes(slide.layout) && (
-          <div className="mt-auto pt-2 border-t border-white/20">
-            <p className="text-xs text-white/80 italic line-clamp-2">
-              💡 {cleanedKeyTakeaway}
-            </p>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
         {/* Image Attribution */}
         {slide.imageAttribution && (

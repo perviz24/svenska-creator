@@ -18,7 +18,8 @@ interface SlideContent {
   suggestedImageQuery: string;
   suggestedBackgroundColor?: string;
   iconSuggestion?: string;
-  visualType?: 'photo' | 'illustration' | 'diagram' | 'icon-grid';
+  visualType?: 'photo' | 'illustration' | 'vector' | 'diagram' | 'icon-grid' | 'abstract';
+  imagePosition?: 'background' | 'left' | 'right' | 'top' | 'inline' | 'corner';
   imageUrl?: string;
   imageSource?: string;
   imageAttribution?: string;
@@ -225,16 +226,114 @@ function detectIndustry(content: string): string {
 // Get image keywords based on industry
 function getIndustryImageGuidance(industry: string): string {
   const guidance: Record<string, string> = {
-    healthcare: 'Use medical professional photos, clinical settings, anatomical diagrams. Keywords: doctor, hospital, medical equipment, patient care, surgery, diagnosis.',
-    finance: 'Use business professional photos, charts, graphs, office settings. Keywords: business meeting, financial charts, corporate office, investment.',
-    technology: 'Use modern tech imagery, abstract digital visuals, clean interfaces. Keywords: technology, digital, innovation, software, data visualization.',
-    education: 'Use classroom, learning, books, students. Keywords: education, learning, classroom, students, teaching, knowledge.',
-    marketing: 'Use dynamic, engaging visuals with people. Keywords: marketing, branding, team collaboration, creative.',
-    environment: 'Use nature photography, sustainability themes. Keywords: nature, environment, sustainable, green energy.',
-    legal: 'Use professional settings, documents, courtrooms. Keywords: legal, law, contract, professional.',
-    general: 'Use professional business photography. Keywords: professional, business, teamwork, success.',
+    healthcare: 'Use medical professional photos, clinical settings, anatomical diagrams. Keywords: doctor, hospital, medical equipment, patient care, surgery, diagnosis. For illustrations use: medical infographic, anatomy illustration, healthcare icon.',
+    finance: 'Use business professional photos, charts, graphs, office settings. Keywords: business meeting, financial charts, corporate office, investment. For illustrations use: financial infographic, business diagram, money icon.',
+    technology: 'Use modern tech imagery, abstract digital visuals, clean interfaces. Keywords: technology, digital, innovation, software, data visualization. For illustrations use: tech illustration, circuit pattern, digital abstract.',
+    education: 'Use classroom, learning, books, students. Keywords: education, learning, classroom, students, teaching, knowledge. For illustrations use: educational infographic, learning diagram, academic icon.',
+    marketing: 'Use dynamic, engaging visuals with people. Keywords: marketing, branding, team collaboration, creative. For illustrations use: marketing infographic, business growth chart, target illustration.',
+    environment: 'Use nature photography, sustainability themes. Keywords: nature, environment, sustainable, green energy. For illustrations use: eco infographic, nature illustration, environmental icon.',
+    legal: 'Use professional settings, documents, courtrooms. Keywords: legal, law, contract, professional. For illustrations use: legal document illustration, scales of justice icon.',
+    general: 'Use professional business photography. Keywords: professional, business, teamwork, success. For illustrations use: business infographic, professional icon set.',
   };
   return guidance[industry] || guidance.general;
+}
+
+// Generate contextual image query based on slide content
+function generateImageQuery(slide: { title: string; bulletPoints?: string[]; keyTakeaway?: string; layout: string }, industry: string): string {
+  const title = slide.title.toLowerCase();
+  const bullets = (slide.bulletPoints || []).join(' ').toLowerCase();
+  const takeaway = (slide.keyTakeaway || '').toLowerCase();
+  const combined = `${title} ${bullets} ${takeaway}`;
+  
+  // Industry-specific keywords
+  const industryKeywords: Record<string, string[]> = {
+    healthcare: ['medical', 'doctor', 'hospital', 'patient', 'treatment', 'healthcare professional'],
+    finance: ['business', 'financial', 'investment', 'corporate', 'money', 'chart'],
+    technology: ['technology', 'digital', 'software', 'innovation', 'computer', 'data'],
+    education: ['education', 'learning', 'student', 'classroom', 'teaching', 'knowledge'],
+    marketing: ['marketing', 'branding', 'creative', 'advertising', 'customer'],
+    environment: ['nature', 'environment', 'sustainable', 'green', 'eco'],
+    legal: ['legal', 'law', 'justice', 'court', 'contract'],
+    general: ['professional', 'business', 'modern', 'success'],
+  };
+  
+  const keywords = industryKeywords[industry] || industryKeywords.general;
+  const matchedKeyword = keywords.find(k => combined.includes(k)) || keywords[0];
+  
+  // Extract key concepts from title (first 3 meaningful words)
+  const titleWords = title
+    .replace(/[^\w\s]/g, '')
+    .split(' ')
+    .filter(w => w.length > 3 && !['with', 'from', 'that', 'this', 'have', 'been', 'will', 'what', 'when', 'where', 'which'].includes(w))
+    .slice(0, 3);
+  
+  if (titleWords.length >= 2) {
+    return `${titleWords.join(' ')} ${matchedKeyword} professional`;
+  }
+  
+  return `${matchedKeyword} ${industry} professional modern`;
+}
+
+// Determine best image position based on layout and visual type
+function determineImagePosition(layout: string, visualType: string, slideIndex: number): string {
+  // Title slides always use background
+  if (layout === 'title') return 'background';
+  
+  // Image-focus layout uses background
+  if (layout === 'image-focus') return 'background';
+  
+  // Illustrations and vectors work well inline or positioned
+  if (visualType === 'illustration' || visualType === 'vector') {
+    const positions = ['right', 'left', 'corner'];
+    return positions[slideIndex % positions.length];
+  }
+  
+  // Diagrams work well larger
+  if (visualType === 'diagram') {
+    return slideIndex % 2 === 0 ? 'top' : 'right';
+  }
+  
+  // Photos - vary between background, left, right based on layout
+  if (layout === 'two-column') {
+    return slideIndex % 2 === 0 ? 'left' : 'right';
+  }
+  
+  if (layout === 'stats' || layout === 'comparison') {
+    return 'corner';
+  }
+  
+  // Default: alternate between background and positioned
+  const positions = ['background', 'right', 'left', 'background', 'corner'];
+  return positions[slideIndex % positions.length];
+}
+
+// Determine visual type based on content and layout
+function determineVisualType(layout: string, content: string, slideIndex: number): string {
+  const lowerContent = content.toLowerCase();
+  
+  // Stats slides work well with diagrams or icons
+  if (layout === 'stats') {
+    return slideIndex % 2 === 0 ? 'diagram' : 'icon-grid';
+  }
+  
+  // Comparison slides work well with illustrations
+  if (layout === 'comparison') return 'illustration';
+  
+  // Quote slides can use abstract or minimal
+  if (layout === 'quote') return 'abstract';
+  
+  // Key-point slides vary
+  if (layout === 'key-point') {
+    return slideIndex % 3 === 0 ? 'illustration' : slideIndex % 3 === 1 ? 'photo' : 'vector';
+  }
+  
+  // Check content for hints
+  if (/diagram|chart|graph|flow|process|step/i.test(lowerContent)) return 'diagram';
+  if (/icon|symbol|represent/i.test(lowerContent)) return 'icon-grid';
+  if (/illustrat|draw|concept|abstract/i.test(lowerContent)) return 'illustration';
+  
+  // Default: alternate between photo and illustration
+  return slideIndex % 3 === 0 ? 'illustration' : 'photo';
 }
 
 serve(async (req) => {
@@ -506,16 +605,21 @@ REQUIREMENTS:
                           enum: ['title', 'key-point', 'bullet-points', 'stats', 'comparison', 'quote', 'image-focus'],
                           description: 'Visual layout - VARY these across slides'
                         },
-                        suggestedImageQuery: { type: 'string', description: 'SPECIFIC English image search (e.g., "surgeon performing endoscopy procedure")' },
-                        iconSuggestion: { type: 'string', description: 'Lucide icon name (Brain, Heart, Target, Scan, Activity, etc.)' },
+                        suggestedImageQuery: { type: 'string', description: 'VERY SPECIFIC English image search (5-7 words describing exact visual, e.g., "surgeon performing minimally invasive endoscopy procedure" or "colorful education infographic with icons")' },
+                        iconSuggestion: { type: 'string', description: 'Lucide icon name (Brain, Heart, Target, Scan, Activity, TrendingUp, Users, etc.)' },
                         visualType: { 
                           type: 'string', 
-                          enum: ['photo', 'illustration', 'diagram', 'icon-grid'],
-                          description: 'Type of visual'
+                          enum: ['photo', 'illustration', 'vector', 'diagram', 'icon-grid', 'abstract'],
+                          description: 'Type of visual: photo (real photography), illustration (drawn/painted style), vector (flat design icons), diagram (charts/flows), icon-grid (multiple icons), abstract (patterns/shapes)'
+                        },
+                        imagePosition: {
+                          type: 'string',
+                          enum: ['background', 'left', 'right', 'top', 'inline', 'corner'],
+                          description: 'Where to place image: background (full slide), left/right (side column), top (above content), inline (within text), corner (small decorative)'
                         },
                         suggestedBackgroundColor: { type: 'string', description: 'Dark HEX color (#1a365d, #0f172a, #134e4a)' }
                       },
-                      required: ['slideNumber', 'title', 'bulletPoints', 'speakerNotes', 'layout', 'suggestedImageQuery']
+                      required: ['slideNumber', 'title', 'bulletPoints', 'speakerNotes', 'layout', 'suggestedImageQuery', 'visualType', 'imagePosition']
                     }
                   }
                 },
@@ -558,7 +662,7 @@ REQUIREMENTS:
     const slidesData = JSON.parse(toolCall.function.arguments);
     let slides: SlideContent[] = slidesData.slides;
 
-    // Post-process: ensure every non-title slide has bullets
+    // Post-process: ensure every non-title slide has bullets, visual type, and image position
     slides = slides.map((slide, idx) => {
       const cleanedTitle = cleanMarkdown(slide.title);
       const cleanedContent = cleanMarkdown(slide.content || '');
@@ -572,7 +676,6 @@ REQUIREMENTS:
         if (cleanedContent) {
           cleanedBulletPoints = cleanedContent.split('\n').filter(line => line.trim()).slice(0, 5);
         }
-        // If still empty, create fallback from keyTakeaway or title
         if (cleanedBulletPoints.length === 0 && cleanedKeyTakeaway) {
           cleanedBulletPoints = [cleanedKeyTakeaway];
         }
@@ -588,16 +691,47 @@ REQUIREMENTS:
         bgColor = darkColors[idx % darkColors.length];
       }
       
+      // Determine visual type if not provided
+      const visualType = (slide.visualType || determineVisualType(slide.layout, `${cleanedTitle} ${cleanedBulletPoints.join(' ')}`, idx)) as SlideContent['visualType'];
+      
+      // Determine image position if not provided
+      const imagePosition = (slide.imagePosition || determineImagePosition(slide.layout, visualType || 'photo', idx)) as SlideContent['imagePosition'];
+      
+      // Improve image query if it's too generic
+      let imageQuery = slide.suggestedImageQuery;
+      if (!imageQuery || imageQuery.length < 15 || /^(professional|business|modern)\s/.test(imageQuery.toLowerCase())) {
+        imageQuery = generateImageQuery({
+          title: cleanedTitle,
+          bulletPoints: cleanedBulletPoints,
+          keyTakeaway: cleanedKeyTakeaway,
+          layout: slide.layout
+        }, detectedIndustry);
+      }
+      
+      // Add visual type hints to query for better results
+      if (visualType === 'illustration' && !imageQuery.includes('illustration')) {
+        imageQuery = `${imageQuery} illustration flat design`;
+      } else if (visualType === 'vector' && !imageQuery.includes('vector')) {
+        imageQuery = `${imageQuery} vector icon flat`;
+      } else if (visualType === 'diagram' && !imageQuery.includes('diagram')) {
+        imageQuery = `${imageQuery} infographic diagram`;
+      } else if (visualType === 'abstract' && !imageQuery.includes('abstract')) {
+        imageQuery = `${imageQuery} abstract pattern background`;
+      }
+      
       return {
         ...slide,
         slideNumber: idx + 1,
         title: cleanedTitle,
         subtitle: cleanedSubtitle,
-        content: '', // Clear content - use bulletPoints instead
+        content: '',
         bulletPoints: cleanedBulletPoints,
         keyTakeaway: cleanedKeyTakeaway,
         speakerNotes: cleanMarkdown(slide.speakerNotes || ''),
         suggestedBackgroundColor: bgColor,
+        suggestedImageQuery: imageQuery,
+        visualType,
+        imagePosition,
       };
     });
 
@@ -611,7 +745,7 @@ REQUIREMENTS:
     
     // Log slide structure for debugging
     slides.forEach((s, i) => {
-      console.log(`Slide ${i + 1}: layout=${s.layout}, bullets=${s.bulletPoints?.length || 0}, keyTakeaway=${!!s.keyTakeaway}`);
+      console.log(`Slide ${i + 1}: layout=${s.layout}, visual=${s.visualType}, position=${s.imagePosition}, bullets=${s.bulletPoints?.length || 0}, query="${s.suggestedImageQuery?.substring(0, 40)}..."`);
     });
 
     // Cache the slides
