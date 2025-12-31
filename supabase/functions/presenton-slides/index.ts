@@ -353,13 +353,122 @@ serve(async (req) => {
       });
 
       // Build optimized instructions for best visual output (keep it short + design-first)
-      const enhancedInstructions = [
+      let enhancedInstructions = [
         effectiveInstructions,
         'Prioritize premium visual design: strong layout, consistent spacing, and clear hierarchy.',
         'Keep text concise (max 5 bullets). Use impactful headings.',
-        'Use relevant high-quality imagery and icons that directly support the slide message.',
         'Ensure consistent theme styling across all slides.',
       ].filter(Boolean).join(' ');
+
+      // Generate per-slide image keywords using Lovable AI for better image relevance
+      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+      let imageKeywordsGuidance = '';
+      
+      if (LOVABLE_API_KEY && contentText.length > 50) {
+        try {
+          console.log('Generating per-slide image keywords with Lovable AI...');
+          
+          const keywordPrompt = `You are an expert at selecting stock photography for professional presentations.
+
+Given this presentation content, generate highly specific image search keywords for each major topic/slide.
+For each slide/topic, provide:
+1. Primary keyword (most important visual concept)
+2. 2-3 secondary keywords (supporting visuals)
+3. Both Swedish AND English versions for each keyword
+
+Content to analyze:
+"""
+${contentText.substring(0, 4000)}
+"""
+
+Respond ONLY with a JSON object in this exact format:
+{
+  "slides": [
+    {
+      "topic": "brief topic name",
+      "primary_en": "main visual keyword in English",
+      "primary_sv": "main visual keyword in Swedish",
+      "secondary_en": ["keyword1", "keyword2"],
+      "secondary_sv": ["keyword1", "keyword2"]
+    }
+  ],
+  "overall_theme_en": "overall visual theme suggestion",
+  "overall_theme_sv": "overall visual theme suggestion in Swedish"
+}`;
+
+          const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: [
+                { role: 'user', content: keywordPrompt }
+              ],
+              max_tokens: 1500,
+            }),
+          });
+
+          if (aiResponse.ok) {
+            const aiData = await aiResponse.json();
+            const rawContent = aiData.choices?.[0]?.message?.content || '';
+            
+            // Extract JSON from response (handle markdown code blocks)
+            let jsonStr = rawContent;
+            const jsonMatch = rawContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (jsonMatch) {
+              jsonStr = jsonMatch[1].trim();
+            }
+            
+            try {
+              const keywords = JSON.parse(jsonStr);
+              console.log('Generated image keywords:', JSON.stringify(keywords, null, 2));
+              
+              // Build guidance string from keywords
+              const keywordParts: string[] = [];
+              
+              if (keywords.overall_theme_en) {
+                keywordParts.push(`Overall visual theme: ${keywords.overall_theme_en} (${keywords.overall_theme_sv || keywords.overall_theme_en}).`);
+              }
+              
+              if (keywords.slides && Array.isArray(keywords.slides)) {
+                keywords.slides.forEach((slide: any, idx: number) => {
+                  const allKeywords = [
+                    slide.primary_en,
+                    slide.primary_sv,
+                    ...(slide.secondary_en || []),
+                    ...(slide.secondary_sv || [])
+                  ].filter(Boolean).join(', ');
+                  
+                  if (allKeywords) {
+                    keywordParts.push(`Slide ${idx + 1} (${slide.topic || 'topic'}): use images showing ${allKeywords}.`);
+                  }
+                });
+              }
+              
+              imageKeywordsGuidance = keywordParts.join(' ');
+              console.log('Image keywords guidance:', imageKeywordsGuidance);
+              
+            } catch (parseErr) {
+              console.warn('Failed to parse AI keyword response as JSON:', parseErr);
+            }
+          } else {
+            console.warn('Lovable AI keyword generation failed:', aiResponse.status);
+          }
+        } catch (aiErr) {
+          console.warn('Error generating image keywords:', aiErr);
+        }
+      }
+
+      // Append image keywords guidance to instructions
+      if (imageKeywordsGuidance) {
+        enhancedInstructions += ` IMAGE GUIDANCE: ${imageKeywordsGuidance}`;
+      } else {
+        // Fallback: add generic but specific image guidance
+        enhancedInstructions += ' Use relevant high-quality imagery and icons that directly support the slide message.';
+      }
 
       // Presenton docs: https://docs.presenton.ai/api-reference/presentation/generate-presentation-async
       // Key changes for quality:
