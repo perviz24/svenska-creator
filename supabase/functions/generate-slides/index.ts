@@ -181,20 +181,31 @@ async function searchStockPhotos(query: string): Promise<StockPhoto | null> {
   return null;
 }
 
-// Clean any markdown from content
+// Clean any markdown from content - ROBUST version
 function cleanMarkdown(text: string): string {
   if (!text) return '';
   return text
-    .replace(/\*\*\*/g, '')
-    .replace(/\*\*/g, '')
-    .replace(/\*/g, '')
-    .replace(/^#{1,6}\s*/gm, '')
-    .replace(/^[\s]*[-•]\s*/gm, '')
-    .replace(/^[\s]*\d+\.\s*/gm, '')
-    .replace(/__/g, '')
+    // Remove bold formatting: **text** or __text__
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    // Remove italic formatting: *text* or _text_
+    .replace(/\*([^*]+)\*/g, '$1')
     .replace(/_([^_]+)_/g, '$1')
-    .replace(/\n{3,}/g, '\n\n')
+    // Remove any remaining asterisks
+    .replace(/\*/g, '')
+    // Remove headers: # ## ### etc
+    .replace(/^#{1,6}\s*/gm, '')
+    // Remove bullet prefixes (we add our own later)
+    .replace(/^[\s]*[-•]\s*/gm, '')
+    // Remove numbered list prefixes
+    .replace(/^[\s]*\d+\.\s*/gm, '')
+    // Remove code backticks
+    .replace(/`([^`]+)`/g, '$1')
     .replace(/`/g, '')
+    // Remove excessive newlines
+    .replace(/\n{3,}/g, '\n\n')
+    // Clean up any double spaces
+    .replace(/  +/g, ' ')
     .trim();
 }
 

@@ -66,6 +66,34 @@ const TEMPLATES = {
   },
 };
 
+// Clean any markdown from content - ROBUST version
+function cleanMarkdown(text: string): string {
+  if (!text) return '';
+  return text
+    // Remove bold formatting: **text** or __text__
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    // Remove italic formatting: *text* or _text_
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    // Remove any remaining asterisks
+    .replace(/\*/g, '')
+    // Remove headers: # ## ### etc
+    .replace(/^#{1,6}\s*/gm, '')
+    // Remove bullet prefixes (we add our own later)
+    .replace(/^[\s]*[-•]\s*/gm, '')
+    // Remove numbered list prefixes
+    .replace(/^[\s]*\d+\.\s*/gm, '')
+    // Remove code backticks
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/`/g, '')
+    // Remove excessive newlines
+    .replace(/\n{3,}/g, '\n\n')
+    // Clean up any double spaces
+    .replace(/  +/g, ' ')
+    .trim();
+}
+
 // Helper to fetch image as base64 data URL
 async function fetchImageAsBase64(url: string): Promise<string | null> {
   try {
@@ -217,12 +245,17 @@ async function generateNativePPTX(
     const slide = contentSlidesData[i];
     const layout = slide.layout || 'bullet-points';
     
-    // Get bullets from bulletPoints or content
+    // Clean all text content from markdown
+    const cleanTitle = cleanMarkdown(slide.title);
+    const cleanSubtitle = slide.subtitle ? cleanMarkdown(slide.subtitle) : '';
+    const cleanKeyTakeaway = slide.keyTakeaway ? cleanMarkdown(slide.keyTakeaway) : '';
+    
+    // Get bullets from bulletPoints or content - and clean each one
     const bulletsFromContent = (slide.content || '')
       .split('\n').map(l => l.trim()).filter(Boolean)
-      .map(l => l.replace(/^[•\-\*]\s*/, '').trim());
+      .map(l => cleanMarkdown(l.replace(/^[•\-\*]\s*/, '').trim()));
     const bullets = (slide.bulletPoints && slide.bulletPoints.length > 0)
-      ? slide.bulletPoints.map(b => String(b).trim()).filter(Boolean)
+      ? slide.bulletPoints.map(b => cleanMarkdown(String(b).trim())).filter(Boolean)
       : bulletsFromContent;
 
     // Choose master based on layout
@@ -289,25 +322,25 @@ async function generateNativePPTX(
     switch (layout) {
       case 'key-point': {
         // Title
-        contentSlide.addText(slide.title, {
+        contentSlide.addText(cleanTitle, {
           x: 0.5, y: 0.72, w: 9, h: 0.55,
           fontSize: 26, color: textColor, bold: true, fontFace: 'Arial', fit: 'shrink',
         });
         // Subtitle
-        if (slide.subtitle) {
-          contentSlide.addText(slide.subtitle, {
+        if (cleanSubtitle) {
+          contentSlide.addText(cleanSubtitle, {
             x: 0.5, y: 1.22, w: 9, h: 0.35,
             fontSize: 14, color: mutedColor, fontFace: 'Arial',
           });
         }
         // Key takeaway box - semi-transparent on image bg
-        if (slide.keyTakeaway) {
+        if (cleanKeyTakeaway) {
           contentSlide.addShape('roundRect', {
             x: 0.5, y: 1.7, w: 9, h: 1.5,
             fill: { color: hasImageBg ? '000000' : colors.highlight.replace('#', ''), transparency: hasImageBg ? 40 : 0 },
             line: { color: hasImageBg ? 'FFFFFF' : colors.accent.replace('#', ''), width: 2 },
           });
-          contentSlide.addText(slide.keyTakeaway, {
+          contentSlide.addText(cleanKeyTakeaway, {
             x: 0.75, y: 1.85, w: 8.5, h: 1.2,
             fontSize: 22, color: textColor, bold: true, fontFace: 'Arial',
             valign: 'middle', fit: 'shrink',
@@ -329,7 +362,7 @@ async function generateNativePPTX(
 
       case 'stats': {
         // Stats layout: large centered numbers
-        contentSlide.addText(slide.title, {
+        contentSlide.addText(cleanTitle, {
           x: 0.5, y: 0.5, w: 9, h: 0.6,
           fontSize: 28, color: 'FFFFFF', bold: true, fontFace: 'Arial', align: 'center',
         });
@@ -365,7 +398,7 @@ async function generateNativePPTX(
 
       case 'comparison': {
         // Comparison layout: two columns
-        contentSlide.addText(slide.title, {
+        contentSlide.addText(cleanTitle, {
           x: 0.5, y: 0.72, w: 9, h: 0.55,
           fontSize: 26, color: textColor, bold: true, fontFace: 'Arial', fit: 'shrink',
         });
@@ -406,8 +439,8 @@ async function generateNativePPTX(
 
       case 'quote': {
         // Quote layout: centered large quote
-        const quoteText = slide.keyTakeaway || bullets[0] || slide.content || '';
-        const attribution = slide.subtitle || slide.title;
+        const quoteText = cleanKeyTakeaway || bullets[0] || cleanMarkdown(slide.content || '');
+        const attribution = cleanSubtitle || cleanTitle;
         contentSlide.addText('"', {
           x: 0.5, y: 1.0, w: 1, h: 1,
           fontSize: 120, color: 'FFFFFF', fontFace: 'Georgia', bold: true,
@@ -429,7 +462,7 @@ async function generateNativePPTX(
 
       case 'image-focus': {
         // Image focus: text over the embedded image background
-        contentSlide.addText(slide.title, {
+        contentSlide.addText(cleanTitle, {
           x: 0.5, y: 0.72, w: 9, h: 0.55,
           fontSize: 26, color: textColor, bold: true, fontFace: 'Arial', fit: 'shrink',
         });
@@ -461,17 +494,17 @@ async function generateNativePPTX(
 
       default: {
         // Default bullet-points layout
-        contentSlide.addText(slide.title, {
+        contentSlide.addText(cleanTitle, {
           x: 0.5, y: 0.72, w: 9, h: 0.55,
           fontSize: 26, color: textColor, bold: true, fontFace: 'Arial', fit: 'shrink',
         });
-        if (slide.subtitle) {
-          contentSlide.addText(slide.subtitle, {
+        if (cleanSubtitle) {
+          contentSlide.addText(cleanSubtitle, {
             x: 0.5, y: 1.22, w: 9, h: 0.35,
             fontSize: 14, color: mutedColor, fontFace: 'Arial',
           });
         }
-        const yStart = slide.subtitle ? 1.75 : 1.55;
+        const yStart = cleanSubtitle ? 1.75 : 1.55;
         if (bullets.length > 0) {
           const bulletRuns = bullets.slice(0, 6).map(t => ({
             text: t,
@@ -481,8 +514,8 @@ async function generateNativePPTX(
             x: 0.6, y: yStart, w: 8.9, h: 5.0,
             fontSize: 18, color: textColor, lineSpacing: 28, fontFace: 'Arial', valign: 'top',
           });
-        } else if (slide.keyTakeaway) {
-          contentSlide.addText(slide.keyTakeaway, {
+        } else if (cleanKeyTakeaway) {
+          contentSlide.addText(cleanKeyTakeaway, {
             x: 0.6, y: yStart, w: 8.9, h: 5.0,
             fontSize: 22, color: textColor, bold: true, fontFace: 'Arial', valign: 'top', fit: 'shrink',
           });
@@ -491,9 +524,9 @@ async function generateNativePPTX(
       }
     }
 
-    // Speaker notes
+    // Speaker notes (also clean markdown)
     if (slide.speakerNotes) {
-      contentSlide.addNotes(slide.speakerNotes);
+      contentSlide.addNotes(cleanMarkdown(slide.speakerNotes));
     }
   }
 
@@ -506,9 +539,15 @@ function generatePDFHtml(slides: Slide[], courseTitle: string, moduleTitle: stri
   const colors = TEMPLATES[template];
   
   const slidePages = slides.map((slide, index) => {
+    // Clean all text from markdown
+    const cleanTitle = cleanMarkdown(slide.title);
+    const cleanSubtitle = slide.subtitle ? cleanMarkdown(slide.subtitle) : '';
+    const cleanKeyTakeaway = slide.keyTakeaway ? cleanMarkdown(slide.keyTakeaway) : '';
+    const cleanSpeakerNotes = slide.speakerNotes ? cleanMarkdown(slide.speakerNotes) : '';
+    
     const bullets = (slide.bulletPoints && slide.bulletPoints.length > 0)
-      ? slide.bulletPoints
-      : (slide.content || '').split('\n').filter(line => line.trim());
+      ? slide.bulletPoints.map(b => cleanMarkdown(String(b)))
+      : (slide.content || '').split('\n').filter(line => line.trim()).map(l => cleanMarkdown(l));
     
     return `
     <div class="slide-page" style="page-break-after: always; width: 100%; min-height: 100vh; box-sizing: border-box; position: relative; background: ${colors.background}; padding: 60px;">
@@ -523,14 +562,14 @@ function generatePDFHtml(slides: Slide[], courseTitle: string, moduleTitle: stri
       </div>
       
       <h1 style="font-size: 36px; font-weight: 700; color: ${colors.primary}; margin-bottom: 16px; line-height: 1.2;">
-        ${escapeHtml(slide.title)}
+        ${escapeHtml(cleanTitle)}
       </h1>
       
-      ${slide.subtitle ? `<p style="font-size: 18px; color: ${colors.muted}; margin-bottom: 24px;">${escapeHtml(slide.subtitle)}</p>` : ''}
+      ${cleanSubtitle ? `<p style="font-size: 18px; color: ${colors.muted}; margin-bottom: 24px;">${escapeHtml(cleanSubtitle)}</p>` : ''}
       
-      ${slide.keyTakeaway ? `
+      ${cleanKeyTakeaway ? `
         <div style="background: ${colors.highlight}; border-left: 4px solid ${colors.accent}; padding: 16px 20px; margin-bottom: 24px; border-radius: 4px;">
-          <p style="font-size: 20px; font-weight: 600; color: ${colors.text}; margin: 0;">${escapeHtml(slide.keyTakeaway)}</p>
+          <p style="font-size: 20px; font-weight: 600; color: ${colors.text}; margin: 0;">${escapeHtml(cleanKeyTakeaway)}</p>
         </div>
       ` : ''}
       
@@ -539,16 +578,16 @@ function generatePDFHtml(slides: Slide[], courseTitle: string, moduleTitle: stri
           ${bullets.map(item => `
           <li style="display: flex; align-items: flex-start; margin-bottom: 16px; font-size: 18px; line-height: 1.5; color: ${colors.text};">
             <span style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; min-width: 24px; background: ${colors.highlight}; color: ${colors.accent}; border-radius: 50%; margin-right: 14px; font-weight: 600; font-size: 12px;">•</span>
-            <span>${escapeHtml(String(item).replace(/^[•\-\*]\s*/, ''))}</span>
+            <span>${escapeHtml(item)}</span>
           </li>
           `).join('')}
         </ul>
       </div>
       
-      ${slide.speakerNotes ? `
+      ${cleanSpeakerNotes ? `
       <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid ${colors.muted}30;">
         <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: ${colors.muted}; margin-bottom: 8px; font-weight: 600;">Talarnoteringar</div>
-        <p style="font-size: 13px; color: ${colors.muted}; line-height: 1.6; margin: 0;">${escapeHtml(slide.speakerNotes)}</p>
+        <p style="font-size: 13px; color: ${colors.muted}; line-height: 1.6; margin: 0;">${escapeHtml(cleanSpeakerNotes)}</p>
       </div>
       ` : ''}
     </div>
