@@ -9,11 +9,16 @@ const corsHeaders = {
 interface SlideContent {
   slideNumber: number;
   title: string;
+  subtitle?: string;
   content: string;
+  bulletPoints?: string[];
+  keyTakeaway?: string;
   speakerNotes: string;
-  layout: 'title' | 'title-content' | 'two-column' | 'image-focus' | 'quote' | 'bullet-points';
+  layout: 'title' | 'title-content' | 'two-column' | 'image-focus' | 'quote' | 'bullet-points' | 'key-point' | 'comparison' | 'timeline' | 'stats';
   suggestedImageQuery: string;
   suggestedBackgroundColor?: string;
+  iconSuggestion?: string;
+  visualType?: 'photo' | 'illustration' | 'diagram' | 'icon-grid';
   imageUrl?: string;
   imageSource?: string;
   imageAttribution?: string;
@@ -164,6 +169,30 @@ async function searchStockPhotos(query: string): Promise<StockPhoto | null> {
   return null;
 }
 
+// Clean any markdown from content
+function cleanMarkdown(text: string): string {
+  if (!text) return '';
+  return text
+    // Remove bold/italic markers
+    .replace(/\*\*\*/g, '')
+    .replace(/\*\*/g, '')
+    .replace(/\*/g, '')
+    // Remove heading markers
+    .replace(/^#{1,6}\s*/gm, '')
+    // Remove list markers but keep text
+    .replace(/^[\s]*[-•]\s*/gm, '')
+    // Remove numbered list markers
+    .replace(/^[\s]*\d+\.\s*/gm, '')
+    // Remove underscores for emphasis
+    .replace(/__/g, '')
+    .replace(/_([^_]+)_/g, '$1')
+    // Clean up multiple newlines
+    .replace(/\n{3,}/g, '\n\n')
+    // Remove backticks
+    .replace(/`/g, '')
+    .trim();
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -196,7 +225,7 @@ serve(async (req) => {
 
     // Create cache key (exclude autoFetchImages as that's a post-processing step)
     const cacheParams = { scriptContent: scriptContent.substring(0, 1000), moduleTitle: effectiveModuleTitle, courseTitle, language, maxSlides, demoMode };
-    const cacheKey = await generateCacheKey('generate-slides', cacheParams);
+    const cacheKey = await generateCacheKey('generate-slides-v2', cacheParams);
 
     // Check cache first (unless skipCache is true)
     if (!skipCache) {
@@ -236,30 +265,80 @@ serve(async (req) => {
     console.log('Cache MISS - generating slides. Demo mode:', demoMode, 'Max slides:', effectiveMaxSlides);
 
     const systemPrompt = language === 'sv' 
-      ? `Du är en expert på att skapa professionella presentationsbilder från kursmanus. 
-         Skapa visuellt tilltalande och pedagogiskt effektiva slides.
-         Varje slide ska ha en tydlig struktur och vara lätt att följa.
+      ? `Du är en professionell presentationsdesigner med expertis inom visuell kommunikation och pedagogik.
          
-         KRITISKT FÖR BILDFÖRSLAG:
-         - Föreslå SPECIFIKA och KONKRETA bildförslag på engelska för stockfotosökning
-         - Undvik abstrakta eller vaga termer som "concept", "abstract", "metaphor"
-         - Använd beskrivande fraser som "professional business meeting in modern office"
-         - För tekniska ämnen, föreslå bilder på verkliga föremål eller situationer
-         - Bildförslaget ska matcha slide-innehållet EXAKT, inte vara en tolkning
-         - Prioritera bilder med människor, arbetsplatser, konkreta objekt över abstrakta illustrationer
-         - Använd max 4-5 ord för bildförslag för bättre sökresultat`
-      : `You are an expert at creating professional presentation slides from course scripts.
-         Create visually appealing and pedagogically effective slides.
-         Each slide should have a clear structure and be easy to follow.
+DITT MÅL: Skapa VISUELLT TILLTALANDE och PROFESSIONELLA presentationsslides som ser ut som om de skapats av en grafisk designer.
+
+KRITISKA REGLER FÖR INNEHÅLL:
+1. ABSOLUT INGEN MARKDOWN - skriv enbart PLAIN TEXT
+   - Använd ALDRIG asterisker (*), hashtags (#), understreck (_) eller backticks
+   - Skriv rubriker och nyckelord med STORA BOKSTÄVER för betoning
+   - Separera punkter med radbrytningar
+   
+2. KONCIST OCH VISUELLT - varje slide ska vara lättläst på 3 sekunder
+   - Max 3-5 korta punkter per slide
+   - Max 6-8 ord per punkt
+   - Använd handlingskraftiga verb
+   
+3. STRUKTURERAT INNEHÅLL:
+   - Varje slide fokuserar på EN huvudidé
+   - Använd "bulletPoints" array för punkter (inte i content-strängen)
+   - Lägg nyckeltakeaway i "keyTakeaway" fältet
+
+4. VARIERA LAYOUT för visuell dynamik:
+   - 'title': Endast för öppningsslide
+   - 'key-point': En stor huvudpoäng med stödtext  
+   - 'bullet-points': 3-5 tydliga punkter
+   - 'stats': Siffror/statistik med stor text
+   - 'comparison': Jämförelse av två saker
+   - 'quote': Viktigt citat eller påstående
+   - 'image-focus': Bildcentrerad slide
+   
+5. BILDFÖRSLAG - specifika och sökbara på engelska:
+   - BRA: "doctor examining patient clinic" 
+   - BRA: "microscope laboratory scientist"
+   - DÅLIGT: "healthcare concept" eller "medical abstract"
+   
+6. IKONFÖRSLAG - enkla, igenkännbara ikoner:
+   - Föreslå Lucide-ikonnamn som: "Stethoscope", "Heart", "Brain", "Activity"
+   - Matcha ikon med slide-innehållet`
+      : `You are a professional presentation designer with expertise in visual communication and pedagogy.
          
-         CRITICAL FOR IMAGE SUGGESTIONS:
-         - Suggest SPECIFIC and CONCRETE image queries in English for stock photo search
-         - Avoid abstract or vague terms like "concept", "abstract", "metaphor"
-         - Use descriptive phrases like "professional business meeting in modern office"
-         - For technical topics, suggest images of real objects or situations
-         - Image suggestion must match slide content EXACTLY, not be an interpretation
-         - Prioritize images with people, workplaces, concrete objects over abstract illustrations
-         - Use max 4-5 words for image suggestions for better search results`;
+YOUR GOAL: Create VISUALLY APPEALING and PROFESSIONAL presentation slides that look like they were created by a graphic designer.
+
+CRITICAL RULES FOR CONTENT:
+1. ABSOLUTELY NO MARKDOWN - write PLAIN TEXT only
+   - NEVER use asterisks (*), hashtags (#), underscores (_) or backticks
+   - Write headings and keywords in CAPITALS for emphasis
+   - Separate points with line breaks
+   
+2. CONCISE AND VISUAL - each slide should be readable in 3 seconds
+   - Max 3-5 short points per slide
+   - Max 6-8 words per point
+   - Use action verbs
+   
+3. STRUCTURED CONTENT:
+   - Each slide focuses on ONE main idea
+   - Use "bulletPoints" array for points (not in content string)
+   - Put key takeaway in "keyTakeaway" field
+
+4. VARY LAYOUT for visual dynamics:
+   - 'title': Only for opening slide
+   - 'key-point': One big main point with supporting text  
+   - 'bullet-points': 3-5 clear points
+   - 'stats': Numbers/statistics with large text
+   - 'comparison': Comparison of two things
+   - 'quote': Important quote or statement
+   - 'image-focus': Image-centered slide
+   
+5. IMAGE SUGGESTIONS - specific and searchable in English:
+   - GOOD: "doctor examining patient clinic" 
+   - GOOD: "microscope laboratory scientist"
+   - BAD: "healthcare concept" or "medical abstract"
+   
+6. ICON SUGGESTIONS - simple, recognizable icons:
+   - Suggest Lucide icon names like: "Stethoscope", "Heart", "Brain", "Activity"
+   - Match icon with slide content`;
 
     const demoInstruction = demoMode 
       ? (language === 'sv' 
@@ -268,54 +347,83 @@ serve(async (req) => {
       : '';
 
     const userPrompt = language === 'sv'
-      ? `Analysera detta manus för modulen "${effectiveModuleTitle}" i kursen "${courseTitle}" och skapa presentationsslides.
+      ? `Analysera detta manus för modulen "${effectiveModuleTitle}" i kursen "${courseTitle}" och skapa PROFESSIONELLA presentationsslides.
 ${demoInstruction}
 
 MANUS:
 ${scriptContent}
 
-Skapa en JSON-array med slides. Varje slide ska ha:
-- slideNumber: Löpnummer (börja med 1)
-- title: Kort, engagerande rubrik (max 8 ord, REN TEXT utan markdown)
-- content: Huvudinnehåll i REN TEXT (max 3-4 punkter). VIKTIGT:
-  * Använd INTE markdown-syntax (inga **, ***, ##, -, etc.)
-  * Varje punkt separeras med nyrad
-  * Kort och koncist språk
-  * Exempel: "Första punkten\\nAndra punkten\\nTredje punkten"
-- speakerNotes: Detaljerade anteckningar för presentatören (ren text)
-- layout: En av 'title', 'title-content', 'two-column', 'image-focus', 'quote', 'bullet-points'
-- suggestedImageQuery: KONKRET sökord på ENGELSKA för stockfoto (max 4-5 ord). Exempel:
-  * BRA: "team meeting whiteboard office"
-  * BRA: "laptop analytics dashboard desk"
-  * DÅLIGT: "success concept" eller "growth metaphor"
-- suggestedBackgroundColor: Valfri HEX-färgkod för bakgrund
+SKAPA SLIDES MED FÖLJANDE STRUKTUR:
 
-Skapa ${demoMode ? effectiveMaxSlides : '5-10'} slides${demoMode ? '' : ' beroende på innehållets längd'}. Första sliden ska vara en titelslide.
-KRITISKT: Använd ALDRIG markdown-formatering i title eller content! Enbart ren text.`
-      : `Analyze this script for the module "${effectiveModuleTitle}" in the course "${courseTitle}" and create presentation slides.
+Varje slide ska ha EXAKT dessa fält:
+- slideNumber: Nummer (börja med 1)
+- title: Kort rubrik, 2-6 ord, PLAIN TEXT, inga specialtecken
+- subtitle: Valfri underrubrik för kontext
+- bulletPoints: Array med 2-5 korta punkter (varje punkt max 10 ord)
+- keyTakeaway: Huvudbudskapet i EN mening (om relevant)
+- content: Tom sträng eller kort sammanfattning (PLAIN TEXT)
+- speakerNotes: Detaljerade anteckningar för presentatören
+- layout: Välj bland - 'title', 'key-point', 'bullet-points', 'stats', 'comparison', 'quote', 'image-focus'
+- suggestedImageQuery: SPECIFIKT sökord på ENGELSKA (3-5 ord) för stockfoto
+- iconSuggestion: Lucide-ikonnamn som passar innehållet (t.ex. "Brain", "Heart", "Target")
+- visualType: 'photo', 'illustration', 'diagram', eller 'icon-grid'
+- suggestedBackgroundColor: HEX-färg som passar temat
+
+EXEMPEL PÅ BRA SLIDE:
+{
+  "slideNumber": 2,
+  "title": "Näsans Struktur",
+  "subtitle": "De viktigaste anatomiska delarna",
+  "bulletPoints": [
+    "Septum delar näshålan i två delar",
+    "Näsmusslorna konditionerar inandningsluften",
+    "Bihålorna minskar kraniets vikt"
+  ],
+  "keyTakeaway": "Näsans anatomi är optimerad för luftflöde och filtrering",
+  "content": "",
+  "speakerNotes": "Förklara hur varje del bidrar till näsans funktion...",
+  "layout": "bullet-points",
+  "suggestedImageQuery": "human nose anatomy diagram medical",
+  "iconSuggestion": "Scan",
+  "visualType": "diagram",
+  "suggestedBackgroundColor": "#1a365d"
+}
+
+EXEMPEL PÅ DÅLIG SLIDE (UNDVIK DETTA):
+{
+  "title": "*ANATOMI (BYGGSTENARNA):**",  <- FEL: markdown-tecken
+  "content": "**Septum & Näshåla:** Grunden för luftflöde...",  <- FEL: markdown i content
+  ...
+}
+
+Skapa ${demoMode ? effectiveMaxSlides : '6-12'} slides${demoMode ? '' : ' beroende på innehållets längd'}. 
+Första sliden ska vara en titelslide med layout 'title'.
+VARIERA layouts - använd inte samma layout på varje slide!`
+      : `Analyze this script for the module "${effectiveModuleTitle}" in the course "${courseTitle}" and create PROFESSIONAL presentation slides.
 ${demoInstruction}
 
 SCRIPT:
 ${scriptContent}
 
-Create a JSON array of slides. Each slide should have:
-- slideNumber: Sequential number (start with 1)
-- title: Short, engaging headline (max 8 words, PLAIN TEXT no markdown)
-- content: Main content in PLAIN TEXT (max 3-4 bullet points). IMPORTANT:
-  * Do NOT use markdown syntax (no **, ***, ##, -, etc.)
-  * Separate each point with newline
-  * Use short and concise language
-  * Example: "First point\\nSecond point\\nThird point"
-- speakerNotes: Detailed notes for the presenter (plain text)
-- layout: One of 'title', 'title-content', 'two-column', 'image-focus', 'quote', 'bullet-points'
-- suggestedImageQuery: CONCRETE search terms in ENGLISH for stock photo (max 4-5 words). Examples:
-  * GOOD: "team meeting whiteboard office"
-  * GOOD: "laptop analytics dashboard desk"
-  * BAD: "success concept" or "growth metaphor"
-- suggestedBackgroundColor: Optional HEX color code for background
+CREATE SLIDES WITH THE FOLLOWING STRUCTURE:
 
-Create ${demoMode ? effectiveMaxSlides : '5-10'} slides${demoMode ? '' : ' depending on content length'}. First slide should be a title slide.
-CRITICAL: NEVER use markdown formatting in title or content! Plain text only.`;
+Each slide must have EXACTLY these fields:
+- slideNumber: Number (start with 1)
+- title: Short headline, 2-6 words, PLAIN TEXT, no special characters
+- subtitle: Optional subtitle for context
+- bulletPoints: Array with 2-5 short points (each point max 10 words)
+- keyTakeaway: Main message in ONE sentence (if relevant)
+- content: Empty string or brief summary (PLAIN TEXT only)
+- speakerNotes: Detailed notes for the presenter
+- layout: Choose from - 'title', 'key-point', 'bullet-points', 'stats', 'comparison', 'quote', 'image-focus'
+- suggestedImageQuery: SPECIFIC search term in ENGLISH (3-5 words) for stock photo
+- iconSuggestion: Lucide icon name matching the content (e.g., "Brain", "Heart", "Target")
+- visualType: 'photo', 'illustration', 'diagram', or 'icon-grid'
+- suggestedBackgroundColor: HEX color matching the theme
+
+Create ${demoMode ? effectiveMaxSlides : '6-12'} slides${demoMode ? '' : ' depending on content length'}. 
+First slide should be a title slide with layout 'title'.
+VARY layouts - don't use the same layout on every slide!`;
 
     console.log('Generating slides for module:', effectiveModuleTitle);
 
@@ -326,7 +434,7 @@ CRITICAL: NEVER use markdown formatting in title or content! Plain text only.`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'openai/gpt-5',
+        model: 'google/gemini-2.5-pro',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -336,7 +444,7 @@ CRITICAL: NEVER use markdown formatting in title or content! Plain text only.`;
             type: 'function',
             function: {
               name: 'create_slides',
-              description: 'Create presentation slides from script content',
+              description: 'Create professional presentation slides from script content',
               parameters: {
                 type: 'object',
                 properties: {
@@ -345,18 +453,32 @@ CRITICAL: NEVER use markdown formatting in title or content! Plain text only.`;
                     items: {
                       type: 'object',
                       properties: {
-                        slideNumber: { type: 'number' },
-                        title: { type: 'string' },
-                        content: { type: 'string' },
-                        speakerNotes: { type: 'string' },
+                        slideNumber: { type: 'number', description: 'Sequential slide number starting from 1' },
+                        title: { type: 'string', description: 'Short, engaging headline (2-6 words, PLAIN TEXT only)' },
+                        subtitle: { type: 'string', description: 'Optional subtitle for additional context' },
+                        bulletPoints: { 
+                          type: 'array', 
+                          items: { type: 'string' },
+                          description: 'Array of 2-5 short bullet points (each max 10 words, PLAIN TEXT)'
+                        },
+                        keyTakeaway: { type: 'string', description: 'Main takeaway message in one sentence' },
+                        content: { type: 'string', description: 'Brief summary or empty string (PLAIN TEXT only)' },
+                        speakerNotes: { type: 'string', description: 'Detailed notes for the presenter' },
                         layout: { 
                           type: 'string',
-                          enum: ['title', 'title-content', 'two-column', 'image-focus', 'quote', 'bullet-points']
+                          enum: ['title', 'title-content', 'two-column', 'image-focus', 'quote', 'bullet-points', 'key-point', 'comparison', 'timeline', 'stats'],
+                          description: 'Visual layout type for the slide'
                         },
-                        suggestedImageQuery: { type: 'string' },
-                        suggestedBackgroundColor: { type: 'string' }
+                        suggestedImageQuery: { type: 'string', description: 'Specific image search terms in English (3-5 words)' },
+                        iconSuggestion: { type: 'string', description: 'Lucide icon name (e.g., Heart, Brain, Target)' },
+                        visualType: { 
+                          type: 'string', 
+                          enum: ['photo', 'illustration', 'diagram', 'icon-grid'],
+                          description: 'Type of visual to use'
+                        },
+                        suggestedBackgroundColor: { type: 'string', description: 'HEX color code for background' }
                       },
-                      required: ['slideNumber', 'title', 'content', 'speakerNotes', 'layout', 'suggestedImageQuery']
+                      required: ['slideNumber', 'title', 'bulletPoints', 'speakerNotes', 'layout', 'suggestedImageQuery']
                     }
                   }
                 },
@@ -400,6 +522,37 @@ CRITICAL: NEVER use markdown formatting in title or content! Plain text only.`;
     const slidesData = JSON.parse(toolCall.function.arguments);
     let slides: SlideContent[] = slidesData.slides;
 
+    // Post-process slides to clean any remaining markdown and structure content
+    slides = slides.map(slide => {
+      // Clean all text fields
+      const cleanedTitle = cleanMarkdown(slide.title);
+      const cleanedContent = cleanMarkdown(slide.content || '');
+      const cleanedSubtitle = slide.subtitle ? cleanMarkdown(slide.subtitle) : undefined;
+      const cleanedKeyTakeaway = slide.keyTakeaway ? cleanMarkdown(slide.keyTakeaway) : undefined;
+      
+      // Clean bullet points
+      const cleanedBulletPoints = (slide.bulletPoints || []).map(bp => cleanMarkdown(bp));
+      
+      // If bulletPoints is empty but content has text, try to extract bullet points
+      let finalBulletPoints = cleanedBulletPoints;
+      if (finalBulletPoints.length === 0 && cleanedContent) {
+        const lines = cleanedContent.split('\n').filter(line => line.trim());
+        if (lines.length > 1) {
+          finalBulletPoints = lines.slice(0, 5).map(line => cleanMarkdown(line));
+        }
+      }
+      
+      return {
+        ...slide,
+        title: cleanedTitle,
+        subtitle: cleanedSubtitle,
+        content: cleanedContent,
+        bulletPoints: finalBulletPoints,
+        keyTakeaway: cleanedKeyTakeaway,
+        speakerNotes: cleanMarkdown(slide.speakerNotes || ''),
+      };
+    });
+
     // Enforce demo mode slide limit
     if (demoMode && slides.length > effectiveMaxSlides) {
       console.log(`Demo mode: limiting slides from ${slides.length} to ${effectiveMaxSlides}`);
@@ -409,7 +562,7 @@ CRITICAL: NEVER use markdown formatting in title or content! Plain text only.`;
     console.log(`Generated ${slides.length} slides for module "${effectiveModuleTitle}"`);
 
     // Cache the slides (without images - 12 hour TTL)
-    await setCachedResponse(supabase, cacheKey, 'generate-slides', cacheKey, { slides }, 12);
+    await setCachedResponse(supabase, cacheKey, 'generate-slides-v2', cacheKey, { slides }, 12);
 
     // Auto-fetch images for each slide if enabled
     if (autoFetchImages) {
@@ -440,13 +593,12 @@ CRITICAL: NEVER use markdown formatting in title or content! Plain text only.`;
       slides = slidesWithImages;
       
       const slidesWithImages_count = slides.filter(s => s.imageUrl).length;
-      console.log(`Successfully fetched images for ${slidesWithImages_count}/${slides.length} slides`);
+      console.log(`Fetched images for ${slidesWithImages_count}/${slides.length} slides`);
     }
 
-    return new Response(
-      JSON.stringify({ slides, fromCache: false }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ slides, fromCache: false }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error) {
     console.error('Error generating slides:', error);
     return new Response(

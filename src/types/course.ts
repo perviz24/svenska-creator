@@ -48,7 +48,8 @@ export interface ModuleScript {
   sections: ScriptSection[];
 }
 
-export type SlideLayout = 'title' | 'title-content' | 'two-column' | 'image-focus' | 'quote' | 'bullet-points';
+export type SlideLayout = 'title' | 'title-content' | 'two-column' | 'image-focus' | 'quote' | 'bullet-points' | 'key-point' | 'comparison' | 'timeline' | 'stats';
+export type VisualType = 'photo' | 'illustration' | 'diagram' | 'icon-grid';
 
 export interface Slide {
   id?: string;
@@ -56,13 +57,18 @@ export interface Slide {
   moduleId: string;
   slideNumber: number;
   title: string;
+  subtitle?: string;
   content: string;
+  bulletPoints?: string[];
+  keyTakeaway?: string;
   speakerNotes: string;
   layout: SlideLayout;
   imageUrl?: string;
   imageSource?: 'unsplash' | 'pexels' | 'shutterstock' | 'adobe' | 'getty' | 'ai-generated';
   imageAttribution?: string;
   suggestedImageQuery?: string;
+  iconSuggestion?: string;
+  visualType?: VisualType;
   backgroundColor?: string;
 }
 
