@@ -418,17 +418,23 @@ export function SlideStep({
         moduleId,
         slideNumber: index + 1,
         title: slide.title,
-        content: slide.content,
-        speakerNotes: slide.speakerNotes,
-        layout: slide.layout as Slide['layout'] || 'title-content',
+        subtitle: slide.subtitle,
+        content: slide.content || '',
+        bulletPoints: Array.isArray(slide.bulletPoints) ? slide.bulletPoints : undefined,
+        keyTakeaway: slide.keyTakeaway,
+        speakerNotes: slide.speakerNotes || '',
+        layout: (slide.layout as Slide['layout']) || 'title-content',
         imageUrl: slide.imageUrl,
         imageSource: slide.imageSource as Slide['imageSource'],
         imageAttribution: slide.imageAttribution,
         suggestedImageQuery: slide.suggestedImageQuery,
+        iconSuggestion: slide.iconSuggestion,
+        visualType: slide.visualType,
+        backgroundColor: slide.suggestedBackgroundColor || slide.backgroundColor,
       }));
       onSetModuleSlides(moduleId, newSlides);
     }
-    
+
     toast.success(`${slidesData.length} slides genererade${source === 'presenton' ? ' via Presenton' : ''}!`);
     setSelectedSlideIndex(0);
   };

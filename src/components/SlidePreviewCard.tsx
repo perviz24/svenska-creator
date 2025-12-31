@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { Slide } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -72,7 +73,8 @@ const getLayoutLabel = (layout: Slide['layout']) => {
   return labels[layout] || layout;
 };
 
-export function SlidePreviewCard({ slide, showWatermark, className }: SlidePreviewCardProps) {
+export const SlidePreviewCard = React.forwardRef<HTMLDivElement, SlidePreviewCardProps>(
+  ({ slide, showWatermark, className }, ref) => {
   const IconComponent = getIcon(slide.iconSuggestion);
   const bulletPoints = slide.bulletPoints || [];
   const cleanedTitle = cleanMarkdown(slide.title);
@@ -87,6 +89,7 @@ export function SlidePreviewCard({ slide, showWatermark, className }: SlidePrevi
 
   return (
     <div 
+      ref={ref}
       className={cn(
         "aspect-video rounded-xl border-2 border-border/50 overflow-hidden relative shadow-lg",
         className
@@ -284,4 +287,6 @@ export function SlidePreviewCard({ slide, showWatermark, className }: SlidePrevi
       {showWatermark && <DemoWatermark />}
     </div>
   );
-}
+});
+
+SlidePreviewCard.displayName = 'SlidePreviewCard';
