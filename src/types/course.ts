@@ -49,7 +49,8 @@ export interface ModuleScript {
 }
 
 export type SlideLayout = 'title' | 'title-content' | 'two-column' | 'image-focus' | 'quote' | 'bullet-points' | 'key-point' | 'comparison' | 'timeline' | 'stats';
-export type VisualType = 'photo' | 'illustration' | 'diagram' | 'icon-grid';
+export type VisualType = 'photo' | 'illustration' | 'vector' | 'diagram' | 'icon-grid' | 'abstract';
+export type ImagePosition = 'background' | 'left' | 'right' | 'top' | 'inline' | 'corner';
 
 export interface Slide {
   id?: string;
@@ -69,6 +70,7 @@ export interface Slide {
   suggestedImageQuery?: string;
   iconSuggestion?: string;
   visualType?: VisualType;
+  imagePosition?: ImagePosition;
   backgroundColor?: string;
 }
 
