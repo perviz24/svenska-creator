@@ -76,13 +76,13 @@ async function generateNativePPTX(
   pptx.subject = moduleTitle;
   pptx.company = 'Kursgeneratorn';
   
-  // Define master slide layouts
+  // Define master slide layouts (NO placeholders to avoid dotted boxes/overlaps)
   pptx.defineSlideMaster({
     title: 'TITLE_SLIDE',
-    background: { color: colors.primary },
+    background: { color: colors.primary.replace('#', '') },
     objects: [
-      { placeholder: { options: { name: 'title', type: 'title', x: 0.5, y: 2.5, w: 9, h: 1.5, fontSize: 44, color: 'FFFFFF', bold: true, align: 'center' } } },
-      { placeholder: { options: { name: 'subtitle', type: 'body', x: 0.5, y: 4.2, w: 9, h: 1, fontSize: 24, color: 'FFFFFF', align: 'center' } } },
+      // subtle bottom bar
+      { rect: { x: 0, y: 6.9, w: '100%', h: 0.6, fill: { color: colors.secondary.replace('#', '') } } },
     ],
   });
 
@@ -90,27 +90,43 @@ async function generateNativePPTX(
     title: 'CONTENT_SLIDE',
     background: { color: colors.background.replace('#', '') },
     objects: [
-      { rect: { x: 0, y: 0, w: '100%', h: 0.6, fill: { color: colors.primary.replace('#', '') } } },
-      { placeholder: { options: { name: 'title', type: 'title', x: 0.5, y: 0.8, w: 9, h: 0.8, fontSize: 28, color: colors.text.replace('#', ''), bold: true } } },
+      { rect: { x: 0, y: 0, w: '100%', h: 0.65, fill: { color: colors.primary.replace('#', '') } } },
+      { rect: { x: 0, y: 0.65, w: '100%', h: 0.05, fill: { color: colors.accent.replace('#', '') } } },
     ],
   });
 
   // Add title slide
   const titleSlide = pptx.addSlide({ masterName: 'TITLE_SLIDE' });
-  titleSlide.addText(courseTitle, { 
-    x: 0.5, y: 2.2, w: 9, h: 1.2, 
-    fontSize: 40, color: 'FFFFFF', bold: true, align: 'center',
-    fontFace: 'Arial'
+  const subtitle = moduleTitle && moduleTitle.trim() !== '' && moduleTitle.trim() !== courseTitle.trim() ? moduleTitle : '';
+
+  titleSlide.addText(courseTitle, {
+    x: 0.7, y: 2.05, w: 8.6, h: 2.0,
+    fontSize: 44,
+    color: 'FFFFFF',
+    bold: true,
+    align: 'center',
+    fontFace: 'Arial',
+    // Shrink if it doesn't fit
+    fit: 'shrink',
   });
-  titleSlide.addText(moduleTitle, { 
-    x: 0.5, y: 3.5, w: 9, h: 0.8, 
-    fontSize: 24, color: 'FFFFFF', align: 'center', 
-    fontFace: 'Arial'
-  });
-  titleSlide.addText(`${slides.length} slides • ${new Date().toLocaleDateString('sv-SE')}`, { 
-    x: 0.5, y: 4.5, w: 9, h: 0.5, 
-    fontSize: 14, color: 'CCCCCC', align: 'center',
-    fontFace: 'Arial'
+
+  if (subtitle) {
+    titleSlide.addText(subtitle, {
+      x: 0.9, y: 4.25, w: 8.2, h: 0.7,
+      fontSize: 22,
+      color: 'FFFFFF',
+      align: 'center',
+      fontFace: 'Arial',
+      fit: 'shrink',
+    });
+  }
+
+  titleSlide.addText(`${slides.length} slides • ${new Date().toLocaleDateString('sv-SE')}`, {
+    x: 0.5, y: 6.6, w: 9, h: 0.4,
+    fontSize: 13,
+    color: 'E5E7EB',
+    align: 'center',
+    fontFace: 'Arial',
   });
   
   if (demoMode) {
