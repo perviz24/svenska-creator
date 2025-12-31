@@ -160,7 +160,6 @@ async function searchStockPhotos(query: string): Promise<StockPhoto | null> {
     }
   }
   
-  // Return the best match (first result, prioritizing landscape images)
   if (photos.length > 0) {
     const landscapePhotos = photos.filter(p => p.width > p.height);
     return landscapePhotos.length > 0 ? landscapePhotos[0] : photos[0];
@@ -173,22 +172,15 @@ async function searchStockPhotos(query: string): Promise<StockPhoto | null> {
 function cleanMarkdown(text: string): string {
   if (!text) return '';
   return text
-    // Remove bold/italic markers
     .replace(/\*\*\*/g, '')
     .replace(/\*\*/g, '')
     .replace(/\*/g, '')
-    // Remove heading markers
     .replace(/^#{1,6}\s*/gm, '')
-    // Remove list markers but keep text
     .replace(/^[\s]*[-•]\s*/gm, '')
-    // Remove numbered list markers
     .replace(/^[\s]*\d+\.\s*/gm, '')
-    // Remove underscores for emphasis
     .replace(/__/g, '')
     .replace(/_([^_]+)_/g, '$1')
-    // Clean up multiple newlines
     .replace(/\n{3,}/g, '\n\n')
-    // Remove backticks
     .replace(/`/g, '')
     .trim();
 }
@@ -201,7 +193,6 @@ serve(async (req) => {
   try {
     const { script, moduleTitle, courseTitle, language = 'sv', autoFetchImages = true, maxSlides = 10, demoMode = false, skipCache = false } = await req.json();
 
-    // Handle script content - it can be the script object or a string
     const scriptContent = typeof script === 'object' ? JSON.stringify(script.sections || script) : script;
     const effectiveModuleTitle = moduleTitle || (typeof script === 'object' ? script.moduleTitle : 'Module');
 
@@ -220,20 +211,16 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    // Initialize Supabase client for caching
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    // Create cache key (exclude autoFetchImages as that's a post-processing step)
     const cacheParams = { scriptContent: scriptContent.substring(0, 1000), moduleTitle: effectiveModuleTitle, courseTitle, language, maxSlides, demoMode };
-    const cacheKey = await generateCacheKey('generate-slides-v2', cacheParams);
+    const cacheKey = await generateCacheKey('generate-slides-v3', cacheParams);
 
-    // Check cache first (unless skipCache is true)
     if (!skipCache) {
       const cachedResponse = await getCachedResponse(supabase, cacheKey);
       if (cachedResponse) {
         let slides = cachedResponse.slides as SlideContent[];
         
-        // Still fetch images if needed (images may change)
         if (autoFetchImages) {
           console.log('Cache HIT - fetching fresh images for cached slides...');
           const slidesWithImages = await Promise.all(
@@ -260,170 +247,116 @@ serve(async (req) => {
       }
     }
 
-    // In demo mode, limit slides to 3 max
     const effectiveMaxSlides = demoMode ? Math.min(maxSlides, 3) : maxSlides;
     console.log('Cache MISS - generating slides. Demo mode:', demoMode, 'Max slides:', effectiveMaxSlides);
 
+    // IMPROVED SYSTEM PROMPT - forces structured, rich content
     const systemPrompt = language === 'sv' 
-      ? `Du är en professionell presentationsdesigner med expertis inom visuell kommunikation och pedagogik.
-         
-DITT MÅL: Skapa VISUELLT TILLTALANDE och PROFESSIONELLA presentationsslides som ser ut som om de skapats av en grafisk designer.
+      ? `Du är en EXPERT-presentationsdesigner. Du skapar PROFESSIONELLA och VISUELLT IMPONERANDE slides.
 
-KRITISKA REGLER FÖR INNEHÅLL:
-1. ABSOLUT INGEN MARKDOWN - skriv enbart PLAIN TEXT
-   - Använd ALDRIG asterisker (*), hashtags (#), understreck (_) eller backticks
-   - Skriv rubriker och nyckelord med STORA BOKSTÄVER för betoning
-   - Separera punkter med radbrytningar
-   
-2. KONCIST OCH VISUELLT - varje slide ska vara lättläst på 3 sekunder
-   - Max 3-5 korta punkter per slide
-   - Max 6-8 ord per punkt
-   - Använd handlingskraftiga verb
-   
-3. STRUKTURERAT INNEHÅLL:
-   - Varje slide fokuserar på EN huvudidé
-   - Använd "bulletPoints" array för punkter (inte i content-strängen)
-   - Lägg nyckeltakeaway i "keyTakeaway" fältet
+ABSOLUTA REGLER:
+1. ENDAST PLAIN TEXT - aldrig markdown (*#_\`)
+2. VARJE SLIDE MÅSTE HA 3-5 BULLET POINTS med KONKRET INNEHÅLL
+3. VARIERA LAYOUTER - använd ALLA typer, inte bara bullet-points
+4. SKRIV SPECIFIKA BILDTERMER på engelska för varje slide
 
-4. VARIERA LAYOUT för visuell dynamik:
-   - 'title': Endast för öppningsslide
-   - 'key-point': En stor huvudpoäng med stödtext  
-   - 'bullet-points': 3-5 tydliga punkter
-   - 'stats': Siffror/statistik med stor text
-   - 'comparison': Jämförelse av två saker
-   - 'quote': Viktigt citat eller påstående
-   - 'image-focus': Bildcentrerad slide
-   
-5. BILDFÖRSLAG - specifika och sökbara på engelska:
-   - BRA: "doctor examining patient clinic" 
-   - BRA: "microscope laboratory scientist"
-   - DÅLIGT: "healthcare concept" eller "medical abstract"
-   
-6. IKONFÖRSLAG - enkla, igenkännbara ikoner:
-   - Föreslå Lucide-ikonnamn som: "Stethoscope", "Heart", "Brain", "Activity"
-   - Matcha ikon med slide-innehållet`
-      : `You are a professional presentation designer with expertise in visual communication and pedagogy.
-         
-YOUR GOAL: Create VISUALLY APPEALING and PROFESSIONAL presentation slides that look like they were created by a graphic designer.
+LAYOUT-TYPER OCH NÄR DE ANVÄNDS:
+- "title": ENDAST första sliden. Har INGEN bulletPoints.
+- "key-point": En STOR huvudpoäng. Kräver keyTakeaway-fält. 1-2 stödjande bullets.
+- "bullet-points": Standard 3-5 punkter med fakta.
+- "stats": Siffror/statistik. Bullets ska vara "XX% av Y" eller "X miljoner Z".
+- "comparison": Jämför två alternativ. Bullets: "A: beskrivning", "B: beskrivning".
+- "quote": Viktigt citat. keyTakeaway = citatet. subtitle = vem som sa det.
+- "image-focus": Stor bild. Endast 1-2 bullets för kontext.
 
-CRITICAL RULES FOR CONTENT:
-1. ABSOLUTELY NO MARKDOWN - write PLAIN TEXT only
-   - NEVER use asterisks (*), hashtags (#), underscores (_) or backticks
-   - Write headings and keywords in CAPITALS for emphasis
-   - Separate points with line breaks
-   
-2. CONCISE AND VISUAL - each slide should be readable in 3 seconds
-   - Max 3-5 short points per slide
-   - Max 6-8 words per point
-   - Use action verbs
-   
-3. STRUCTURED CONTENT:
-   - Each slide focuses on ONE main idea
-   - Use "bulletPoints" array for points (not in content string)
-   - Put key takeaway in "keyTakeaway" field
+EXEMPEL PÅ BRA BULLETS (konkreta, korta):
+✓ "Endoskopi visualiserar slemhinnan i realtid"
+✓ "CT identifierar anatomiska variationer"
+✓ "80% av patienter upplever förbättring"
+✓ "Minimalinvasiv teknik ger kortare läktid"
 
-4. VARY LAYOUT for visual dynamics:
-   - 'title': Only for opening slide
-   - 'key-point': One big main point with supporting text  
-   - 'bullet-points': 3-5 clear points
-   - 'stats': Numbers/statistics with large text
-   - 'comparison': Comparison of two things
-   - 'quote': Important quote or statement
-   - 'image-focus': Image-centered slide
-   
-5. IMAGE SUGGESTIONS - specific and searchable in English:
-   - GOOD: "doctor examining patient clinic" 
-   - GOOD: "microscope laboratory scientist"
-   - BAD: "healthcare concept" or "medical abstract"
-   
-6. ICON SUGGESTIONS - simple, recognizable icons:
-   - Suggest Lucide icon names like: "Stethoscope", "Heart", "Brain", "Activity"
-   - Match icon with slide content`;
+EXEMPEL PÅ DÅLIGA BULLETS (vaga, för långa):
+✗ "Det är viktigt att förstå diagnostik"
+✗ "Man bör överväga olika behandlingsalternativ för patienten"
+
+BILDTERMER (suggestedImageQuery) - SPECIFIKA på engelska:
+✓ "ENT doctor examining patient nasal endoscopy"
+✓ "CT scan sinus anatomy medical"
+✓ "surgeon performing minimally invasive procedure"
+✗ "medical concept" (för vagt)
+✗ "healthcare" (för generellt)`
+      : `You are an EXPERT presentation designer creating PROFESSIONAL, VISUALLY IMPRESSIVE slides.
+
+ABSOLUTE RULES:
+1. PLAIN TEXT ONLY - never use markdown (*#_\`)
+2. EVERY SLIDE MUST HAVE 3-5 BULLET POINTS with CONCRETE CONTENT
+3. VARY LAYOUTS - use ALL types, not just bullet-points
+4. WRITE SPECIFIC IMAGE TERMS in English for each slide
+
+LAYOUT TYPES AND WHEN TO USE:
+- "title": ONLY first slide. Has NO bulletPoints.
+- "key-point": One BIG main point. Requires keyTakeaway field. 1-2 supporting bullets.
+- "bullet-points": Standard 3-5 points with facts.
+- "stats": Numbers/statistics. Bullets should be "XX% of Y" or "X million Z".
+- "comparison": Compare two options. Bullets: "A: description", "B: description".
+- "quote": Important quote. keyTakeaway = the quote. subtitle = who said it.
+- "image-focus": Large image. Only 1-2 bullets for context.
+
+EXAMPLE GOOD BULLETS (concrete, short):
+✓ "Endoscopy visualizes mucosa in real-time"
+✓ "CT identifies anatomical variations"
+✓ "80% of patients experience improvement"
+
+EXAMPLE BAD BULLETS (vague, too long):
+✗ "It is important to understand diagnostics"
+✗ "One should consider various treatment options"
+
+IMAGE TERMS (suggestedImageQuery) - SPECIFIC in English:
+✓ "ENT doctor examining patient nasal endoscopy"
+✓ "CT scan sinus anatomy medical"
+✗ "medical concept" (too vague)`;
 
     const demoInstruction = demoMode 
       ? (language === 'sv' 
-        ? `DEMO-LÄGE: Skapa ENDAST ${effectiveMaxSlides} slides. Håll allt kort och koncist.`
-        : `DEMO MODE: Create ONLY ${effectiveMaxSlides} slides. Keep everything short and concise.`)
+        ? `\n\nDEMO-LÄGE: Skapa EXAKT ${effectiveMaxSlides} slides.`
+        : `\n\nDEMO MODE: Create EXACTLY ${effectiveMaxSlides} slides.`)
       : '';
 
     const userPrompt = language === 'sv'
-      ? `Analysera detta manus för modulen "${effectiveModuleTitle}" i kursen "${courseTitle}" och skapa PROFESSIONELLA presentationsslides.
+      ? `MODUL: "${effectiveModuleTitle}"
+KURS: "${courseTitle}"
 ${demoInstruction}
 
-MANUS:
+MANUS ATT TRANSFORMERA:
 ${scriptContent}
 
-SKAPA SLIDES MED FÖLJANDE STRUKTUR:
+SKAPA ${demoMode ? effectiveMaxSlides : '6-10'} PROFESSIONELLA SLIDES.
 
-Varje slide ska ha EXAKT dessa fält:
-- slideNumber: Nummer (börja med 1)
-- title: Kort rubrik, 2-6 ord, PLAIN TEXT, inga specialtecken
-- subtitle: Valfri underrubrik för kontext
-- bulletPoints: Array med 2-5 korta punkter (varje punkt max 10 ord)
-- keyTakeaway: Huvudbudskapet i EN mening (om relevant)
-- content: Tom sträng eller kort sammanfattning (PLAIN TEXT)
-- speakerNotes: Detaljerade anteckningar för presentatören
-- layout: Välj bland - 'title', 'key-point', 'bullet-points', 'stats', 'comparison', 'quote', 'image-focus'
-- suggestedImageQuery: SPECIFIKT sökord på ENGELSKA (3-5 ord) för stockfoto
-- iconSuggestion: Lucide-ikonnamn som passar innehållet (t.ex. "Brain", "Heart", "Target")
-- visualType: 'photo', 'illustration', 'diagram', eller 'icon-grid'
-- suggestedBackgroundColor: HEX-färg som passar temat
-
-EXEMPEL PÅ BRA SLIDE:
-{
-  "slideNumber": 2,
-  "title": "Näsans Struktur",
-  "subtitle": "De viktigaste anatomiska delarna",
-  "bulletPoints": [
-    "Septum delar näshålan i två delar",
-    "Näsmusslorna konditionerar inandningsluften",
-    "Bihålorna minskar kraniets vikt"
-  ],
-  "keyTakeaway": "Näsans anatomi är optimerad för luftflöde och filtrering",
-  "content": "",
-  "speakerNotes": "Förklara hur varje del bidrar till näsans funktion...",
-  "layout": "bullet-points",
-  "suggestedImageQuery": "human nose anatomy diagram medical",
-  "iconSuggestion": "Scan",
-  "visualType": "diagram",
-  "suggestedBackgroundColor": "#1a365d"
-}
-
-EXEMPEL PÅ DÅLIG SLIDE (UNDVIK DETTA):
-{
-  "title": "*ANATOMI (BYGGSTENARNA):**",  <- FEL: markdown-tecken
-  "content": "**Septum & Näshåla:** Grunden för luftflöde...",  <- FEL: markdown i content
-  ...
-}
-
-Skapa ${demoMode ? effectiveMaxSlides : '6-12'} slides${demoMode ? '' : ' beroende på innehållets längd'}. 
-Första sliden ska vara en titelslide med layout 'title'.
-VARIERA layouts - använd inte samma layout på varje slide!`
-      : `Analyze this script for the module "${effectiveModuleTitle}" in the course "${courseTitle}" and create PROFESSIONAL presentation slides.
+KRAV:
+1. Slide 1: layout="title", title=modulnamn, subtitle=kort beskrivning
+2. Slides 2-N: VARIERA mellan key-point, bullet-points, stats, comparison
+3. VARJE SLIDE (utom title): 3-5 konkreta bulletPoints
+4. keyTakeaway för key-point och quote slides
+5. suggestedImageQuery: SPECIFIK engelsk sökterm (3-5 ord)
+6. iconSuggestion: Lucide-ikon (Brain, Heart, Target, Scan, etc.)
+7. suggestedBackgroundColor: Mörk HEX-färg (#1a365d, #0f172a, etc.)`
+      : `MODULE: "${effectiveModuleTitle}"
+COURSE: "${courseTitle}"
 ${demoInstruction}
 
-SCRIPT:
+SCRIPT TO TRANSFORM:
 ${scriptContent}
 
-CREATE SLIDES WITH THE FOLLOWING STRUCTURE:
+CREATE ${demoMode ? effectiveMaxSlides : '6-10'} PROFESSIONAL SLIDES.
 
-Each slide must have EXACTLY these fields:
-- slideNumber: Number (start with 1)
-- title: Short headline, 2-6 words, PLAIN TEXT, no special characters
-- subtitle: Optional subtitle for context
-- bulletPoints: Array with 2-5 short points (each point max 10 words)
-- keyTakeaway: Main message in ONE sentence (if relevant)
-- content: Empty string or brief summary (PLAIN TEXT only)
-- speakerNotes: Detailed notes for the presenter
-- layout: Choose from - 'title', 'key-point', 'bullet-points', 'stats', 'comparison', 'quote', 'image-focus'
-- suggestedImageQuery: SPECIFIC search term in ENGLISH (3-5 words) for stock photo
-- iconSuggestion: Lucide icon name matching the content (e.g., "Brain", "Heart", "Target")
-- visualType: 'photo', 'illustration', 'diagram', or 'icon-grid'
-- suggestedBackgroundColor: HEX color matching the theme
-
-Create ${demoMode ? effectiveMaxSlides : '6-12'} slides${demoMode ? '' : ' depending on content length'}. 
-First slide should be a title slide with layout 'title'.
-VARY layouts - don't use the same layout on every slide!`;
+REQUIREMENTS:
+1. Slide 1: layout="title", title=module name, subtitle=short description
+2. Slides 2-N: VARY between key-point, bullet-points, stats, comparison
+3. EVERY SLIDE (except title): 3-5 concrete bulletPoints
+4. keyTakeaway for key-point and quote slides
+5. suggestedImageQuery: SPECIFIC English search term (3-5 words)
+6. iconSuggestion: Lucide icon (Brain, Heart, Target, Scan, etc.)
+7. suggestedBackgroundColor: Dark HEX color (#1a365d, #0f172a, etc.)`;
 
     console.log('Generating slides for module:', effectiveModuleTitle);
 
@@ -444,7 +377,7 @@ VARY layouts - don't use the same layout on every slide!`;
             type: 'function',
             function: {
               name: 'create_slides',
-              description: 'Create professional presentation slides from script content',
+              description: 'Create professional presentation slides with rich structured content',
               parameters: {
                 type: 'object',
                 properties: {
@@ -454,29 +387,29 @@ VARY layouts - don't use the same layout on every slide!`;
                       type: 'object',
                       properties: {
                         slideNumber: { type: 'number', description: 'Sequential slide number starting from 1' },
-                        title: { type: 'string', description: 'Short, engaging headline (2-6 words, PLAIN TEXT only)' },
-                        subtitle: { type: 'string', description: 'Optional subtitle for additional context' },
+                        title: { type: 'string', description: 'Short headline (2-6 words, UPPERCASE for emphasis)' },
+                        subtitle: { type: 'string', description: 'Supporting text or context' },
                         bulletPoints: { 
                           type: 'array', 
                           items: { type: 'string' },
-                          description: 'Array of 2-5 short bullet points (each max 10 words, PLAIN TEXT)'
+                          description: 'REQUIRED: 3-5 concrete bullet points (except for title slides)'
                         },
-                        keyTakeaway: { type: 'string', description: 'Main takeaway message in one sentence' },
-                        content: { type: 'string', description: 'Brief summary or empty string (PLAIN TEXT only)' },
-                        speakerNotes: { type: 'string', description: 'Detailed notes for the presenter' },
+                        keyTakeaway: { type: 'string', description: 'Main message (REQUIRED for key-point and quote layouts)' },
+                        content: { type: 'string', description: 'Leave empty - use bulletPoints instead' },
+                        speakerNotes: { type: 'string', description: 'Detailed notes for the presenter (2-3 sentences)' },
                         layout: { 
                           type: 'string',
-                          enum: ['title', 'title-content', 'two-column', 'image-focus', 'quote', 'bullet-points', 'key-point', 'comparison', 'timeline', 'stats'],
-                          description: 'Visual layout type for the slide'
+                          enum: ['title', 'key-point', 'bullet-points', 'stats', 'comparison', 'quote', 'image-focus'],
+                          description: 'Visual layout - VARY these across slides'
                         },
-                        suggestedImageQuery: { type: 'string', description: 'Specific image search terms in English (3-5 words)' },
-                        iconSuggestion: { type: 'string', description: 'Lucide icon name (e.g., Heart, Brain, Target)' },
+                        suggestedImageQuery: { type: 'string', description: 'SPECIFIC English image search (e.g., "surgeon performing endoscopy procedure")' },
+                        iconSuggestion: { type: 'string', description: 'Lucide icon name (Brain, Heart, Target, Scan, Activity, etc.)' },
                         visualType: { 
                           type: 'string', 
                           enum: ['photo', 'illustration', 'diagram', 'icon-grid'],
-                          description: 'Type of visual to use'
+                          description: 'Type of visual'
                         },
-                        suggestedBackgroundColor: { type: 'string', description: 'HEX color code for background' }
+                        suggestedBackgroundColor: { type: 'string', description: 'Dark HEX color (#1a365d, #0f172a, #134e4a)' }
                       },
                       required: ['slideNumber', 'title', 'bulletPoints', 'speakerNotes', 'layout', 'suggestedImageQuery']
                     }
@@ -513,7 +446,6 @@ VARY layouts - don't use the same layout on every slide!`;
 
     const data = await response.json();
     
-    // Extract slides from tool call response
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall || toolCall.function.name !== 'create_slides') {
       throw new Error('Unexpected AI response format');
@@ -522,34 +454,46 @@ VARY layouts - don't use the same layout on every slide!`;
     const slidesData = JSON.parse(toolCall.function.arguments);
     let slides: SlideContent[] = slidesData.slides;
 
-    // Post-process slides to clean any remaining markdown and structure content
-    slides = slides.map(slide => {
-      // Clean all text fields
+    // Post-process: ensure every non-title slide has bullets
+    slides = slides.map((slide, idx) => {
       const cleanedTitle = cleanMarkdown(slide.title);
       const cleanedContent = cleanMarkdown(slide.content || '');
       const cleanedSubtitle = slide.subtitle ? cleanMarkdown(slide.subtitle) : undefined;
       const cleanedKeyTakeaway = slide.keyTakeaway ? cleanMarkdown(slide.keyTakeaway) : undefined;
       
-      // Clean bullet points
-      const cleanedBulletPoints = (slide.bulletPoints || []).map(bp => cleanMarkdown(bp));
+      let cleanedBulletPoints = (slide.bulletPoints || []).map(bp => cleanMarkdown(bp)).filter(Boolean);
       
-      // If bulletPoints is empty but content has text, try to extract bullet points
-      let finalBulletPoints = cleanedBulletPoints;
-      if (finalBulletPoints.length === 0 && cleanedContent) {
-        const lines = cleanedContent.split('\n').filter(line => line.trim());
-        if (lines.length > 1) {
-          finalBulletPoints = lines.slice(0, 5).map(line => cleanMarkdown(line));
+      // If non-title slide has no bullets, try to extract from content or generate fallback
+      if (slide.layout !== 'title' && cleanedBulletPoints.length === 0) {
+        if (cleanedContent) {
+          cleanedBulletPoints = cleanedContent.split('\n').filter(line => line.trim()).slice(0, 5);
         }
+        // If still empty, create fallback from keyTakeaway or title
+        if (cleanedBulletPoints.length === 0 && cleanedKeyTakeaway) {
+          cleanedBulletPoints = [cleanedKeyTakeaway];
+        }
+        if (cleanedBulletPoints.length === 0) {
+          cleanedBulletPoints = [`Viktiga aspekter av ${cleanedTitle.toLowerCase()}`];
+        }
+      }
+      
+      // Ensure dark background colors
+      let bgColor = slide.suggestedBackgroundColor;
+      if (!bgColor || bgColor === '#ffffff' || bgColor === '#FFFFFF') {
+        const darkColors = ['#1a365d', '#0f172a', '#134e4a', '#3f3f46', '#1e1b4b', '#292524'];
+        bgColor = darkColors[idx % darkColors.length];
       }
       
       return {
         ...slide,
+        slideNumber: idx + 1,
         title: cleanedTitle,
         subtitle: cleanedSubtitle,
-        content: cleanedContent,
-        bulletPoints: finalBulletPoints,
+        content: '', // Clear content - use bulletPoints instead
+        bulletPoints: cleanedBulletPoints,
         keyTakeaway: cleanedKeyTakeaway,
         speakerNotes: cleanMarkdown(slide.speakerNotes || ''),
+        suggestedBackgroundColor: bgColor,
       };
     });
 
@@ -560,11 +504,16 @@ VARY layouts - don't use the same layout on every slide!`;
     }
 
     console.log(`Generated ${slides.length} slides for module "${effectiveModuleTitle}"`);
+    
+    // Log slide structure for debugging
+    slides.forEach((s, i) => {
+      console.log(`Slide ${i + 1}: layout=${s.layout}, bullets=${s.bulletPoints?.length || 0}, keyTakeaway=${!!s.keyTakeaway}`);
+    });
 
-    // Cache the slides (without images - 12 hour TTL)
-    await setCachedResponse(supabase, cacheKey, 'generate-slides-v2', cacheKey, { slides }, 12);
+    // Cache the slides
+    await setCachedResponse(supabase, cacheKey, 'generate-slides-v3', cacheKey, { slides }, 12);
 
-    // Auto-fetch images for each slide if enabled
+    // Auto-fetch images
     if (autoFetchImages) {
       console.log('Auto-fetching stock photos for slides...');
       
