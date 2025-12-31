@@ -44,8 +44,11 @@ const analyzeTopicContext = (topic: string, additionalContext?: string): {
   
   // Industry detection
   let industry = 'general';
-  if (/health|medical|hospital|pharma|patient|doctor|clinic/i.test(combined)) industry = 'healthcare';
-  else if (/financ|bank|invest|money|stock|crypto|trading/i.test(combined)) industry = 'finance';
+  // English + Swedish keywords
+  if (/health|medical|hospital|pharma|patient|doctor|clinic|anatomy|physiology|pathology|diagnos|treatment/i.test(combined) ||
+      /anatomi|fysiologi|patologi|klinisk|patient|sjukdom|diagnostik|behandling|läkare|sjukhus|medicin|hälsa/i.test(combined)) {
+    industry = 'healthcare';
+  } else if (/financ|bank|invest|money|stock|crypto|trading/i.test(combined)) industry = 'finance';
   else if (/tech|software|digital|ai|machine learning|data|cloud|app/i.test(combined)) industry = 'technology';
   else if (/education|school|learn|student|teach|course|training/i.test(combined)) industry = 'education';
   else if (/market|brand|customer|sales|advertis|campaign/i.test(combined)) industry = 'marketing';
@@ -54,6 +57,7 @@ const analyzeTopicContext = (topic: string, additionalContext?: string): {
   else if (/travel|tourism|hotel|vacation|destination/i.test(combined)) industry = 'travel';
   else if (/law|legal|compliance|regulation|court/i.test(combined)) industry = 'legal';
   else if (/construction|architect|building|real estate|property/i.test(combined)) industry = 'real-estate';
+
   
   // Image style recommendation based on industry and content
   let imageStyle = 'photography';
@@ -185,7 +189,30 @@ serve(async (req) => {
     if (PRESENTON_API_KEY) {
       console.log('Using Presenton Cloud API for slide generation');
 
-      const contentText = scriptContent || additionalContext || topic || moduleTitle || courseTitle || '';
+      const sanitizeForPresenton = (input: string, lang?: string) => {
+        // Normalize to avoid strange combining-character issues
+        let text = (input || '').normalize('NFC');
+
+        // Presenton currently mangles Nordic characters in some outputs (å/ä/ö -> e5/e4/f6).
+        // As a safe fallback, transliterate when generating Swedish decks.
+        if ((lang || '').toLowerCase().trim() === 'sv') {
+          text = text
+            .replace(/å/g, 'a')
+            .replace(/ä/g, 'a')
+            .replace(/ö/g, 'o')
+            .replace(/Å/g, 'A')
+            .replace(/Ä/g, 'A')
+            .replace(/Ö/g, 'O');
+
+          // Strip any remaining diacritics to keep text readable
+          text = text.normalize('NFD').replace(/\p{Diacritic}/gu, '').normalize('NFC');
+        }
+
+        return text;
+      };
+
+      const rawContentText = scriptContent || additionalContext || topic || moduleTitle || courseTitle || '';
+      const contentText = sanitizeForPresenton(rawContentText, language);
 
       const mapLanguage = (lang?: string) => (lang === 'sv' ? 'Swedish' : 'English');
 
