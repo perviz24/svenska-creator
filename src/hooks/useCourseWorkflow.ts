@@ -350,19 +350,31 @@ export function useCourseWorkflow() {
         .eq('module_id', moduleId);
 
       // Insert new slides
-      const insertData = slides.map((slide) => ({
-        course_id: courseId,
-        module_id: moduleId,
-        slide_number: slide.slideNumber,
-        title: slide.title,
-        content: slide.content,
-        speaker_notes: slide.speakerNotes,
-        layout: slide.layout,
-        background_color: slide.backgroundColor || null,
-        image_url: slide.imageUrl || null,
-        image_source: slide.imageSource || null,
-        image_attribution: slide.imageAttribution || null,
-      }));
+      const insertData = slides.map((slide) => {
+        const bulletText = (slide.bulletPoints && slide.bulletPoints.length > 0)
+          ? slide.bulletPoints.map((p) => `• ${p}`.trim()).join('\n')
+          : '';
+
+        // We only have a single 'content' column in the database.
+        // If content is empty but we do have bulletPoints, persist them as newline bullets.
+        const normalizedContent = slide.content?.trim()
+          ? slide.content
+          : bulletText;
+
+        return {
+          course_id: courseId,
+          module_id: moduleId,
+          slide_number: slide.slideNumber,
+          title: slide.title,
+          content: normalizedContent,
+          speaker_notes: slide.speakerNotes,
+          layout: slide.layout,
+          background_color: slide.backgroundColor || null,
+          image_url: slide.imageUrl || null,
+          image_source: slide.imageSource || null,
+          image_attribution: slide.imageAttribution || null,
+        };
+      });
 
       if (insertData.length > 0) {
         await supabase.from('slides').insert(insertData);
@@ -819,20 +831,38 @@ export function useCourseWorkflow() {
         throw new Error(data.error);
       }
 
-      let slides: Slide[] = data.slides.map((slide: any) => ({
-        moduleId,
-        slideNumber: slide.slideNumber,
-        title: slide.title,
-        content: slide.content,
-        speakerNotes: slide.speakerNotes,
-        layout: slide.layout,
-        suggestedImageQuery: slide.suggestedImageQuery,
-        backgroundColor: slide.suggestedBackgroundColor,
-        // Auto-assigned images from stock photo search
-        imageUrl: slide.imageUrl,
-        imageSource: slide.imageSource,
-        imageAttribution: slide.imageAttribution,
-      }));
+      let slides: Slide[] = data.slides.map((slide: any) => {
+        const bulletPoints = Array.isArray(slide.bulletPoints)
+          ? slide.bulletPoints.filter(Boolean)
+          : undefined;
+
+        const normalizedContent =
+          (slide.content && String(slide.content).trim())
+            ? String(slide.content)
+            : (bulletPoints && bulletPoints.length > 0)
+              ? bulletPoints.map((p: string) => `• ${p}`.trim()).join('\n')
+              : '';
+
+        return {
+          moduleId,
+          slideNumber: slide.slideNumber,
+          title: slide.title,
+          subtitle: slide.subtitle,
+          content: normalizedContent,
+          bulletPoints,
+          keyTakeaway: slide.keyTakeaway,
+          speakerNotes: slide.speakerNotes,
+          layout: slide.layout,
+          suggestedImageQuery: slide.suggestedImageQuery,
+          iconSuggestion: slide.iconSuggestion,
+          visualType: slide.visualType,
+          backgroundColor: slide.suggestedBackgroundColor,
+          // Auto-assigned images from stock photo search
+          imageUrl: slide.imageUrl,
+          imageSource: slide.imageSource,
+          imageAttribution: slide.imageAttribution,
+        };
+      });
       
       // Limit slides in demo mode
       if (isDemoMode && effectiveDemoMode?.maxSlides) {
