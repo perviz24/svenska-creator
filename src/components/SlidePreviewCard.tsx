@@ -38,7 +38,9 @@ const getIcon = (iconName?: string) => {
 
 // Layout-specific background gradients
 const getLayoutBackground = (layout: Slide['layout'], backgroundColor?: string) => {
-  if (backgroundColor) return backgroundColor;
+  if (backgroundColor && backgroundColor !== '#ffffff' && backgroundColor !== '#FFFFFF') {
+    return backgroundColor;
+  }
   
   switch (layout) {
     case 'title':
@@ -84,7 +86,7 @@ export const SlidePreviewCard = React.forwardRef<HTMLDivElement, SlidePreviewCar
   
   // Extract bullet points from content if not provided
   const effectiveBulletPoints = bulletPoints.length > 0 
-    ? bulletPoints.map(cleanMarkdown)
+    ? bulletPoints.map(cleanMarkdown).filter(Boolean)
     : cleanedContent.split('\n').filter(line => line.trim()).slice(0, 5);
 
   return (
@@ -118,20 +120,20 @@ export const SlidePreviewCard = React.forwardRef<HTMLDivElement, SlidePreviewCar
       )} />
 
       {/* Layout-specific content */}
-      <div className="relative z-10 p-6 h-full flex flex-col">
+      <div className="relative z-10 p-4 md:p-6 h-full flex flex-col">
         {/* Title Slide Layout */}
         {slide.layout === 'title' && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
+          <div className="flex-1 flex flex-col items-center justify-center text-center space-y-3">
             {IconComponent && (
-              <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center mb-2">
-                <IconComponent className="w-8 h-8 text-white" />
+              <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center mb-2">
+                <IconComponent className="w-6 h-6 md:w-8 md:h-8 text-white" />
               </div>
             )}
-            <h2 className="text-2xl md:text-4xl font-bold text-white drop-shadow-lg leading-tight">
+            <h2 className="text-xl md:text-3xl lg:text-4xl font-bold text-white drop-shadow-lg leading-tight">
               {cleanedTitle}
             </h2>
             {cleanedSubtitle && (
-              <p className="text-lg md:text-xl text-white/80 max-w-md">
+              <p className="text-base md:text-lg text-white/80 max-w-md">
                 {cleanedSubtitle}
               </p>
             )}
@@ -140,41 +142,46 @@ export const SlidePreviewCard = React.forwardRef<HTMLDivElement, SlidePreviewCar
 
         {/* Key Point Layout */}
         {slide.layout === 'key-point' && (
-          <div className="flex-1 flex flex-col justify-center space-y-4">
+          <div className="flex-1 flex flex-col justify-center space-y-3">
             <Badge variant="secondary" className="self-start text-xs bg-white/20 text-white backdrop-blur-sm border-0">
               {getLayoutLabel(slide.layout)}
             </Badge>
-            <h3 className="text-xl md:text-2xl font-bold text-white drop-shadow-lg">
+            <h3 className="text-lg md:text-xl font-bold text-white drop-shadow-lg">
               {cleanedTitle}
             </h3>
             {cleanedKeyTakeaway && (
-              <div className="p-4 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
-                <p className="text-lg md:text-xl text-white font-medium leading-relaxed">
+              <div className="p-3 md:p-4 bg-white/15 backdrop-blur-sm rounded-lg border border-white/25">
+                <p className="text-base md:text-lg text-white font-semibold leading-relaxed">
                   {cleanedKeyTakeaway}
                 </p>
               </div>
             )}
-            {effectiveBulletPoints.length > 0 && !cleanedKeyTakeaway && (
-              <p className="text-lg md:text-xl text-white/90 leading-relaxed">
-                {effectiveBulletPoints[0]}
-              </p>
+            {effectiveBulletPoints.length > 0 && (
+              <ul className="space-y-1.5 mt-2">
+                {effectiveBulletPoints.slice(0, 3).map((point, idx) => (
+                  <li key={idx} className="flex items-start gap-2 text-white/90">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white/60 mt-2 flex-shrink-0" />
+                    <span className="text-sm leading-relaxed">{point}</span>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         )}
 
         {/* Stats Layout */}
         {slide.layout === 'stats' && (
-          <div className="flex-1 flex flex-col justify-center space-y-4">
+          <div className="flex-1 flex flex-col justify-center space-y-3">
             <Badge variant="secondary" className="self-start text-xs bg-white/20 text-white backdrop-blur-sm border-0">
               Statistik
             </Badge>
-            <h3 className="text-xl md:text-2xl font-bold text-white drop-shadow-lg">
+            <h3 className="text-lg md:text-xl font-bold text-white drop-shadow-lg">
               {cleanedTitle}
             </h3>
-            <div className="grid grid-cols-2 gap-4 mt-4">
+            <div className="grid grid-cols-2 gap-2 md:gap-3 mt-2">
               {effectiveBulletPoints.slice(0, 4).map((point, idx) => (
-                <div key={idx} className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
-                  <p className="text-white/90 text-sm font-medium">{point}</p>
+                <div key={idx} className="bg-white/15 backdrop-blur-sm rounded-lg p-2 md:p-3 text-center border border-white/20">
+                  <p className="text-white/95 text-xs md:text-sm font-medium">{point}</p>
                 </div>
               ))}
             </div>
@@ -183,93 +190,98 @@ export const SlidePreviewCard = React.forwardRef<HTMLDivElement, SlidePreviewCar
 
         {/* Quote Layout */}
         {slide.layout === 'quote' && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 px-4">
-            <div className="text-5xl text-white/30">"</div>
-            <blockquote className="text-lg md:text-xl text-white italic font-medium leading-relaxed max-w-lg">
+          <div className="flex-1 flex flex-col items-center justify-center text-center space-y-2 px-2">
+            <div className="text-4xl md:text-5xl text-white/30 font-serif">"</div>
+            <blockquote className="text-base md:text-lg text-white italic font-medium leading-relaxed max-w-lg">
               {cleanedKeyTakeaway || effectiveBulletPoints[0] || cleanedContent}
             </blockquote>
-            <div className="text-5xl text-white/30">"</div>
-            {cleanedTitle && (
-              <p className="text-white/70 text-sm mt-2">— {cleanedTitle}</p>
+            <div className="text-4xl md:text-5xl text-white/30 font-serif">"</div>
+            {(cleanedSubtitle || cleanedTitle) && (
+              <p className="text-white/70 text-xs md:text-sm mt-1">— {cleanedSubtitle || cleanedTitle}</p>
             )}
-          </div>
-        )}
-
-        {/* Bullet Points Layout */}
-        {slide.layout === 'bullet-points' && (
-          <div className="flex-1 flex flex-col justify-end space-y-3">
-            <Badge variant="secondary" className="self-start mb-2 text-xs bg-white/20 text-white backdrop-blur-sm border-0">
-              {getLayoutLabel(slide.layout)}
-            </Badge>
-            <h3 className="text-xl md:text-2xl font-bold mb-3 text-white drop-shadow-lg">
-              {cleanedTitle}
-            </h3>
-            <ul className="space-y-2">
-              {effectiveBulletPoints.slice(0, 5).map((point, idx) => (
-                <li key={idx} className="flex items-start gap-3 text-white/90">
-                  <span className="w-2 h-2 rounded-full bg-white/60 mt-2 flex-shrink-0" />
-                  <span className="text-sm md:text-base leading-relaxed">{point}</span>
-                </li>
-              ))}
-            </ul>
           </div>
         )}
 
         {/* Comparison Layout */}
         {slide.layout === 'comparison' && (
-          <div className="flex-1 flex flex-col justify-center space-y-4">
-            <h3 className="text-xl md:text-2xl font-bold text-white drop-shadow-lg text-center">
+          <div className="flex-1 flex flex-col justify-center space-y-3">
+            <h3 className="text-lg md:text-xl font-bold text-white drop-shadow-lg text-center">
               {cleanedTitle}
             </h3>
-            <div className="grid grid-cols-2 gap-4 mt-2">
+            <div className="grid grid-cols-2 gap-2 md:gap-3 mt-2">
               {effectiveBulletPoints.slice(0, 4).map((point, idx) => (
                 <div 
                   key={idx} 
                   className={cn(
-                    "p-3 rounded-lg",
-                    idx % 2 === 0 ? "bg-emerald-500/20" : "bg-blue-500/20"
+                    "p-2 md:p-3 rounded-lg border",
+                    idx % 2 === 0 
+                      ? "bg-emerald-500/20 border-emerald-500/30" 
+                      : "bg-blue-500/20 border-blue-500/30"
                   )}
                 >
-                  <p className="text-white/90 text-sm">{point}</p>
+                  <p className="text-white/90 text-xs md:text-sm">{point}</p>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Default / Title-Content / Image-Focus Layout */}
-        {!['title', 'key-point', 'stats', 'quote', 'bullet-points', 'comparison'].includes(slide.layout) && (
-          <div className="flex-1 flex flex-col justify-end space-y-3">
-            <Badge variant="secondary" className="self-start mb-2 text-xs bg-white/20 text-white backdrop-blur-sm border-0">
+        {/* Bullet Points Layout */}
+        {slide.layout === 'bullet-points' && (
+          <div className="flex-1 flex flex-col justify-end space-y-2">
+            <Badge variant="secondary" className="self-start mb-1 text-xs bg-white/20 text-white backdrop-blur-sm border-0">
               {getLayoutLabel(slide.layout)}
             </Badge>
-            <h3 className="text-xl md:text-2xl font-bold mb-3 text-white drop-shadow-lg line-clamp-2">
+            <h3 className="text-lg md:text-xl font-bold mb-2 text-white drop-shadow-lg">
               {cleanedTitle}
             </h3>
             {cleanedSubtitle && (
-              <p className="text-white/70 text-sm mb-2">{cleanedSubtitle}</p>
+              <p className="text-white/70 text-xs mb-1">{cleanedSubtitle}</p>
+            )}
+            <ul className="space-y-1.5">
+              {effectiveBulletPoints.slice(0, 5).map((point, idx) => (
+                <li key={idx} className="flex items-start gap-2 text-white/90">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white/60 mt-2 flex-shrink-0" />
+                  <span className="text-xs md:text-sm leading-relaxed">{point}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Default / Title-Content / Image-Focus Layout */}
+        {!['title', 'key-point', 'stats', 'quote', 'bullet-points', 'comparison'].includes(slide.layout) && (
+          <div className="flex-1 flex flex-col justify-end space-y-2">
+            <Badge variant="secondary" className="self-start mb-1 text-xs bg-white/20 text-white backdrop-blur-sm border-0">
+              {getLayoutLabel(slide.layout)}
+            </Badge>
+            <h3 className="text-lg md:text-xl font-bold mb-2 text-white drop-shadow-lg line-clamp-2">
+              {cleanedTitle}
+            </h3>
+            {cleanedSubtitle && (
+              <p className="text-white/70 text-xs mb-1">{cleanedSubtitle}</p>
             )}
             {effectiveBulletPoints.length > 0 ? (
-              <ul className="space-y-2">
+              <ul className="space-y-1.5">
                 {effectiveBulletPoints.slice(0, 4).map((point, idx) => (
-                  <li key={idx} className="flex items-start gap-3 text-white/90">
-                    <span className="w-2 h-2 rounded-full bg-white/60 mt-2 flex-shrink-0" />
-                    <span className="text-sm md:text-base leading-relaxed line-clamp-2">{point}</span>
+                  <li key={idx} className="flex items-start gap-2 text-white/90">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white/60 mt-2 flex-shrink-0" />
+                    <span className="text-xs md:text-sm leading-relaxed line-clamp-2">{point}</span>
                   </li>
                 ))}
               </ul>
-            ) : cleanedContent && (
-              <p className="text-sm md:text-base text-white/90 whitespace-pre-wrap line-clamp-4 leading-relaxed">
-                {cleanedContent}
+            ) : cleanedKeyTakeaway && (
+              <p className="text-sm text-white/90 whitespace-pre-wrap line-clamp-3 leading-relaxed">
+                {cleanedKeyTakeaway}
               </p>
             )}
           </div>
         )}
 
-        {/* Key Takeaway Footer */}
-        {cleanedKeyTakeaway && slide.layout !== 'key-point' && slide.layout !== 'quote' && (
-          <div className="mt-auto pt-3 border-t border-white/20">
-            <p className="text-sm text-white/80 italic">
+        {/* Key Takeaway Footer (for non-key-point/quote layouts with takeaway) */}
+        {cleanedKeyTakeaway && !['key-point', 'quote', 'title'].includes(slide.layout) && (
+          <div className="mt-auto pt-2 border-t border-white/20">
+            <p className="text-xs text-white/80 italic line-clamp-2">
               💡 {cleanedKeyTakeaway}
             </p>
           </div>
@@ -277,7 +289,7 @@ export const SlidePreviewCard = React.forwardRef<HTMLDivElement, SlidePreviewCar
 
         {/* Image Attribution */}
         {slide.imageAttribution && (
-          <p className="absolute bottom-2 right-3 text-xs text-white/50">
+          <p className="absolute bottom-1.5 right-2 text-[10px] text-white/50">
             📷 {slide.imageAttribution}
           </p>
         )}
