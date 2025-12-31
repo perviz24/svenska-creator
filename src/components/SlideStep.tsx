@@ -16,6 +16,7 @@ import { CanvaTemplates } from '@/components/CanvaTemplates';
 import { GoogleSlidesExport } from '@/components/GoogleSlidesExport';
 import { AIRefinementPanel } from '@/components/AIRefinementPanel';
 import { DemoWatermark } from '@/components/DemoWatermark';
+import { SlidePreviewCard } from '@/components/SlidePreviewCard';
 
 type SlideGenerator = 'internal' | 'presenton';
 type ExportTemplate = 'professional' | 'modern' | 'minimal' | 'creative';
@@ -1313,51 +1314,10 @@ export function SlideStep({
             </CardHeader>
             <CardContent>
               {currentSlide && (
-                <div 
-                  className="aspect-video rounded-xl border-2 border-border/50 overflow-hidden relative shadow-lg"
-                  style={{ 
-                    background: currentSlide.imageUrl 
-                      ? undefined
-                      : currentSlide.backgroundColor 
-                        ? currentSlide.backgroundColor 
-                        : `linear-gradient(135deg, hsl(220 70% 35%) 0%, hsl(240 60% 25%) 100%)`
-                  }}
-                >
-                  {currentSlide.imageUrl && (
-                    <img 
-                      src={currentSlide.imageUrl} 
-                      alt=""
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                  )}
-                  {/* Gradient overlay for better text readability */}
-                  <div className={cn(
-                    "absolute inset-0",
-                    currentSlide.imageUrl 
-                      ? "bg-gradient-to-t from-black/80 via-black/40 to-black/20"
-                      : "bg-gradient-to-br from-primary/20 to-transparent"
-                  )} />
-                  
-                  <div className="relative z-10 p-6 h-full flex flex-col justify-end">
-                    <Badge variant="secondary" className="self-start mb-3 text-xs bg-white/20 text-white backdrop-blur-sm border-0">
-                      {getLayoutLabel(currentSlide.layout)}
-                    </Badge>
-                    <h3 className="text-xl md:text-2xl font-bold mb-3 text-white drop-shadow-lg line-clamp-2">
-                      {cleanMarkdown(currentSlide.title)}
-                    </h3>
-                    <div className="text-sm md:text-base text-white/90 whitespace-pre-wrap overflow-hidden line-clamp-4 drop-shadow leading-relaxed">
-                      {cleanMarkdown(currentSlide.content)}
-                    </div>
-                    {currentSlide.imageAttribution && (
-                      <p className="text-xs text-white/60 mt-3 truncate">
-                        📷 {currentSlide.imageAttribution}
-                      </p>
-                    )}
-                  </div>
-                  
-                  {/* Demo Watermark */}
-                  {showWatermark && <DemoWatermark />}
-                </div>
+                <SlidePreviewCard 
+                  slide={currentSlide} 
+                  showWatermark={showWatermark}
+                />
               )}
 
               {/* Slide Thumbnails */}
