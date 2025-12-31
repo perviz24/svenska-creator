@@ -310,7 +310,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
     }
   };
 
-  // Download Styled PPTX handler - professional design
+  // Download Styled PPTX handler - professional design (server-side export)
   const handleDownloadPptxStyled = async () => {
     setIsExportingPptx(true);
     try {
@@ -320,109 +320,39 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
         return;
       }
 
-      const pptx = new pptxgen();
-      pptx.author = 'Course Generator';
-      pptx.title = courseTitle || 'Presentation';
-      pptx.subject = 'Generated Presentation';
-      pptx.company = 'Course Platform';
-      
-      // Add slides with professional styling
-      slides.forEach((slideData, index) => {
-        const slide = pptx.addSlide();
-        
-        if (slideData.layout === 'title' || index === 0) {
-          // Styled title slide with gradient background
-          slide.background = { color: '1a1a2e' };
-          slide.addText(slideData.title, {
-            x: 0.5,
-            y: 2.2,
-            w: 9,
-            h: 1.5,
-            fontSize: 44,
-            bold: true,
-            color: 'FFFFFF',
-            align: 'center',
-            fontFace: 'Arial',
-          });
-          if (slideData.content) {
-            slide.addText(slideData.content, {
-              x: 0.5,
-              y: 4,
-              w: 9,
-              h: 1,
-              fontSize: 20,
-              color: 'AAAAAA',
-              align: 'center',
-              fontFace: 'Arial',
-            });
-          }
-          // Add speaker notes to title slide (contains full script)
-          if (slideData.speakerNotes) {
-            slide.addNotes(slideData.speakerNotes);
-          }
-        } else {
-          // Styled content slide with header bar
-          slide.background = { color: 'FFFFFF' };
-          
-          slide.addShape('rect', {
-            x: 0,
-            y: 0,
-            w: '100%',
-            h: 0.8,
-            fill: { color: '1a1a2e' },
-          });
-          
-          slide.addText(slideData.title, {
-            x: 0.5,
-            y: 0.15,
-            w: 9,
-            h: 0.5,
-            fontSize: 24,
-            bold: true,
-            color: 'FFFFFF',
-            fontFace: 'Arial',
-          });
-          
-          if (slideData.content) {
-            const contentLines = slideData.content.split('\n').filter(line => line.trim());
-            const textContent = contentLines.map(line => ({
-              text: line.replace(/^[•\-]\s*/, ''),
-              options: { bullet: { type: 'bullet' as const }, breakLine: true },
-            }));
-            
-            slide.addText(textContent, {
-              x: 0.5,
-              y: 1.2,
-              w: 9,
-              h: 4.3,
-              fontSize: 18,
-              color: '333333',
-              fontFace: 'Arial',
-              valign: 'top',
-            });
-          }
-
-          // Add speaker notes (script content)
-          if (slideData.speakerNotes) {
-            slide.addNotes(slideData.speakerNotes);
-          }
-        }
+      const { data, error } = await supabase.functions.invoke('export-slides', {
+        body: {
+          slides,
+          courseTitle: courseTitle || 'Presentation',
+          moduleTitle: courseTitle || 'Presentation',
+          format: 'pptx',
+          demoMode: isDemoMode,
+          template: 'professional',
+        },
       });
 
-      if (isDemoMode) {
-        pptx.addSlide().addText('DEMO - Generated with Demo Mode', {
-          x: 0,
-          y: 5,
-          w: '100%',
-          h: 0.5,
-          fontSize: 12,
-          color: 'AAAAAA',
-          align: 'center',
-          fontFace: 'Arial',
-        });
-      }
+      if (error) throw error;
+      if (!data?.content) throw new Error('Export failed: missing content');
 
-      await pptx.writeFile({ fileName: `${courseTitle || 'presentation'}_styled.pptx` });
+      const byteCharacters = atob(data.content);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], {
+        type: data.contentType || 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = data.filename || `${courseTitle || 'presentation'}_styled.pptx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
       toast({ title: 'Professionell PowerPoint nedladdad!' });
     } catch (error) {
       console.error('Export error:', error);

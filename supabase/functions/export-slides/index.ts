@@ -68,26 +68,40 @@ const TEMPLATES = {
 
 // Generate native PPTX with layout-specific designs
 async function generateNativePPTX(
-  slides: Slide[], 
-  courseTitle: string, 
-  moduleTitle: string, 
-  demoMode: boolean = false, 
+  slides: Slide[],
+  courseTitle: string,
+  moduleTitle: string,
+  demoMode: boolean = false,
   template: keyof typeof TEMPLATES = 'professional'
 ): Promise<string> {
   const colors = TEMPLATES[template];
   const pptx = new PptxGenJS();
-  
+
+  // 4:3 layout matches our coordinate system (w=10in, h=7.5in)
+  pptx.layout = 'LAYOUT_4X3';
+
+  const SLIDE_W = 10;
+  const SLIDE_H = 7.5;
+
   pptx.author = 'Kursgeneratorn';
   pptx.title = courseTitle;
   pptx.subject = moduleTitle;
   pptx.company = 'Kursgeneratorn';
-  
-  // Define master slides
+
+  // Define master slides (PptxGenJS does NOT support percentage dimensions)
   pptx.defineSlideMaster({
     title: 'TITLE_SLIDE',
     background: { color: colors.primary.replace('#', '') },
     objects: [
-      { rect: { x: 0, y: 6.9, w: '100%', h: 0.6, fill: { color: colors.secondary.replace('#', '') } } },
+      {
+        rect: {
+          x: 0,
+          y: 6.9,
+          w: SLIDE_W,
+          h: 0.6,
+          fill: { color: colors.secondary.replace('#', '') },
+        },
+      },
     ],
   });
 
@@ -95,8 +109,24 @@ async function generateNativePPTX(
     title: 'CONTENT_SLIDE',
     background: { color: colors.background.replace('#', '') },
     objects: [
-      { rect: { x: 0, y: 0, w: '100%', h: 0.65, fill: { color: colors.primary.replace('#', '') } } },
-      { rect: { x: 0, y: 0.65, w: '100%', h: 0.05, fill: { color: colors.accent.replace('#', '') } } },
+      {
+        rect: {
+          x: 0,
+          y: 0,
+          w: SLIDE_W,
+          h: 0.65,
+          fill: { color: colors.primary.replace('#', '') },
+        },
+      },
+      {
+        rect: {
+          x: 0,
+          y: 0.65,
+          w: SLIDE_W,
+          h: 0.05,
+          fill: { color: colors.accent.replace('#', '') },
+        },
+      },
     ],
   });
 
@@ -164,7 +194,10 @@ async function generateNativePPTX(
     // Header for content slides
     if (masterName === 'CONTENT_SLIDE') {
       contentSlide.addShape('rect', {
-        x: 0, y: 0, w: '100%', h: 0.5,
+        x: 0,
+        y: 0,
+        w: 10,
+        h: 0.5,
         fill: { color: colors.primary.replace('#', '') },
       });
       contentSlide.addText(moduleTitle, {
