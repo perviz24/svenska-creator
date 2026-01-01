@@ -320,9 +320,9 @@ async function generateNativePPTX(
     const accentColor = hasImageBg ? 'FFFFFF' : colors.accent.replace('#', '');
 
     // Normalize layout to known types to avoid UNKNOWN-LAYOUT errors
-    const normalizedLayout = ['key-point', 'stats', 'comparison', 'quote', 'image-focus', 'title', 'two-column', 'bullet-points'].includes(layout) 
-      ? layout 
-      : 'bullet-points';
+    // Includes all layouts from generate-slides: title, title-content, two-column, image-focus, quote, bullet-points, key-point, comparison, timeline, stats
+    const knownLayouts = ['key-point', 'stats', 'comparison', 'quote', 'image-focus', 'title', 'title-content', 'two-column', 'bullet-points', 'timeline'];
+    const normalizedLayout = knownLayouts.includes(layout) ? layout : 'bullet-points';
 
     switch (normalizedLayout) {
       case 'title': {
