@@ -319,7 +319,81 @@ async function generateNativePPTX(
     const mutedColor = hasImageBg ? 'E5E7EB' : colors.muted.replace('#', '');
     const accentColor = hasImageBg ? 'FFFFFF' : colors.accent.replace('#', '');
 
-    switch (layout) {
+    // Normalize layout to known types to avoid UNKNOWN-LAYOUT errors
+    const normalizedLayout = ['key-point', 'stats', 'comparison', 'quote', 'image-focus', 'title', 'two-column', 'bullet-points'].includes(layout) 
+      ? layout 
+      : 'bullet-points';
+
+    switch (normalizedLayout) {
+      case 'title': {
+        // Title slide layout - centered, bold title
+        contentSlide.addText(cleanTitle, {
+          x: 0.5, y: 2.5, w: 9, h: 1.5,
+          fontSize: 38, color: textColor, bold: true, fontFace: 'Arial', align: 'center', valign: 'middle', fit: 'shrink',
+        });
+        if (cleanSubtitle) {
+          contentSlide.addText(cleanSubtitle, {
+            x: 0.5, y: 4.0, w: 9, h: 0.6,
+            fontSize: 20, color: mutedColor, fontFace: 'Arial', align: 'center',
+          });
+        }
+        // Show content/key takeaway if present
+        if (cleanKeyTakeaway) {
+          contentSlide.addText(cleanKeyTakeaway, {
+            x: 0.5, y: 4.8, w: 9, h: 1.0,
+            fontSize: 16, color: mutedColor, fontFace: 'Arial', align: 'center', valign: 'top',
+          });
+        } else if (bullets.length > 0) {
+          contentSlide.addText(bullets[0], {
+            x: 0.5, y: 4.8, w: 9, h: 1.0,
+            fontSize: 16, color: mutedColor, fontFace: 'Arial', align: 'center', valign: 'top',
+          });
+        }
+        break;
+      }
+
+      case 'two-column': {
+        // Two-column layout - title on top, content split into two columns
+        contentSlide.addText(cleanTitle, {
+          x: 0.5, y: 0.72, w: 9, h: 0.55,
+          fontSize: 26, color: textColor, bold: true, fontFace: 'Arial', fit: 'shrink',
+        });
+        if (cleanSubtitle) {
+          contentSlide.addText(cleanSubtitle, {
+            x: 0.5, y: 1.22, w: 9, h: 0.35,
+            fontSize: 14, color: mutedColor, fontFace: 'Arial',
+          });
+        }
+        // Split bullets into two columns
+        const leftBullets = bullets.filter((_, idx) => idx % 2 === 0);
+        const rightBullets = bullets.filter((_, idx) => idx % 2 === 1);
+        const yStart = cleanSubtitle ? 1.75 : 1.55;
+        
+        // Left column
+        if (leftBullets.length > 0) {
+          const leftRuns = leftBullets.map(t => ({
+            text: t,
+            options: { bullet: { type: 'bullet' as const, color: accentColor }, indentLevel: 0 },
+          }));
+          contentSlide.addText(leftRuns, {
+            x: 0.5, y: yStart, w: 4.3, h: 5.0,
+            fontSize: 16, color: textColor, lineSpacing: 24, fontFace: 'Arial', valign: 'top',
+          });
+        }
+        // Right column
+        if (rightBullets.length > 0) {
+          const rightRuns = rightBullets.map(t => ({
+            text: t,
+            options: { bullet: { type: 'bullet' as const, color: accentColor }, indentLevel: 0 },
+          }));
+          contentSlide.addText(rightRuns, {
+            x: 5.2, y: yStart, w: 4.3, h: 5.0,
+            fontSize: 16, color: textColor, lineSpacing: 24, fontFace: 'Arial', valign: 'top',
+          });
+        }
+        break;
+      }
+
       case 'key-point': {
         // Title
         contentSlide.addText(cleanTitle, {
@@ -492,8 +566,9 @@ async function generateNativePPTX(
         break;
       }
 
+      case 'bullet-points':
       default: {
-        // Default bullet-points layout
+        // Standard bullet-points layout (also used as fallback)
         contentSlide.addText(cleanTitle, {
           x: 0.5, y: 0.72, w: 9, h: 0.55,
           fontSize: 26, color: textColor, bold: true, fontFace: 'Arial', fit: 'shrink',
@@ -504,19 +579,19 @@ async function generateNativePPTX(
             fontSize: 14, color: mutedColor, fontFace: 'Arial',
           });
         }
-        const yStart = cleanSubtitle ? 1.75 : 1.55;
+        const yStartBullets = cleanSubtitle ? 1.75 : 1.55;
         if (bullets.length > 0) {
           const bulletRuns = bullets.slice(0, 6).map(t => ({
             text: t,
             options: { bullet: { type: 'bullet' as const, color: accentColor }, indentLevel: 0 },
           }));
           contentSlide.addText(bulletRuns, {
-            x: 0.6, y: yStart, w: 8.9, h: 5.0,
+            x: 0.6, y: yStartBullets, w: 8.9, h: 5.0,
             fontSize: 18, color: textColor, lineSpacing: 28, fontFace: 'Arial', valign: 'top',
           });
         } else if (cleanKeyTakeaway) {
           contentSlide.addText(cleanKeyTakeaway, {
-            x: 0.6, y: yStart, w: 8.9, h: 5.0,
+            x: 0.6, y: yStartBullets, w: 8.9, h: 5.0,
             fontSize: 22, color: textColor, bold: true, fontFace: 'Arial', valign: 'top', fit: 'shrink',
           });
         }
