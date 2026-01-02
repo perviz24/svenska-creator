@@ -23,14 +23,18 @@ interface PresentonRequest {
   style?: string;
   tone?: string;
   additionalContext?: string;
-  // For status checking
   taskId?: string;
-  action?: 'generate' | 'status';
-  // Context-aware generation parameters
-  audienceType?: string; // e.g., 'executives', 'students', 'general', 'technical'
-  purpose?: string; // e.g., 'inform', 'persuade', 'educate', 'inspire'
-  industry?: string; // e.g., 'healthcare', 'finance', 'tech', 'education'
-  imageStyle?: string; // e.g., 'photography', 'illustrations', 'icons', 'mixed'
+  action?: 'generate' | 'status' | 'get' | 'edit' | 'export' | 'derive';
+  presentationId?: string;
+  slides?: Array<{
+    index: number;
+    content: Record<string, unknown>;
+  }>;
+  exportFormat?: 'pptx' | 'pdf';
+  audienceType?: string;
+  purpose?: string;
+  industry?: string;
+  imageStyle?: string;
 }
 
 // Context analysis utilities
@@ -42,9 +46,7 @@ const analyzeTopicContext = (topic: string, additionalContext?: string): {
 } => {
   const combined = `${topic} ${additionalContext || ''}`.toLowerCase();
   
-  // Industry detection
   let industry = 'general';
-  // English + Swedish keywords
   if (/health|medical|hospital|pharma|patient|doctor|clinic|anatomy|physiology|pathology|diagnos|treatment/i.test(combined) ||
       /anatomi|fysiologi|patologi|klinisk|patient|sjukdom|diagnostik|behandling|läkare|sjukhus|medicin|hälsa/i.test(combined)) {
     industry = 'healthcare';
@@ -58,15 +60,12 @@ const analyzeTopicContext = (topic: string, additionalContext?: string): {
   else if (/law|legal|compliance|regulation|court/i.test(combined)) industry = 'legal';
   else if (/construction|architect|building|real estate|property/i.test(combined)) industry = 'real-estate';
 
-  
-  // Image style recommendation based on industry and content
   let imageStyle = 'photography';
   if (industry === 'technology' || /diagram|process|workflow|system/i.test(combined)) imageStyle = 'illustrations';
   else if (industry === 'education' || /concept|idea|abstract/i.test(combined)) imageStyle = 'mixed';
   else if (industry === 'finance' || industry === 'legal') imageStyle = 'photography';
   else if (/creative|art|design|visual/i.test(combined)) imageStyle = 'illustrations';
   
-  // Color scheme suggestion
   let colorScheme = 'professional-blue';
   if (industry === 'healthcare') colorScheme = 'mint-blue';
   else if (industry === 'finance') colorScheme = 'professional-dark';
@@ -75,7 +74,6 @@ const analyzeTopicContext = (topic: string, additionalContext?: string): {
   else if (industry === 'environment') colorScheme = 'mint-blue';
   else if (industry === 'marketing' || /creative|dynamic/i.test(combined)) colorScheme = 'edge-yellow';
   
-  // Visual mood
   let visualMood = 'confident';
   if (/inspire|motivat|empower|success/i.test(combined)) visualMood = 'inspiring';
   else if (/serious|important|critical|urgent/i.test(combined)) visualMood = 'serious';
@@ -85,7 +83,6 @@ const analyzeTopicContext = (topic: string, additionalContext?: string): {
   return { industry, imageStyle, colorScheme, visualMood };
 };
 
-// Presenton API endpoint
 const PRESENTON_API_URL = 'https://api.presenton.ai';
 
 serve(async (req) => {
@@ -107,20 +104,221 @@ serve(async (req) => {
       courseTitle,
       taskId,
       action = 'generate',
+      presentationId,
+      slides: editSlides,
+      exportFormat = 'pptx',
       audienceType = 'general',
       purpose = 'inform',
       industry: providedIndustry,
       imageStyle: providedImageStyle,
     }: PresentonRequest & { scriptContent?: string; moduleTitle?: string; courseTitle?: string } = requestBody;
     
-    // Analyze topic for context-aware styling
     const topicContext = analyzeTopicContext(topic || moduleTitle || courseTitle || '', additionalContext);
     const effectiveIndustry = providedIndustry || topicContext.industry;
     const effectiveImageStyle = providedImageStyle || topicContext.imageStyle;
 
     const PRESENTON_API_KEY = Deno.env.get('PRESENTON_API_KEY');
 
-    // Handle status check action
+    // ==========================================
+    // ACTION: GET PRESENTATION DATA
+    // Fetches full presentation structure for editing
+    // ==========================================
+    if (action === 'get' && presentationId && PRESENTON_API_KEY) {
+      console.log('Fetching Presenton presentation data:', presentationId);
+      
+      const getResponse = await fetch(`${PRESENTON_API_URL}/api/v1/ppt/presentation/${presentationId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${PRESENTON_API_KEY}`,
+        },
+      });
+
+      if (!getResponse.ok) {
+        const errorText = await getResponse.text();
+        console.error('Get presentation failed:', getResponse.status, errorText);
+        return new Response(
+          JSON.stringify({ error: 'Failed to fetch presentation', status: 'error', details: errorText }),
+          { status: getResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const presentationData = await getResponse.json();
+      console.log('Retrieved presentation with', presentationData.n_slides, 'slides');
+      
+      return new Response(
+        JSON.stringify({
+          status: 'success',
+          presentation: {
+            id: presentationData.id,
+            title: presentationData.title,
+            slideCount: presentationData.n_slides,
+            language: presentationData.language,
+            tone: presentationData.tone,
+            theme: presentationData.theme,
+            slides: presentationData.slides?.map((slide: any) => ({
+              index: slide.index,
+              layout: slide.layout,
+              layoutGroup: slide.layout_group,
+              content: slide.content,
+              speakerNote: slide.speaker_note,
+              properties: slide.properties,
+            })),
+          },
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ==========================================
+    // ACTION: EDIT PRESENTATION
+    // Modifies specific slides in an existing presentation
+    // ==========================================
+    if (action === 'edit' && presentationId && editSlides && PRESENTON_API_KEY) {
+      console.log('Editing Presenton presentation:', presentationId, 'Slides to edit:', editSlides.length);
+      
+      const editPayload = {
+        presentation_id: presentationId,
+        slides: editSlides.map(slide => ({
+          index: slide.index,
+          content: slide.content,
+        })),
+        export_as: exportFormat,
+      };
+
+      console.log('Edit payload:', JSON.stringify(editPayload, null, 2));
+
+      const editResponse = await fetch(`${PRESENTON_API_URL}/api/v1/ppt/presentation/edit`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${PRESENTON_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editPayload),
+      });
+
+      if (!editResponse.ok) {
+        const errorText = await editResponse.text();
+        console.error('Edit presentation failed:', editResponse.status, errorText);
+        return new Response(
+          JSON.stringify({ error: 'Failed to edit presentation', status: 'error', details: errorText }),
+          { status: editResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const editResult = await editResponse.json();
+      console.log('Edit result:', JSON.stringify(editResult, null, 2));
+      
+      // Edit creates a NEW presentation
+      return new Response(
+        JSON.stringify({
+          status: 'completed',
+          presentationId: editResult.presentation_id,
+          downloadUrl: editResult.path,
+          editUrl: editResult.edit_path,
+          source: 'presenton-edit',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ==========================================
+    // ACTION: EXPORT PRESENTATION
+    // Export existing presentation in different format
+    // ==========================================
+    if (action === 'export' && presentationId && PRESENTON_API_KEY) {
+      console.log('Exporting Presenton presentation:', presentationId, 'Format:', exportFormat);
+      
+      const exportPayload = {
+        presentation_id: presentationId,
+        export_as: exportFormat,
+      };
+
+      const exportResponse = await fetch(`${PRESENTON_API_URL}/api/v1/ppt/presentation/export`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${PRESENTON_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(exportPayload),
+      });
+
+      if (!exportResponse.ok) {
+        const errorText = await exportResponse.text();
+        console.error('Export presentation failed:', exportResponse.status, errorText);
+        return new Response(
+          JSON.stringify({ error: 'Failed to export presentation', status: 'error', details: errorText }),
+          { status: exportResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const exportResult = await exportResponse.json();
+      console.log('Export result:', JSON.stringify(exportResult, null, 2));
+      
+      return new Response(
+        JSON.stringify({
+          status: 'completed',
+          downloadUrl: exportResult.path,
+          format: exportFormat,
+          source: 'presenton-export',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ==========================================
+    // ACTION: DERIVE/CLONE PRESENTATION
+    // Create variation from existing presentation
+    // ==========================================
+    if (action === 'derive' && presentationId && PRESENTON_API_KEY) {
+      console.log('Deriving/cloning Presenton presentation:', presentationId);
+      
+      const derivePayload: Record<string, unknown> = {
+        presentation_id: presentationId,
+      };
+      
+      // Add optional modifications if provided
+      if (style) derivePayload.theme = style;
+      if (tone) derivePayload.tone = tone;
+      if (language) derivePayload.language = language === 'sv' ? 'Swedish' : 'English';
+      if (additionalContext) derivePayload.instructions = additionalContext;
+
+      const deriveResponse = await fetch(`${PRESENTON_API_URL}/api/v1/ppt/presentation/derive`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${PRESENTON_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(derivePayload),
+      });
+
+      if (!deriveResponse.ok) {
+        const errorText = await deriveResponse.text();
+        console.error('Derive presentation failed:', deriveResponse.status, errorText);
+        return new Response(
+          JSON.stringify({ error: 'Failed to derive presentation', status: 'error', details: errorText }),
+          { status: deriveResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const deriveResult = await deriveResponse.json();
+      console.log('Derive result:', JSON.stringify(deriveResult, null, 2));
+      
+      return new Response(
+        JSON.stringify({
+          status: 'completed',
+          presentationId: deriveResult.presentation_id || deriveResult.id,
+          downloadUrl: deriveResult.path,
+          editUrl: deriveResult.edit_path,
+          source: 'presenton-derive',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ==========================================
+    // ACTION: STATUS CHECK
+    // Poll for async generation status
+    // ==========================================
     if (action === 'status' && taskId && PRESENTON_API_KEY) {
       console.log('Checking Presenton task status:', taskId);
       
@@ -170,14 +368,16 @@ serve(async (req) => {
         );
       }
 
-      // Still pending/processing
       return new Response(
-        JSON.stringify({ status: statusData.status, taskId }),
+        JSON.stringify({ status: statusData.status, taskId, message: statusData.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Generate action
+    // ==========================================
+    // ACTION: GENERATE (default)
+    // Start async presentation generation
+    // ==========================================
     if (!topic && !scriptContent) {
       return new Response(
         JSON.stringify({ error: 'Topic or script content is required' }),
@@ -185,66 +385,50 @@ serve(async (req) => {
       );
     }
     
-    // If Presenton API key is available, use their cloud API
     if (PRESENTON_API_KEY) {
       console.log('Using Presenton Cloud API for slide generation');
 
-      const normalizeForPresenton = (input: string) => {
-        // Normalize to avoid strange combining-character issues
-        return (input || '').normalize('NFC');
-      };
-
+      const normalizeForPresenton = (input: string) => (input || '').normalize('NFC');
       const rawContentText = scriptContent || additionalContext || topic || moduleTitle || courseTitle || '';
       const contentText = normalizeForPresenton(rawContentText);
 
       const mapLanguage = (lang?: string) => (lang === 'sv' ? 'Swedish' : 'English');
 
-      // Map to valid Presenton tones: default, casual, professional, funny, educational, sales_pitch
       const mapTone = (input?: string): string => {
         const raw = (input || '').toLowerCase().trim();
         const validTones = ['default', 'casual', 'professional', 'funny', 'educational', 'sales_pitch'];
         if (validTones.includes(raw)) return raw;
-        // Map app tones to Presenton tones
         if (['formal', 'very-formal'].includes(raw)) return 'professional';
         if (['friendly', 'relaxed', 'very-casual'].includes(raw)) return 'casual';
         if (['inspirational'].includes(raw)) return 'educational';
-        return 'professional'; // Default to professional for best quality
+        return 'professional';
       };
 
-      // Map to valid Presenton templates: general, modern, standard, swift
       const mapTemplate = (input?: string): string => {
         const raw = (input || '').toLowerCase().trim();
-        // Direct matches
         if (raw === 'modern') return 'modern';
         if (raw === 'standard' || raw === 'classic') return 'standard';
         if (raw === 'swift') return 'swift';
         if (raw === 'general') return 'general';
-        // Map app styles to best matching Presenton templates
-        if (raw === 'minimal') return 'modern'; // clean
-        if (raw === 'creative') return 'swift'; // most dynamic
-        if (raw === 'corporate') return 'standard'; // conservative
-        return 'swift'; // Default to swift for less-minimal, more designed output
+        if (raw === 'minimal') return 'modern';
+        if (raw === 'creative') return 'swift';
+        if (raw === 'corporate') return 'standard';
+        return 'swift';
       };
 
-      // Map styles to Presenton themes - now context-aware
-      // Available: edge-yellow, mint-blue, light-rose, professional-blue, professional-dark
       const mapTheme = (inputStyle?: string, inputTone?: string, contextTheme?: string): string => {
         if (contextTheme) return contextTheme;
-        
         const localStyle = (inputStyle || '').toLowerCase().trim();
         const localTone = (inputTone || '').toLowerCase().trim();
-        
         if (localStyle === 'creative') return 'edge-yellow';
         if (localStyle === 'minimal') return 'mint-blue';
         if (localStyle === 'classic') return 'light-rose';
         if (localStyle === 'corporate' || localTone === 'formal' || localTone === 'professional') return 'professional-blue';
         if (localTone === 'casual' || localTone === 'friendly') return 'mint-blue';
         if (localStyle === 'modern') return 'professional-blue';
-        
         return 'professional-blue';
       };
 
-      // Enhanced instructions builder with context awareness
       const buildInstructions = (
         styleName?: string, 
         toneName?: string, 
@@ -256,103 +440,52 @@ serve(async (req) => {
       ): string => {
         const parts: string[] = [];
         
-        // Industry-specific guidance
-        if (contextIndustry === 'healthcare') {
-          parts.push('Use professional medical imagery. Clean, clinical aesthetics.');
-        } else if (contextIndustry === 'finance') {
-          parts.push('Use charts, graphs, professional imagery. Convey trust and stability.');
-        } else if (contextIndustry === 'technology') {
-          parts.push('Use modern tech imagery, abstract visuals, clean diagrams.');
-        } else if (contextIndustry === 'education') {
-          parts.push('Use engaging educational imagery and diagrams.');
-        } else if (contextIndustry === 'marketing') {
-          parts.push('Use dynamic, engaging visuals that capture attention.');
-        } else if (contextIndustry === 'environment') {
-          parts.push('Use nature photography and sustainability-focused visuals.');
-        }
+        if (contextIndustry === 'healthcare') parts.push('Use professional medical imagery. Clean, clinical aesthetics.');
+        else if (contextIndustry === 'finance') parts.push('Use charts, graphs, professional imagery. Convey trust and stability.');
+        else if (contextIndustry === 'technology') parts.push('Use modern tech imagery, abstract visuals, clean diagrams.');
+        else if (contextIndustry === 'education') parts.push('Use engaging educational imagery and diagrams.');
+        else if (contextIndustry === 'marketing') parts.push('Use dynamic, engaging visuals that capture attention.');
+        else if (contextIndustry === 'environment') parts.push('Use nature photography and sustainability-focused visuals.');
         
-        // Image style guidance
-        if (contextImageStyle === 'illustrations') {
-          parts.push('Prefer illustrations and diagrams over photography.');
-        } else if (contextImageStyle === 'photography') {
-          parts.push('Use high-quality professional photography.');
-        }
+        if (contextImageStyle === 'illustrations') parts.push('Prefer illustrations and diagrams over photography.');
+        else if (contextImageStyle === 'photography') parts.push('Use high-quality professional photography.');
         
-        // Mood guidance
-        if (contextMood === 'inspiring') {
-          parts.push('Use uplifting imagery with success themes.');
-        } else if (contextMood === 'serious') {
-          parts.push('Use professional, focused imagery.');
-        } else if (contextMood === 'energetic') {
-          parts.push('Use dynamic, vibrant imagery with energy.');
-        }
+        if (contextMood === 'inspiring') parts.push('Use uplifting imagery with success themes.');
+        else if (contextMood === 'serious') parts.push('Use professional, focused imagery.');
+        else if (contextMood === 'energetic') parts.push('Use dynamic, vibrant imagery with energy.');
         
-        // Audience guidance
-        if (audience === 'executives') {
-          parts.push('Focus on high-level insights and strategic value.');
-        } else if (audience === 'technical') {
-          parts.push('Include detailed diagrams and technical specifications.');
-        } else if (audience === 'students') {
-          parts.push('Use engaging, accessible language with clear explanations.');
-        }
+        if (audience === 'executives') parts.push('Focus on high-level insights and strategic value.');
+        else if (audience === 'technical') parts.push('Include detailed diagrams and technical specifications.');
+        else if (audience === 'students') parts.push('Use engaging, accessible language with clear explanations.');
         
-        // Purpose guidance
-        if (presentationPurpose === 'persuade') {
-          parts.push('Structure for persuasion: problem-solution-benefit.');
-        } else if (presentationPurpose === 'educate') {
-          parts.push('Structure for learning: concept-example-practice.');
-        } else if (presentationPurpose === 'inspire') {
-          parts.push('Structure for inspiration: story-vision-action.');
-        }
+        if (presentationPurpose === 'persuade') parts.push('Structure for persuasion: problem-solution-benefit.');
+        else if (presentationPurpose === 'educate') parts.push('Structure for learning: concept-example-practice.');
+        else if (presentationPurpose === 'inspire') parts.push('Structure for inspiration: story-vision-action.');
         
-        // Style guidance
-        if (styleName === 'minimal') {
-          parts.push('Use minimal text, maximize white space.');
-        } else if (styleName === 'creative') {
-          parts.push('Use creative language and bold statements.');
-        } else if (styleName === 'corporate') {
-          parts.push('Use formal business language with data points.');
-        } else if (styleName === 'classic') {
-          parts.push('Use traditional presentation structure.');
-        }
+        if (styleName === 'minimal') parts.push('Use minimal text, maximize white space.');
+        else if (styleName === 'creative') parts.push('Use creative language and bold statements.');
+        else if (styleName === 'corporate') parts.push('Use formal business language with data points.');
+        else if (styleName === 'classic') parts.push('Use traditional presentation structure.');
         
-        if (toneName === 'casual' || toneName === 'friendly') {
-          parts.push('Keep conversational and approachable.');
-        } else if (toneName === 'inspirational') {
-          parts.push('Include motivational elements.');
-        }
+        if (toneName === 'casual' || toneName === 'friendly') parts.push('Keep conversational and approachable.');
+        else if (toneName === 'inspirational') parts.push('Include motivational elements.');
         
         parts.push('Each slide: one clear message. Select images that directly relate to content.');
-        
         return parts.join(' ');
       };
 
       const effectiveTone = mapTone(tone || style);
       const effectiveTemplate = mapTemplate(style);
       const effectiveTheme = mapTheme(style, tone, topicContext.colorScheme);
-      const effectiveInstructions = buildInstructions(
-        style, 
-        tone, 
-        effectiveIndustry, 
-        effectiveImageStyle, 
-        topicContext.visualMood, 
-        audienceType, 
-        purpose
-      );
+      const effectiveInstructions = buildInstructions(style, tone, effectiveIndustry, effectiveImageStyle, topicContext.visualMood, audienceType, purpose);
 
       console.log('Presenton parameters:', { 
         template: effectiveTemplate, 
         theme: effectiveTheme, 
         tone: effectiveTone,
         n_slides: Math.min(numSlides, 50),
-        style_input: style,
-        tone_input: tone,
-        detected_industry: effectiveIndustry,
-        detected_image_style: effectiveImageStyle,
-        detected_mood: topicContext.visualMood,
       });
 
-      // Build optimized instructions for best visual output (keep it short + design-first)
       let enhancedInstructions = [
         effectiveInstructions,
         'Prioritize premium visual design: strong layout, consistent spacing, and clear hierarchy.',
@@ -360,7 +493,7 @@ serve(async (req) => {
         'Ensure consistent theme styling across all slides.',
       ].filter(Boolean).join(' ');
 
-      // Generate per-slide image keywords using Lovable AI for better image relevance
+      // Generate per-slide image keywords using Lovable AI
       const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
       let imageKeywordsGuidance = '';
       
@@ -369,7 +502,6 @@ serve(async (req) => {
           console.log('Generating per-slide image keywords with Lovable AI...');
           
           const keywordPrompt = `You are an expert at selecting stock photography for professional presentations.
-
 Given this presentation content, generate highly specific image search keywords for each major topic/slide.
 For each slide/topic, provide:
 1. Primary keyword (most important visual concept)
@@ -404,9 +536,7 @@ Respond ONLY with a JSON object in this exact format:
             },
             body: JSON.stringify({
               model: 'google/gemini-2.5-flash',
-              messages: [
-                { role: 'user', content: keywordPrompt }
-              ],
+              messages: [{ role: 'user', content: keywordPrompt }],
               max_tokens: 1500,
             }),
           });
@@ -414,25 +544,18 @@ Respond ONLY with a JSON object in this exact format:
           if (aiResponse.ok) {
             const aiData = await aiResponse.json();
             const rawContent = aiData.choices?.[0]?.message?.content || '';
-            
-            // Extract JSON from response (handle markdown code blocks)
             let jsonStr = rawContent;
             const jsonMatch = rawContent.match(/```(?:json)?\s*([\s\S]*?)```/);
-            if (jsonMatch) {
-              jsonStr = jsonMatch[1].trim();
-            }
+            if (jsonMatch) jsonStr = jsonMatch[1].trim();
             
             try {
               const keywords = JSON.parse(jsonStr);
               console.log('Generated image keywords:', JSON.stringify(keywords, null, 2));
               
-              // Build guidance string from keywords
               const keywordParts: string[] = [];
-              
               if (keywords.overall_theme_en) {
                 keywordParts.push(`Overall visual theme: ${keywords.overall_theme_en} (${keywords.overall_theme_sv || keywords.overall_theme_en}).`);
               }
-              
               if (keywords.slides && Array.isArray(keywords.slides)) {
                 keywords.slides.forEach((slide: any, idx: number) => {
                   const allKeywords = [
@@ -441,16 +564,13 @@ Respond ONLY with a JSON object in this exact format:
                     ...(slide.secondary_en || []),
                     ...(slide.secondary_sv || [])
                   ].filter(Boolean).join(', ');
-                  
                   if (allKeywords) {
                     keywordParts.push(`Slide ${idx + 1} (${slide.topic || 'topic'}): use images showing ${allKeywords}.`);
                   }
                 });
               }
-              
               imageKeywordsGuidance = keywordParts.join(' ');
               console.log('Image keywords guidance:', imageKeywordsGuidance);
-              
             } catch (parseErr) {
               console.warn('Failed to parse AI keyword response as JSON:', parseErr);
             }
@@ -462,19 +582,12 @@ Respond ONLY with a JSON object in this exact format:
         }
       }
 
-      // Append image keywords guidance to instructions
       if (imageKeywordsGuidance) {
         enhancedInstructions += ` IMAGE GUIDANCE: ${imageKeywordsGuidance}`;
       } else {
-        // Fallback: add generic but specific image guidance
         enhancedInstructions += ' Use relevant high-quality imagery and icons that directly support the slide message.';
       }
 
-      // Presenton docs: https://docs.presenton.ai/api-reference/presentation/generate-presentation-async
-      // Key changes for quality:
-      // - image_type: "stock" (typically higher, more consistent quality than AI-generated images)
-      // - include allow_access_to_user_info + trigger_webhook fields (doc parity)
-      // - web_search: false (reduce off-topic drift)
       const presentonPayload = {
         content: contentText.substring(0, 10000),
         n_slides: Math.min(numSlides, 50),
@@ -494,10 +607,8 @@ Respond ONLY with a JSON object in this exact format:
         trigger_webhook: false,
       };
 
-      console.log('Calling Presenton async endpoint with payload:', JSON.stringify(presentonPayload, null, 2));
+      console.log('Calling Presenton async endpoint');
 
-      // Presenton seems to sometimes mis-handle UTF-8 in request bodies (mojibake like "innehÃ¥llsfÃ¶rteckning").
-      // To make the payload encoding unambiguous, we escape all non-ASCII characters as \uXXXX sequences.
       const escapeUnicodeInJson = (json: string) =>
         json.replace(/[\u0080-\uFFFF]/g, (ch) => {
           const code = ch.charCodeAt(0);
@@ -519,10 +630,7 @@ Respond ONLY with a JSON object in this exact format:
         const errorText = await generateResponse.text();
         console.error('Presenton API error:', generateResponse.status, errorText);
 
-        // If Presenton returns a client error (4xx), do NOT silently fall back.
-        // This is almost always a configuration / credits / auth issue.
         if (generateResponse.status >= 400 && generateResponse.status < 500) {
-          // Try to keep the original error detail if it's JSON
           let detail: string | undefined;
           try {
             const parsed = JSON.parse(errorText);
@@ -530,10 +638,8 @@ Respond ONLY with a JSON object in this exact format:
           } catch {
             detail = errorText;
           }
-
           const msg = detail || 'Presenton request failed.';
           const isCredits = /not enough credits/i.test(msg);
-
           return new Response(
             JSON.stringify({
               status: 'failed',
@@ -542,20 +648,14 @@ Respond ONLY with a JSON object in this exact format:
               code: isCredits ? 'presenton_insufficient_credits' : 'presenton_request_failed',
               retryable: false,
             }),
-            {
-              status: isCredits ? 402 : 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            }
+            { status: isCredits ? 402 : 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-
-        // For transient errors (5xx), fall back to Lovable AI
         console.log('Presenton API unavailable (server error), falling back to Lovable AI');
       } else {
         const taskData = await generateResponse.json();
         console.log('Presenton task created:', taskData.id, 'status:', taskData.status);
 
-        // Return task ID immediately for frontend to poll
         return new Response(
           JSON.stringify({
             status: 'pending',
@@ -567,6 +667,10 @@ Respond ONLY with a JSON object in this exact format:
         );
       }
     }
+
+    // ==========================================
+    // FALLBACK: LOVABLE AI
+    // ==========================================
     console.log('Using Lovable AI for slide generation');
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -574,15 +678,11 @@ Respond ONLY with a JSON object in this exact format:
       throw new Error('LOVABLE_API_KEY is not configured');
     }
     
-    // Log slide generation parameters
     console.log('Lovable AI slide generation:', { numSlides, language, style, topic: topic?.substring(0, 50) });
 
-    // Determine presentation structure based on content and slide count
     const contentForAnalysis = scriptContent || additionalContext || topic || '';
-    const hasRichContent = contentForAnalysis.length > 500;
     const isEducational = courseTitle || moduleTitle;
     
-    // Build narrative arc structure recommendation
     const narrativeStructure = numSlides <= 5 
       ? 'Hook → Problem → Solution → Evidence → Call-to-Action'
       : numSlides <= 10
@@ -613,30 +713,10 @@ Respond ONLY with a JSON object in this exact format:
 - \`data-visualization\`: Statistics, trends, metrics
 - \`quote\`: Expert testimony, customer feedback, key takeaways
 
-## Speaker Notes Guidelines:
-- Write as natural speech (contractions, conversational tone)
-- Include: key message, supporting evidence, transition phrase to next slide
-- Add timing suggestions (30-60 seconds per slide)
-- Include audience engagement prompts where appropriate
-
-## Image Query Best Practices:
-- Be SPECIFIC and LITERAL: "business team celebrating success high-five" not "teamwork"
-- Include context: "modern office", "professional setting", "diverse group"
-- Specify mood: "bright", "confident", "focused"
-- Avoid clichés: no handshakes, puzzle pieces, or light bulbs unless truly relevant
-
 ## Style: ${style}
-${style === 'professional' ? '- Clean, corporate aesthetic. Data-driven. Credible authority tone.' : ''}
-${style === 'creative' ? '- Bold visuals, unexpected metaphors, memorable phrases. Inspire and energize.' : ''}
-${style === 'minimal' ? '- Maximum whitespace, essential words only, elegant typography focus.' : ''}
-${style === 'corporate' ? '- Conservative, structured, formal. Risk-averse language, clear hierarchy.' : ''}
-
 ## Language: ${language === 'sv' ? 'Swedish (formal business Swedish, avoid anglicisms)' : 'English (clear, international business English)'}`;
 
-    // Build context-aware user prompt
-    const contentSource = scriptContent 
-      ? `\n\n## Source Material to Structure:\n${scriptContent.substring(0, 6000)}`
-      : '';
+    const contentSource = scriptContent ? `\n\n## Source Material to Structure:\n${scriptContent.substring(0, 6000)}` : '';
     
     const contextInfo = [
       courseTitle && `Course: "${courseTitle}"`,
@@ -660,12 +740,7 @@ ${contentSource}
 5. End with a strong call-to-action or memorable closing thought
 
 ## Output Format:
-Generate exactly ${numSlides} slides with variety in layouts. Ensure each slide has:
-- A punchy, benefit-oriented title (max 8 words)
-- Concise content following the 6x6 rule
-- Detailed speaker notes (50-100 words) with transition to next slide
-- Appropriate layout that matches the content type
-- Specific, searchable image query for relevant visuals`;
+Generate exactly ${numSlides} slides with variety in layouts.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -688,52 +763,20 @@ Generate exactly ${numSlides} slides with variety in layouts. Ensure each slide 
               parameters: {
                 type: 'object',
                 properties: {
-                  presentationTitle: { 
-                    type: 'string',
-                    description: 'The overall title/theme of the presentation'
-                  },
+                  presentationTitle: { type: 'string' },
                   slides: {
                     type: 'array',
                     items: {
                       type: 'object',
                       properties: {
                         slideNumber: { type: 'number' },
-                        title: { 
-                          type: 'string',
-                          description: 'Action-oriented, benefit-focused title (max 8 words)'
-                        },
-                        subtitle: {
-                          type: 'string',
-                          description: 'Optional supporting subtitle for context'
-                        },
-                        content: { 
-                          type: 'string',
-                          description: 'Main content - bullet points separated by \\n, following 6x6 rule'
-                        },
-                        keyMessage: {
-                          type: 'string',
-                          description: 'The ONE takeaway the audience should remember from this slide'
-                        },
-                        speakerNotes: { 
-                          type: 'string',
-                          description: 'Detailed talking points in conversational tone, including transition to next slide'
-                        },
-                        layout: { 
-                          type: 'string',
-                          enum: ['title', 'title-content', 'two-column', 'image-focus', 'bullet-points', 'data-visualization', 'quote']
-                        },
-                        suggestedImageQuery: { 
-                          type: 'string',
-                          description: 'Specific, literal image search query with context and mood descriptors'
-                        },
-                        dataVisualization: {
-                          type: 'object',
-                          description: 'Optional data for charts/graphs',
-                          properties: {
-                            type: { type: 'string', enum: ['bar', 'line', 'pie', 'stat'] },
-                            description: { type: 'string' }
-                          }
-                        }
+                        title: { type: 'string' },
+                        subtitle: { type: 'string' },
+                        content: { type: 'string' },
+                        keyMessage: { type: 'string' },
+                        speakerNotes: { type: 'string' },
+                        layout: { type: 'string', enum: ['title', 'title-content', 'two-column', 'image-focus', 'bullet-points', 'data-visualization', 'quote'] },
+                        suggestedImageQuery: { type: 'string' },
                       },
                       required: ['slideNumber', 'title', 'content', 'keyMessage', 'speakerNotes', 'layout', 'suggestedImageQuery']
                     }
@@ -751,29 +794,18 @@ Generate exactly ${numSlides} slides with variety in layouts. Ensure each slide 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Lovable AI error:', response.status, errorText);
-      
-      // Return user-friendly error messages
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ 
-            error: 'Rate limit exceeded. Please try again in a moment.',
-            status: 'error',
-            retryable: true,
-          }),
+          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.', status: 'error', retryable: true }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ 
-            error: 'Payment required. Please add credits to continue.',
-            status: 'error',
-            retryable: false,
-          }),
+          JSON.stringify({ error: 'Payment required. Please add credits to continue.', status: 'error', retryable: false }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
       throw new Error(`AI API error: ${response.status}`);
     }
 
@@ -781,24 +813,23 @@ Generate exactly ${numSlides} slides with variety in layouts. Ensure each slide 
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     
     if (!toolCall) {
-      console.error('No tool call in AI response:', JSON.stringify(data).substring(0, 500));
-      throw new Error('Unexpected AI response format - no structured slide data returned');
+      console.error('No tool call in AI response');
+      throw new Error('Unexpected AI response format');
     }
 
     let slidesData;
     try {
       slidesData = JSON.parse(toolCall.function.arguments);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', toolCall.function.arguments?.substring(0, 500));
+      console.error('Failed to parse AI response');
       throw new Error('Failed to parse slide data from AI');
     }
     
     if (!slidesData.slides || slidesData.slides.length === 0) {
-      console.error('No slides in parsed response:', slidesData);
       throw new Error('AI did not generate any slides');
     }
     
-    console.log(`Successfully generated ${slidesData.slides.length} slides with enhanced prompting`);
+    console.log(`Successfully generated ${slidesData.slides.length} slides`);
     
     return new Response(
       JSON.stringify({

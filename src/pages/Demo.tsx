@@ -63,6 +63,7 @@ const initialVideoSettings: VideoSettings = {
 
 const initialPresentonState: import('@/types/course').PresentonState = {
   taskId: null,
+  presentationId: null,
   status: 'idle',
   progress: 0,
   downloadUrl: null,
