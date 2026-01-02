@@ -35,6 +35,12 @@ interface PresentonRequest {
   purpose?: string;
   industry?: string;
   imageStyle?: string;
+  // New parameters from Presenton API docs
+  verbosity?: 'concise' | 'standard' | 'text-heavy';
+  webSearch?: boolean;
+  includeTableOfContents?: boolean;
+  includeTitleSlide?: boolean;
+  slidesMarkdown?: string[];
 }
 
 // Context analysis utilities
@@ -111,11 +117,22 @@ serve(async (req) => {
       purpose = 'inform',
       industry: providedIndustry,
       imageStyle: providedImageStyle,
+      // New Presenton API parameters
+      verbosity = 'standard',
+      webSearch = false,
+      includeTableOfContents,
+      includeTitleSlide = true,
+      slidesMarkdown,
     }: PresentonRequest & { scriptContent?: string; moduleTitle?: string; courseTitle?: string } = requestBody;
     
     const topicContext = analyzeTopicContext(topic || moduleTitle || courseTitle || '', additionalContext);
     const effectiveIndustry = providedIndustry || topicContext.industry;
     const effectiveImageStyle = providedImageStyle || topicContext.imageStyle;
+    
+    // Smart defaults for table of contents based on slide count
+    const effectiveIncludeTOC = includeTableOfContents !== undefined 
+      ? includeTableOfContents 
+      : numSlides > 8;
 
     const PRESENTON_API_KEY = Deno.env.get('PRESENTON_API_KEY');
 
@@ -588,7 +605,7 @@ Respond ONLY with a JSON object in this exact format:
         enhancedInstructions += ' Use relevant high-quality imagery and icons that directly support the slide message.';
       }
 
-      const presentonPayload = {
+      const presentonPayload: Record<string, unknown> = {
         content: contentText.substring(0, 10000),
         n_slides: Math.min(numSlides, 50),
         language: mapLanguage(language),
@@ -596,16 +613,22 @@ Respond ONLY with a JSON object in this exact format:
         theme: effectiveTheme,
         tone: effectiveTone,
         instructions: enhancedInstructions,
-        verbosity: 'standard',
+        verbosity: verbosity, // Now configurable: 'concise' | 'standard' | 'text-heavy'
         markdown_emphasis: true,
-        web_search: false,
+        web_search: webSearch, // Now configurable - enables real-time web research
         image_type: 'stock',
-        include_title_slide: true,
-        include_table_of_contents: numSlides > 8,
+        include_title_slide: includeTitleSlide,
+        include_table_of_contents: effectiveIncludeTOC,
         allow_access_to_user_info: true,
-        export_as: 'pptx',
+        export_as: exportFormat, // Now uses the configurable export format
         trigger_webhook: false,
       };
+      
+      // Add slides_markdown if provided for more control over slide structure
+      if (slidesMarkdown && slidesMarkdown.length > 0) {
+        presentonPayload.slides_markdown = slidesMarkdown;
+        console.log('Using provided slides_markdown for structured generation');
+      }
 
       console.log('Calling Presenton async endpoint');
 
