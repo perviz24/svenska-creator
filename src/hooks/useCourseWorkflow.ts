@@ -41,6 +41,7 @@ const initialVideoSettings: VideoSettings = {
 
 const initialPresentonState: import('@/types/course').PresentonState = {
   taskId: null,
+  presentationId: null,
   status: 'idle',
   progress: 0,
   downloadUrl: null,
@@ -226,6 +227,7 @@ export function useCourseWorkflow() {
         // Load Presenton state from course record
         const presentonState: import('@/types/course').PresentonState = {
           taskId: (course as any).presenton_task_id || null,
+          presentationId: (course as any).presenton_presentation_id || null,
           status: (course as any).presenton_status || 'idle',
           progress: (course as any).presenton_progress || 0,
           downloadUrl: (course as any).presenton_download_url || null,

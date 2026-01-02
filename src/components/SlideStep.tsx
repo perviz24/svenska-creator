@@ -87,6 +87,7 @@ export function SlideStep({
   
   // Presenton async polling state - initialize from props
   const [presentonTaskId, setPresentonTaskId] = useState<string | null>(presentonState?.taskId || null);
+  const [presentonPresentationId, setPresentonPresentationId] = useState<string | null>(presentonState?.presentationId || null);
   const [presentonProgress, setPresentonProgress] = useState(presentonState?.progress || 0);
   const [presentonStatus, setPresentonStatus] = useState<'idle' | 'pending' | 'processing' | 'completed' | 'failed'>(presentonState?.status || 'idle');
   const [presentonDownloadUrl, setPresentonDownloadUrl] = useState<string | null>(presentonState?.downloadUrl || null);
@@ -319,11 +320,13 @@ export function SlideStep({
           setPresentonProgress(100);
           setPresentonDownloadUrl(data.downloadUrl);
           setPresentonEditUrl(data.editUrl);
+          setPresentonPresentationId(data.presentationId); // Store the presentation ID for editing
           setIsGeneratingPresenton(false);
           
           // Save to generation history for alternatives
           const newHistoryEntry: PresentonGenerationEntry = {
             id: taskId,
+            presentationId: data.presentationId, // Include presentation ID in history
             timestamp: new Date().toISOString(),
             downloadUrl: data.downloadUrl,
             editUrl: data.editUrl,
@@ -336,6 +339,7 @@ export function SlideStep({
           if (onSavePresentonState) {
             onSavePresentonState({
               taskId,
+              presentationId: data.presentationId,
               status: 'completed',
               progress: 100,
               downloadUrl: data.downloadUrl,

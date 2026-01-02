@@ -273,8 +273,20 @@ export type WorkflowStep =
   | 'video'
   | 'upload';
 
+export interface PresentonSlideData {
+  index: number;
+  layout?: string;
+  content?: {
+    title?: string;
+    bullets?: string[];
+    chartData?: unknown[];
+    [key: string]: unknown;
+  };
+}
+
 export interface PresentonGenerationEntry {
   id: string;
+  presentationId?: string; // The actual Presenton presentation UUID
   timestamp: string;
   downloadUrl?: string;
   editUrl?: string;
@@ -284,6 +296,7 @@ export interface PresentonGenerationEntry {
 
 export interface PresentonState {
   taskId: string | null;
+  presentationId: string | null; // Store the Presenton presentation ID for edit/export
   status: 'idle' | 'pending' | 'processing' | 'completed' | 'failed';
   progress: number;
   downloadUrl: string | null;
