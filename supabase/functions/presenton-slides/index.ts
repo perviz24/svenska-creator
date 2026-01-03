@@ -576,6 +576,100 @@ serve(async (req) => {
             "Use engaging educational imagery and clear diagrams. Include learning objectives early and knowledge check slides. Create visual hierarchy for key concepts.",
           );
         }
+        // Enhance the analyzeTopicContext function with more specific industry detection
+        const analyzeTopicContext = (
+          topic: string,
+          additionalContext?: string,
+        ): {
+          industry: string;
+          imageStyle: string;
+          colorScheme: string;
+          visualMood: string;
+          presentationStructure: string;
+        } => {
+          const combined = `${topic} ${additionalContext || ""}`.toLowerCase();
+
+          // Enhanced industry detection with more specific patterns
+          let industry = "general";
+          if (
+            /health|medical|hospital|pharma|patient|doctor|clinic|anatomy|physiology|pathology|diagnos|treatment|care|therapy|wellness/i.test(
+              combined,
+            )
+          ) {
+            industry = "healthcare";
+          } else if (
+            /financ|bank|invest|money|stock|crypto|trading|budget|accounting|economy|market analysis|portfolio|asset|wealth/i.test(
+              combined,
+            )
+          ) {
+            industry = "finance";
+          } else if (
+            /tech|software|digital|ai|machine learning|data|cloud|app|computer|algorithm|programming|code|development|platform/i.test(
+              combined,
+            )
+          ) {
+            industry = "technology";
+          } else if (
+            /education|school|learn|student|teach|course|training|curriculum|academy|university|college|class|lesson/i.test(
+              combined,
+            )
+          ) {
+            industry = "education";
+          } else if (
+            /market|brand|customer|sales|advertis|campaign|promotion|consumer|audience|conversion|funnel|engagement|lead/i.test(
+              combined,
+            )
+          ) {
+            industry = "marketing";
+          } else if (
+            /nature|environment|sustain|green|eco|climate|conservation|renewable|biodiversity|pollution|earth|ecosystem/i.test(
+              combined,
+            )
+          ) {
+            industry = "environment";
+          }
+
+          // More comprehensive image style determination
+          let imageStyle = "photography";
+          if (industry === "technology" || /diagram|process|workflow|system|concept|abstract/i.test(combined)) {
+            imageStyle = "illustrations";
+          } else if (industry === "education") {
+            imageStyle = "mixed";
+          } else if (industry === "marketing" || /creative|design|visual|artistic/i.test(combined)) {
+            imageStyle = "illustrations";
+          }
+
+          // Better theme selection based on industry
+          let colorScheme = "professional-blue";
+          if (industry === "healthcare") colorScheme = "mint-blue";
+          else if (industry === "finance") colorScheme = "professional-dark";
+          else if (industry === "environment") colorScheme = "mint-blue";
+          else if (industry === "marketing") colorScheme = "edge-yellow";
+          else if (industry === "education") colorScheme = "light-rose";
+
+          // Visual mood detection
+          let visualMood = "confident";
+          if (/inspire|motivat|empower|success|achievement/i.test(combined)) visualMood = "inspiring";
+          else if (/serious|important|critical|urgent|essential/i.test(combined)) visualMood = "serious";
+          else if (/fun|creative|innovate|exciting|dynamic/i.test(combined)) visualMood = "energetic";
+          else if (/calm|peace|wellness|relax|harmony|balance/i.test(combined)) visualMood = "calm";
+
+          // Determine presentation structure based on content
+          let presentationStructure = "standard";
+          if (/compare|versus|vs\.|advantages|disadvantages/i.test(combined)) {
+            presentationStructure = "comparison";
+          } else if (/step|guide|tutorial|how to|process|workflow/i.test(combined)) {
+            presentationStructure = "process";
+          } else if (/research|study|finding|analysis|data|report|result/i.test(combined)) {
+            presentationStructure = "research";
+          } else if (/pitch|proposal|business plan|investment/i.test(combined)) {
+            presentationStructure = "pitch";
+          } else if (/story|journey|case study|experience/i.test(combined)) {
+            presentationStructure = "narrative";
+          }
+
+          return { industry, imageStyle, colorScheme, visualMood, presentationStructure };
+        };
 
         // Image style guidance
         if (contextImageStyle === "illustrations") {
