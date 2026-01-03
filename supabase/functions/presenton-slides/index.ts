@@ -42,6 +42,40 @@ interface PresentonRequest {
   includeTitleSlide?: boolean;
   slidesMarkdown?: string[];
 }
+// Improve parameter mapping to match Presenton's expectations
+const presentonPayload = {
+  content: contentText.substring(0, 10000),
+  n_slides: Math.min(numSlides, 50),
+  language: mapLanguage(language),
+  template: effectiveTemplate,
+  theme: effectiveTheme,
+  tone: effectiveTone,
+  instructions: enhancedInstructions,
+  verbosity: verbosity, // 'concise' | 'standard' | 'text-heavy'
+  markdown_emphasis: true,
+  web_search: webSearch,
+  image_type: imageTypeMapping(imageStyle || 'photography'), // Map to Presenton's image types
+  include_title_slide: includeTitleSlide,
+  include_table_of_contents: effectiveIncludeTOC,
+  allow_access_to_user_info: true,
+  export_as: exportFormat,
+  trigger_webhook: false,
+};
+
+// Add this mapping function
+function imageTypeMapping(imageStyle) {
+  // Map our image style to Presenton's image_type
+  switch(imageStyle.toLowerCase()) {
+    case 'illustrations':
+      return 'ai-generated';
+    case 'photography':
+      return 'stock';
+    case 'mixed':
+      return 'mixed';
+    default:
+      return 'stock';
+  }
+}
 
 // Context analysis utilities
 const analyzeTopicContext = (topic: string, additionalContext?: string): {
