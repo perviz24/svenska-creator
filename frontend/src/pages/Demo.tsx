@@ -258,21 +258,30 @@ const Demo = () => {
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
     
     try {
-      const { data, error } = await supabase.functions.invoke('generate-script', {
-        body: { 
-          module: { ...module, duration: 2 }, // Very short for demo
-          courseTitle: state.title,
-          style: state.settings.style,
-          language: state.settings.language,
-          enableResearch: false, // Skip research for speed
-          demoMode: true,
-        }
+      // Call FastAPI backend instead of Supabase
+      const data = await generateScriptAPI({
+        module_title: module.title,
+        module_description: module.description || '',
+        course_title: state.title,
+        language: state.settings.language || 'sv',
+        target_duration: 2, // Very short for demo
+        tone: state.settings.style || 'professional',
       });
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
-
-      const script: ModuleScript = data.script;
+      // Map API response to ModuleScript format
+      const script: ModuleScript = {
+        moduleId: data.module_id || module.id,
+        moduleTitle: data.module_title || module.title,
+        sections: data.sections.map(s => ({
+          id: s.id,
+          title: s.title,
+          content: s.content,
+          slideMarkers: s.slide_markers,
+        })),
+        estimatedDuration: data.estimated_duration,
+        totalWords: data.total_words,
+        citations: data.citations || [],
+      };
       
       setState(prev => ({
         ...prev,
@@ -280,7 +289,7 @@ const Demo = () => {
         isProcessing: false,
       }));
 
-      toast.success(`Demo-manus för "${module.title}" genererat! (~260 ord)`);
+      toast.success(`Demo-manus för "${module.title}" genererat!`);
     } catch (error) {
       console.error('Error generating script:', error);
       const message = error instanceof Error ? error.message : 'Kunde inte generera manus';
