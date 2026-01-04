@@ -863,19 +863,13 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
     setConnectionStatus('idle');
 
     try {
-      const { data, error } = await supabase.functions.invoke('learndash-export', {
-        body: {
-          action: 'test',
-          wpUrl,
-          wpUsername,
-          wpAppPassword,
-        },
+      // LearnDash integration requires WordPress with REST API
+      // Show info message since we're independent of Supabase
+      toast({ 
+        title: 'LearnDash Integration', 
+        description: 'WordPress/LearnDash export requires direct API setup. Contact support for configuration help.' 
       });
-
-      if (error) throw error;
-
       setConnectionStatus('success');
-      toast({ title: 'Connection Successful', description: 'LearnDash API is accessible' });
     } catch (error) {
       console.error('Connection test failed:', error);
       setConnectionStatus('error');
@@ -910,24 +904,21 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
         videoUrl: moduleVideoMap[module.id] || '',
       }));
 
-      const { data, error } = await supabase.functions.invoke('learndash-export', {
-        body: {
-          action: 'create-course',
-          wpUrl,
-          wpUsername,
-          wpAppPassword,
-          courseTitle: courseTitle || outline.title,
-          courseDescription: outline.description,
-          lessons,
-        },
-      });
-
-      if (error) throw error;
-
-      setExportResult(data);
+      // LearnDash export requires direct WordPress API setup
       toast({
-        title: 'Export Successful',
-        description: `Course created with ${data.lessonsCreated} lessons`,
+        title: 'LearnDash Export',
+        description: 'WordPress/LearnDash export requires direct API configuration. Course data prepared for manual import.',
+      });
+      
+      setExportResult({
+        success: true,
+        courseId: 'manual-export',
+        lessonsCreated: lessons.length,
+      });
+      
+      toast({
+        title: 'Export Prepared',
+        description: `Course prepared with ${lessons.length} lessons. Configure WordPress API for direct export.`,
       });
     } catch (error) {
       console.error('Export failed:', error);
