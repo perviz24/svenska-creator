@@ -374,6 +374,188 @@ async def research(request: ResearchRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================================================
+# AI Utilities Routes - Review, Translate, Analyze
+# ============================================================================
+
+from ai_utils_service import (
+    ai_review_edit, translate_content, analyze_course_structure,
+    recommend_model, analyze_manuscript, recommend_research_mode,
+    AIReviewRequest, TranslateRequest, AnalyzeStructureRequest, RecommendModelRequest
+)
+
+@api_router.post("/ai/review")
+async def review_content(request: AIReviewRequest):
+    """AI-powered content review and editing"""
+    try:
+        result = await ai_review_edit(request)
+        return result.model_dump()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"AI review error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/ai/translate")
+async def translate(request: TranslateRequest):
+    """Translate content to target language"""
+    try:
+        result = await translate_content(request)
+        return result.model_dump()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Translation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/ai/analyze-structure")
+async def analyze_structure(request: AnalyzeStructureRequest):
+    """Analyze and recommend course structure"""
+    try:
+        result = await analyze_course_structure(request)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Structure analysis error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/ai/recommend-model")
+async def get_model_recommendation(request: RecommendModelRequest):
+    """Recommend AI model based on requirements"""
+    try:
+        result = await recommend_model(request)
+        return result
+    except Exception as e:
+        logger.error(f"Model recommendation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/ai/analyze-manuscript")
+async def analyze_uploaded_manuscript(content: str, language: str = "sv"):
+    """Analyze uploaded manuscript content"""
+    try:
+        result = await analyze_manuscript(content, language)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Manuscript analysis error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/ai/recommend-research-mode")
+async def get_research_recommendation(topic: str, context: str = ""):
+    """Recommend research approach for a topic"""
+    try:
+        result = await recommend_research_mode(topic, context)
+        return result
+    except Exception as e:
+        logger.error(f"Research recommendation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Document Service Routes - Parse Documents
+# ============================================================================
+
+from document_service import parse_document, parse_text_content, ParseDocumentRequest
+
+@api_router.post("/document/parse")
+async def parse_uploaded_document(request: ParseDocumentRequest):
+    """Parse uploaded document"""
+    try:
+        result = await parse_document(request)
+        return result.model_dump()
+    except Exception as e:
+        logger.error(f"Document parsing error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/document/parse-text")
+async def parse_text(content: str):
+    """Parse plain text content"""
+    try:
+        result = await parse_text_content(content)
+        return result.model_dump()
+    except Exception as e:
+        logger.error(f"Text parsing error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Export Service Routes - PPTX, Word, HTML
+# ============================================================================
+
+from export_service import (
+    export_slides_pptx, export_word, export_slides_html,
+    ExportSlidesRequest, ExportWordRequest
+)
+from fastapi.responses import StreamingResponse
+
+@api_router.post("/export/slides")
+async def export_presentation(request: ExportSlidesRequest):
+    """Export slides to PPTX or HTML"""
+    try:
+        if request.format == "pptx":
+            content = await export_slides_pptx(request)
+            return StreamingResponse(
+                io.BytesIO(content),
+                media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                headers={"Content-Disposition": f'attachment; filename="{request.title}.pptx"'}
+            )
+        elif request.format == "html":
+            html = await export_slides_html(request)
+            return StreamingResponse(
+                io.BytesIO(html.encode()),
+                media_type="text/html",
+                headers={"Content-Disposition": f'attachment; filename="{request.title}.html"'}
+            )
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported format: {request.format}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Export error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/export/word")
+async def export_word_document(request: ExportWordRequest):
+    """Export to Word document"""
+    try:
+        content = await export_word(request)
+        return StreamingResponse(
+            io.BytesIO(content),
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f'attachment; filename="{request.title}.docx"'}
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Word export error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# System Diagnostics
+# ============================================================================
+
+@api_router.get("/system/diagnostics")
+async def system_diagnostics():
+    """Get system diagnostics"""
+    import platform
+    return {
+        "status": "healthy",
+        "python_version": platform.python_version(),
+        "platform": platform.platform(),
+        "services": {
+            "database": "connected",
+            "ai": "configured" if os.environ.get('EMERGENT_LLM_KEY') else "not configured",
+            "presenton": "configured" if os.environ.get('PRESENTON_API_KEY') else "not configured",
+            "heygen": "configured" if os.environ.get('HEYGEN_API_KEY') else "not configured",
+            "elevenlabs": "configured" if os.environ.get('ELEVENLABS_API_KEY') else "not configured",
+            "pexels": "configured" if os.environ.get('PEXELS_API_KEY') else "not configured",
+        }
+    }
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
