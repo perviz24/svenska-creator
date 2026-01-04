@@ -795,6 +795,15 @@ async def main():
         await tester.test_quiz_generation()
         await tester.test_slide_enhancement()
         await tester.test_presenton_generation()
+        
+        # Test newly migrated media, video, voice, and research services
+        await tester.test_media_photos_search()
+        await tester.test_media_videos_search()
+        await tester.test_heygen_avatars()
+        await tester.test_elevenlabs_voices()
+        await tester.test_voice_duration_estimate()
+        await tester.test_research_scrape()
+        
         await tester.test_response_times()
         
         # Print summary
