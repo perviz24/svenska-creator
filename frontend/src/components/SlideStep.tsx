@@ -802,30 +802,121 @@ export function SlideStep({
         </Tabs>
         
         {uploadMode === 'generate' && (
-          <div className="flex gap-2 items-center">
-            <Select value={slideGenerator} onValueChange={(v) => setSlideGenerator(v as SlideGenerator)}>
-              <SelectTrigger className="w-[140px]">
-                <Zap className="w-4 h-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="internal">Intern AI</SelectItem>
-                <SelectItem value="presenton">Presenton</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2 items-center">
+              <Select value={slideGenerator} onValueChange={(v) => setSlideGenerator(v as SlideGenerator)}>
+                <SelectTrigger className="w-[140px]">
+                  <Zap className="w-4 h-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">Intern AI</SelectItem>
+                  <SelectItem value="presenton">Presenton</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={exportTemplate} onValueChange={(v) => setExportTemplate(v as ExportTemplate)}>
+                <SelectTrigger className="w-[130px]">
+                  <Settings2 className="w-4 h-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="professional">Professionell</SelectItem>
+                  <SelectItem value="modern">Modern</SelectItem>
+                  <SelectItem value="minimal">Minimal</SelectItem>
+                  <SelectItem value="creative">Kreativ</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {slideGenerator === 'presenton' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Avancerat
+                </Button>
+              )}
+            </div>
             
-            <Select value={exportTemplate} onValueChange={(v) => setExportTemplate(v as ExportTemplate)}>
-              <SelectTrigger className="w-[130px]">
-                <Settings2 className="w-4 h-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="professional">Professionell</SelectItem>
-                <SelectItem value="modern">Modern</SelectItem>
-                <SelectItem value="minimal">Minimal</SelectItem>
-                <SelectItem value="creative">Kreativ</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Advanced Presenton Configuration */}
+            {slideGenerator === 'presenton' && showAdvancedConfig && (
+              <Card>
+                <CardContent className="pt-4 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Textmängd</label>
+                      <Select value={presentonVerbosity} onValueChange={(v) => setPresentonVerbosity(v as any)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="concise">
+                            <div className="flex flex-col items-start">
+                              <span>Koncis</span>
+                              <span className="text-xs text-muted-foreground">Minimal text, max 15 ord/slide</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="standard">
+                            <div className="flex flex-col items-start">
+                              <span>Standard</span>
+                              <span className="text-xs text-muted-foreground">Balanserad, 20-30 ord/slide</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="text-heavy">
+                            <div className="flex flex-col items-start">
+                              <span>Detaljerad</span>
+                              <span className="text-xs text-muted-foreground">Mer detaljer, upp till 60 ord/slide</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Bildtyp</label>
+                      <Select value={presentonImageType} onValueChange={(v) => setPresentonImageType(v as any)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="stock">
+                            <div className="flex flex-col items-start">
+                              <span>Stockfoton</span>
+                              <span className="text-xs text-muted-foreground">Professionella foton</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="ai-generated">
+                            <div className="flex flex-col items-start">
+                              <span>AI-genererad</span>
+                              <span className="text-xs text-muted-foreground">Unika AI-skapade bilder</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Webbsökning</label>
+                      <div className="flex items-center space-x-2 h-10 px-3 border rounded-md">
+                        <input
+                          type="checkbox"
+                          id="webSearch"
+                          checked={presentonWebSearch}
+                          onChange={(e) => setPresentonWebSearch(e.target.checked)}
+                          className="w-4 h-4"
+                        />
+                        <label htmlFor="webSearch" className="text-sm cursor-pointer flex-1">
+                          Aktivera realtidssökning
+                        </label>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Hämta aktuell information från webben</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
       </div>
