@@ -505,14 +505,8 @@ export function SlideStep({
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        const { data, error } = await supabase.functions.invoke('presenton-slides', {
-          body: {
-            action: 'status',
-            taskId,
-          },
-        });
-
-        if (error) throw error;
+        // Use FastAPI backend instead of Supabase
+        const data = await checkPresentonStatus(taskId);
 
         // Update progress based on attempt (simulate progress)
         const progress = Math.min(10 + (attempt * 1.5), 95);
@@ -529,15 +523,15 @@ export function SlideStep({
         if (data.status === 'completed') {
           setPresentonStatus('completed');
           setPresentonProgress(100);
-          setPresentonDownloadUrl(data.downloadUrl);
-          setPresentonEditUrl(data.editUrl);
-          setPresentonPresentationId(data.presentationId); // Store the presentation ID for editing
+          setPresentonDownloadUrl(data.download_url || '');
+          setPresentonEditUrl(data.edit_url || '');
+          setPresentonPresentationId(data.presentation_id || ''); // Store the presentation ID for editing
           setIsGeneratingPresenton(false);
           
           // Save to generation history for alternatives
           const newHistoryEntry: PresentonGenerationEntry = {
             id: taskId,
-            presentationId: data.presentationId, // Include presentation ID in history
+            presentationId: data.presentation_id || '', // Include presentation ID in history
             timestamp: new Date().toISOString(),
             downloadUrl: data.downloadUrl,
             editUrl: data.editUrl,
