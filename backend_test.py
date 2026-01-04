@@ -13,7 +13,7 @@ from typing import Dict, Any, List
 import sys
 
 # Get backend URL from environment
-BACKEND_URL = "https://coursemaker-3.preview.emergentagent.com/api"
+BACKEND_URL = "https://coursebuilder-2.preview.emergentagent.com/api"
 
 class CourseAPITester:
     def __init__(self):
