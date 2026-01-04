@@ -164,6 +164,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "Working correctly - Fixed Pydantic validation error by handling list/dict content conversion to strings. Generated 5 slides with proper structure in 12.41s. Minor: Input validation accepts empty script content but returns HTTP 520 server error."
+        - working: true
+          agent: "testing"
+          comment: "✅ ENHANCED SLIDE GENERATOR TESTED: Successfully tested all 3 enhanced test cases. RESULTS: Swedish Professional (5 slides, 25.87s), English Concise TED-talk (4 slides, 12.25s), Swedish Text-Heavy Educational (6 slides, 20.21s). ENHANCED FEATURES VERIFIED: ✅ Layout variety (no consecutive same layouts), ✅ Key takeaways on every slide, ✅ Source shows 'internal-ai-enhanced', ✅ Speaker notes follow verbosity guidelines (100-150 words standard, 50-100 concise, 150-200 text-heavy), ✅ Professional Swedish titles (max 8 words). MINOR ISSUE: Some image queries still contain generic terms like 'diverse team' instead of highly specific descriptions. Core functionality excellent."
 
 frontend:
   - task: "Demo Mode Activation"
