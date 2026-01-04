@@ -135,6 +135,8 @@ export function useCourseWorkflow() {
         .limit(1)
         .maybeSingle();
 
+      if (error) throw error;
+
       if (course) {
         setCourseId(course.id);
         
@@ -259,7 +261,7 @@ export function useCourseWorkflow() {
         }));
       }
     } catch (error) {
-      // Error logged
+      console.error('Error loading course:', error);
     }
   };
 
@@ -312,10 +314,12 @@ export function useCourseWorkflow() {
           .insert(insertData)
           .select()
           .single();
+
+        if (error) throw error;
         if (data) setCourseId(data.id);
       }
     } catch (error) {
-      // Error logged
+      console.error('Error saving course:', error);
     }
   };
 
@@ -338,7 +342,7 @@ export function useCourseWorkflow() {
           onConflict: 'course_id,module_id',
         });
     } catch (error) {
-      // Error logged
+      console.error('Error saving script:', error);
     }
   };
 
@@ -384,9 +388,9 @@ export function useCourseWorkflow() {
         await supabase.from('slides').insert(insertData);
       }
       
-      
+      console.log(`Saved ${slides.length} slides for module ${moduleId}`);
     } catch (error) {
-      // Error logged
+      console.error('Error saving slides:', error);
     }
   };
 
@@ -419,9 +423,9 @@ export function useCourseWorkflow() {
         },
       }));
       
-      
+      console.log('Saved Presenton state:', presentonUpdates);
     } catch (error) {
-      // Error logged
+      console.error('Error saving Presenton state:', error);
     }
   };
 
@@ -452,6 +456,11 @@ export function useCourseWorkflow() {
         }
         throw error;
       }
+
+      if (data?.error) {
+        if (data.error.includes('credits') || data.error.includes('402')) {
+          throw new Error('AI-krediter slut. Vänligen fyll på krediter för att fortsätta.');
+        }
         throw new Error(data.error);
       }
 
@@ -473,7 +482,7 @@ export function useCourseWorkflow() {
 
       toast.success('Titelförslag genererade!');
     } catch (error) {
-      // Error logged
+      console.error('Error generating titles:', error);
       const message = error instanceof Error ? error.message : 'Kunde inte generera titelförslag';
       setState(prev => ({
         ...prev,
@@ -572,9 +581,9 @@ export function useCourseWorkflow() {
         .from('module_exercises')
         .upsert(insertData, { onConflict: 'course_id,module_id' });
 
-      
+      console.log(`Saved exercises for module ${moduleId}`);
     } catch (error) {
-      // Error logged
+      console.error('Error saving exercises:', error);
     }
   };
 
@@ -593,9 +602,9 @@ export function useCourseWorkflow() {
         .from('module_quizzes')
         .upsert(insertData, { onConflict: 'course_id,module_id' });
 
-      
+      console.log(`Saved quiz for module ${moduleId}`);
     } catch (error) {
-      // Error logged
+      console.error('Error saving quiz:', error);
     }
   };
 
@@ -609,9 +618,9 @@ export function useCourseWorkflow() {
         .eq('course_id', courseId)
         .eq('module_id', moduleId);
 
-      
+      console.log(`Saved audio for module ${moduleId}`);
     } catch (error) {
-      // Error logged
+      console.error('Error saving audio:', error);
     }
   };
 
@@ -664,12 +673,22 @@ export function useCourseWorkflow() {
     const isDemoMode = effectiveDemoMode?.enabled || false;
     
     try {
-      const data = await generateOutlineAPI({
-        title: state.title,
-        num_modules: isDemoMode ? effectiveDemoMode.maxModules : (state.settings.structureLimits?.maxModules || 5),
-        language: state.settings.language || 'sv',
-        additional_context: state.settings.additionalContext
+      const { data, error } = await supabase.functions.invoke('generate-outline', {
+        body: { 
+          title: state.title,
+          targetDuration: isDemoMode ? 5 : state.settings.targetDuration, // Very short for demo
+          style: state.settings.style,
+          language: state.settings.language,
+          maxModules: isDemoMode ? effectiveDemoMode.maxModules : state.settings.structureLimits?.maxModules,
+          demoMode: isDemoMode,
+        }
       });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
 
       const outline: CourseOutline = data.outline;
       
@@ -684,7 +703,7 @@ export function useCourseWorkflow() {
 
       toast.success('Kursöversikt genererad!');
     } catch (error) {
-      // Error logged
+      console.error('Error generating outline:', error);
       const message = error instanceof Error ? error.message : 'Kunde inte generera kursöversikt';
       setState(prev => ({
         ...prev,
@@ -712,14 +731,22 @@ export function useCourseWorkflow() {
     const isDemoMode = effectiveDemoMode?.enabled || false;
     
     try {
-      const data = await generateScriptAPI({
-        module_title: module.title,
-        module_description: module.description,
-        course_title: state.title,
-        language: state.settings.language || 'sv',
-        target_duration: module.estimatedDuration || 10,
-        tone: state.settings.style || 'professional'
+      const { data, error } = await supabase.functions.invoke('generate-script', {
+        body: { 
+          module: isDemoMode ? { ...module, duration: 2 } : module, // Shorter module duration for demo
+          courseTitle: state.title,
+          style: state.settings.style,
+          language: state.settings.language,
+          enableResearch: isDemoMode ? false : state.settings.enableResearch, // Skip research in demo for speed
+          demoMode: isDemoMode,
+        }
       });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
 
       const script: ModuleScript = data.script;
       
@@ -735,7 +762,7 @@ export function useCourseWorkflow() {
 
       toast.success(`Manus för "${module.title}" genererat!`);
     } catch (error) {
-      // Error logged
+      console.error('Error generating script:', error);
       const message = error instanceof Error ? error.message : 'Kunde inte generera manus';
       setState(prev => ({
         ...prev,
@@ -858,7 +885,7 @@ export function useCourseWorkflow() {
 
       toast.success(`Slides för "${script.moduleTitle}" skapade!${isDemoMode ? ` (begränsat till ${slides.length} slides i demoläge)` : ''}`);
     } catch (error) {
-      // Error logged
+      console.error('Error generating slides:', error);
       const message = error instanceof Error ? error.message : 'Kunde inte generera slides';
       setState(prev => ({
         ...prev,
