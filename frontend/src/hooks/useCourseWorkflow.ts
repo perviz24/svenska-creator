@@ -659,7 +659,7 @@ export function useCourseWorkflow() {
     
     try {
       // Call FastAPI backend instead of Supabase function
-      const data: OutlineGenerationResponse = await generateOutlineAPI({
+      const data = await generateOutlineAPI({
         title: state.title,
         num_modules: isDemoMode ? (effectiveDemoMode?.maxModules || 1) : (state.settings.structureLimits?.maxModules || 5),
         language: state.settings.language || 'sv',
@@ -668,17 +668,21 @@ export function useCourseWorkflow() {
 
       // Map API response to CourseOutline format
       const outline: CourseOutline = {
-        courseId: courseId || '',
         title: state.title,
+        description: `Generated course outline for: ${state.title}`,
+        totalDuration: data.total_duration,
         modules: data.modules.map((m, index) => ({
           id: m.id,
+          number: index + 1,
           title: m.title,
           description: m.description,
           duration: m.estimated_duration,
-          topics: m.key_topics,
-          order: index + 1,
+          learningObjectives: m.key_topics.map((topic, i) => ({
+            id: `obj-${m.id}-${i}`,
+            text: topic,
+          })),
+          subTopics: [],
         })),
-        estimatedDuration: data.total_duration,
       };
       
       setState(prev => ({
