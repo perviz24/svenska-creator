@@ -82,23 +82,27 @@ export function ResearchHub({ onResearchComplete, context, language = 'sv', cour
     setAiRecommendation(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('recommend-research-mode', {
-        body: {
-          courseTitle,
-          courseOutline,
-          language,
-        },
-      });
+      // Use FastAPI backend instead of Supabase
+      const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || import.meta.env.VITE_BACKEND_URL || '';
+      const response = await fetch(
+        `${BACKEND_URL}/api/ai/recommend-research-mode?topic=${encodeURIComponent(courseTitle || '')}&context=${encodeURIComponent(courseOutline?.title || '')}`,
+        { method: 'POST' }
+      );
 
-      if (error) throw error;
-
-      if (data?.success && data?.recommendation) {
-        const rec = data.recommendation as AIRecommendation;
+      if (response.ok) {
+        const data = await response.json();
+        const rec: AIRecommendation = {
+          mode: data.recommended_mode || 'general',
+          modeName: 'AI Research',
+          reason: data.reason || 'Recommended based on course content',
+          confidenceScore: 0.85,
+          alternativeModes: [],
+        };
         setAiRecommendation(rec);
         setSelectedMode(rec.mode);
         toast.success(`AI rekommenderar: ${rec.modeName}`);
       } else {
-        throw new Error(data?.error || 'Could not get recommendation');
+        throw new Error('Could not get recommendation');
       }
     } catch (error) {
       console.error('AI recommendation error:', error);
