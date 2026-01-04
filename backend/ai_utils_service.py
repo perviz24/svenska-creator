@@ -75,15 +75,10 @@ Respond in JSON format:
     "suggestions": ["additional improvement suggestions"]
 }}"""
 
-    messages = [
-        LlmMessage(role="system", content=system_prompt),
-        LlmMessage(role="user", content=f"Content to edit:\n{request.content}\n\n{f'Context: {request.context}' if request.context else ''}")
-    ]
-    
-    response = await chat(
-        api_key=EMERGENT_KEY,
-        messages=messages,
-        model="gemini-2.5-flash"
+    llm = LlmChat(api_key=EMERGENT_KEY, model="gemini-2.5-flash")
+    response = await llm.chat(
+        system_message=system_prompt,
+        user_message=f"Content to edit:\n{request.content}\n\n{f'Context: {request.context}' if request.context else ''}"
     )
     
     # Parse JSON response
