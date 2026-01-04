@@ -52,33 +52,37 @@ export function QuizStep({
     try {
       const scriptText = script.sections.map(s => s.content).join('\n\n');
 
-      const { data, error } = await supabase.functions.invoke('generate-quiz', {
-        body: {
-          script: scriptText,
-          moduleTitle: script.moduleTitle,
-          questionCount: 5,
-          language,
-        },
+      // Call FastAPI backend instead of Supabase
+      const data = await generateQuizAPI({
+        module_title: script.moduleTitle,
+        module_content: scriptText,
+        course_title: script.moduleTitle, // Use module title as course title fallback
+        num_questions: 5,
+        include_multiple_choice: true,
+        include_true_false: true,
+        language,
       });
 
-      if (error) throw error;
-
-      if (data.error) {
-        toast.error(data.error);
-        return;
-      }
-
+      // Map API response to internal quiz format
       const quiz: ModuleQuiz = {
         moduleId: script.moduleId,
         moduleTitle: script.moduleTitle,
-        questions: data.questions,
+        questions: data.questions.map(q => ({
+          id: q.id,
+          question: q.question,
+          options: q.options || [],
+          correctOptionId: q.correct_answer,
+          explanation: q.explanation,
+          difficulty: q.difficulty,
+        })),
       };
 
       onQuizGenerated(script.moduleId, quiz);
       toast.success(`Quiz för "${script.moduleTitle}" genererat!`);
     } catch (error) {
       console.error('Error generating quiz:', error);
-      toast.error('Kunde inte generera quiz');
+      const message = error instanceof Error ? error.message : 'Kunde inte generera quiz';
+      toast.error(message);
     } finally {
       setGeneratingModule(null);
     }
