@@ -336,14 +336,14 @@ class CourseAPITester:
         
         if status == 200:
             # Validate response structure
-            required_fields = ["module_id", "module_title", "exercises", "exercise_count"]
+            required_fields = ["exercises", "total_points"]
             if all(key in response for key in required_fields):
                 exercises = response["exercises"]
                 if len(exercises) == 2:
                     # Check each exercise has required fields
                     valid_exercises = True
                     for exercise in exercises:
-                        exercise_fields = ["id", "title", "description", "instructions", "estimated_time", "difficulty"]
+                        exercise_fields = ["id", "type", "question", "correct_answer", "explanation", "points"]
                         if not all(key in exercise for key in exercise_fields):
                             valid_exercises = False
                             break
