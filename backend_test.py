@@ -604,6 +604,10 @@ async def main():
         await tester.test_outline_generation()
         await tester.test_script_generation()
         await tester.test_slide_generation()
+        await tester.test_exercise_generation()
+        await tester.test_quiz_generation()
+        await tester.test_slide_enhancement()
+        await tester.test_presenton_generation()
         await tester.test_response_times()
         
         # Print summary
