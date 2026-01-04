@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { generateSlides as generateSlidesAPI } from '@/lib/courseApi';
 
 // Demo limits applied when Admin Demo Mode is active
 const adminDemoLimits = {
@@ -814,24 +815,18 @@ export function useCourseWorkflow() {
     const isDemoMode = effectiveDemoMode?.enabled || false;
     
     try {
-      const scriptText = script.sections.map(s => s.content).join('\n\n');
+      const scriptContent = script.sections.map(s => `${s.title}\n${s.content}`).join('\n\n');
       
-      const { data, error } = await supabase.functions.invoke('generate-slides', {
-        body: {
-          script: scriptText,
-          moduleTitle: script.moduleTitle,
-          courseTitle: state.title,
-          language: state.settings.language,
-          maxSlides: isDemoMode ? effectiveDemoMode.maxSlides : undefined,
-          demoMode: isDemoMode,
-        },
+      // Call FastAPI backend instead of Supabase function
+      const data = await generateSlidesAPI({
+        script_content: scriptContent,
+        module_title: script.moduleTitle,
+        course_title: state.title,
+        num_slides: isDemoMode ? effectiveDemoMode.maxSlides : 10,
+        language: state.settings.language || 'sv',
+        tone: state.settings.style || 'professional',
+        verbosity: 'standard',
       });
-
-      if (error) throw error;
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
 
       let slides: Slide[] = data.slides.map((slide: any) => {
         const bulletPoints = Array.isArray(slide.bulletPoints)
@@ -847,26 +842,25 @@ export function useCourseWorkflow() {
 
         return {
           moduleId,
-          slideNumber: slide.slideNumber,
+          slideNumber: slide.slide_number || slide.slideNumber,
           title: slide.title,
           subtitle: slide.subtitle,
           content: normalizedContent,
           bulletPoints,
           keyTakeaway: slide.keyTakeaway,
-          speakerNotes: slide.speakerNotes,
+          speakerNotes: slide.speaker_notes || slide.speakerNotes,
           layout: slide.layout,
-          suggestedImageQuery: slide.suggestedImageQuery,
+          suggestedImageQuery: slide.suggested_image_query || slide.suggestedImageQuery,
           iconSuggestion: slide.iconSuggestion,
           visualType: slide.visualType,
           backgroundColor: slide.suggestedBackgroundColor,
-          // Auto-assigned images from stock photo search
-          imageUrl: slide.imageUrl,
-          imageSource: slide.imageSource,
-          imageAttribution: slide.imageAttribution,
+          imageUrl: slide.image_url || slide.imageUrl,
+          imageSource: slide.image_source || slide.imageSource,
+          imageAttribution: slide.image_attribution || slide.imageAttribution,
         };
       });
       
-      // Limit slides in demo mode
+      // Limit slides in demo mode (already limited by API request, but double-check)
       if (isDemoMode && effectiveDemoMode?.maxSlides) {
         slides = slides.slice(0, effectiveDemoMode.maxSlides);
       }
@@ -895,7 +889,7 @@ export function useCourseWorkflow() {
       }));
       toast.error(message);
     }
-  }, [state.title, state.settings]);
+  }, [state.title, state.settings, effectiveDemoMode]);
 
   const updateSlide = useCallback((moduleId: string, slideIndex: number, updates: Partial<Slide>) => {
     setState(prev => {
