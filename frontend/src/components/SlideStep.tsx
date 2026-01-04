@@ -290,9 +290,9 @@ export function SlideStep({
           language: 'sv',
           style: exportTemplate,
           tone: exportTemplate,
-          verbosity: 'standard', // Can be made configurable
-          imageType: 'stock', // Can be made configurable
-          webSearch: false, // Can be made configurable
+          verbosity: presentonVerbosity,
+          imageType: presentonImageType,
+          webSearch: presentonWebSearch,
           scriptContent,
           moduleTitle: currentScript?.moduleTitle || courseTitle,
           courseTitle,
