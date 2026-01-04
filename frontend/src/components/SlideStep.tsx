@@ -775,51 +775,37 @@ export function SlideStep({
     try {
       const moduleTitle = isPresentation ? courseTitle : currentScript?.moduleTitle || 'Presentation';
       
-      const { data, error } = await supabase.functions.invoke('export-slides', {
-        body: {
+      // Use FastAPI backend instead of Supabase
+      const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || import.meta.env.VITE_BACKEND_URL || '';
+      const response = await fetch(`${BACKEND_URL}/api/export/slides`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           slides: currentModuleSlides.map(slide => ({
-            title: slide.title,
-            content: slide.content,
-            speakerNotes: slide.speakerNotes,
-            layout: slide.layout,
-            imageUrl: slide.imageUrl,
-            backgroundColor: slide.backgroundColor,
+            title: slide.title || '',
+            content: slide.content || '',
+            bullet_points: slide.bulletPoints || undefined,
+            speaker_notes: slide.speakerNotes || undefined,
+            layout: slide.layout || 'title_content',
           })),
-          courseTitle: courseTitle,
-          moduleTitle,
-          format,
-          demoMode: isDemoMode,
-          template: exportTemplate,
-        },
+          title: moduleTitle,
+          format: format === 'pdf' ? 'html' : 'pptx',
+        }),
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Export failed');
 
-      // Handle base64 PPTX or HTML content
-      let blob: Blob;
-      if (data.isBase64 && format === 'pptx') {
-        // Decode base64 to binary
-        const binaryString = atob(data.content);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        blob = new Blob([bytes], { type: data.contentType });
-      } else {
-        // HTML content for PDF
-        blob = new Blob([data.content], { type: data.contentType });
-      }
-      
+      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = data.filename;
+      a.download = `${moduleTitle}.${format === 'pdf' ? 'html' : 'pptx'}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast.success(`Presentation exporterad som ${format.toUpperCase()} med ${exportTemplate}-mall!`);
+      toast.success(`Presentation exporterad som ${format.toUpperCase()}!`);
     } catch (error) {
       console.error('Export error:', error);
       toast.error('Kunde inte exportera presentation');
