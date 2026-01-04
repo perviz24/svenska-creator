@@ -14,6 +14,17 @@ from presenton_service import (
     generate_presenton_presentation, 
     check_presenton_status
 )
+from course_service import (
+    TitleGenerationRequest,
+    TitleGenerationResponse,
+    OutlineGenerationRequest,
+    OutlineGenerationResponse,
+    ScriptGenerationRequest,
+    ScriptGenerationResponse,
+    generate_titles,
+    generate_outline,
+    generate_script
+)
 
 
 ROOT_DIR = Path(__file__).parent
