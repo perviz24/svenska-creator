@@ -186,6 +186,194 @@ async def api_enhance_slide(request: SlideEnhancementRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================================================
+# Media Service Routes - Stock Photos and Videos
+# ============================================================================
+
+from media_service import (
+    search_unsplash_photos, search_pexels_photos, search_pexels_videos,
+    search_pixabay_videos, PhotoSearchResponse, VideoSearchResponse
+)
+
+@api_router.post("/media/photos/search")
+async def search_photos(query: str, provider: str = "unsplash", per_page: int = 20):
+    """Search for stock photos"""
+    try:
+        if provider == "unsplash":
+            photos = await search_unsplash_photos(query, per_page)
+        elif provider == "pexels":
+            photos = await search_pexels_photos(query, per_page)
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
+        
+        return {"photos": [p.model_dump() for p in photos], "total": len(photos)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Photo search error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/media/videos/search")
+async def search_videos(query: str, provider: str = "pexels", per_page: int = 20):
+    """Search for stock videos"""
+    try:
+        if provider == "pexels":
+            videos = await search_pexels_videos(query, per_page)
+        elif provider == "pixabay":
+            videos = await search_pixabay_videos(query, per_page)
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
+        
+        return {"videos": [v.model_dump() for v in videos], "total": len(videos), "provider": provider}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Video search error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Video Service Routes - HeyGen and Bunny.net
+# ============================================================================
+
+from video_service import (
+    list_heygen_avatars, generate_heygen_video, check_heygen_video_status,
+    list_bunny_videos, upload_to_bunny, VideoGenerationRequest
+)
+
+@api_router.get("/video/heygen/avatars")
+async def get_heygen_avatars(api_key: Optional[str] = None):
+    """List available HeyGen avatars"""
+    try:
+        avatars = await list_heygen_avatars(api_key)
+        return {"avatars": [a.model_dump() for a in avatars]}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"HeyGen avatars error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/video/heygen/generate")
+async def create_heygen_video(request: VideoGenerationRequest):
+    """Generate a video using HeyGen AI avatar"""
+    try:
+        result = await generate_heygen_video(request)
+        return result.model_dump()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"HeyGen video generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/video/heygen/status/{video_id}")
+async def get_heygen_video_status(video_id: str, api_key: Optional[str] = None):
+    """Check the status of a HeyGen video generation"""
+    try:
+        result = await check_heygen_video_status(video_id, api_key)
+        return result.model_dump()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"HeyGen status check error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/video/bunny/list")
+async def get_bunny_videos(api_key: Optional[str] = None, library_id: Optional[str] = None):
+    """List videos from Bunny.net library"""
+    try:
+        videos = await list_bunny_videos(api_key, library_id)
+        return {"videos": [v.model_dump() for v in videos]}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Bunny.net list error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Voice Service Routes - ElevenLabs TTS
+# ============================================================================
+
+from voice_service import (
+    list_elevenlabs_voices, generate_voice, estimate_audio_duration,
+    VoiceGenerationRequest
+)
+from fastapi.responses import Response
+
+@api_router.get("/voice/elevenlabs/voices")
+async def get_elevenlabs_voices(api_key: Optional[str] = None):
+    """List available ElevenLabs voices"""
+    try:
+        voices = await list_elevenlabs_voices(api_key)
+        return {"voices": [v.model_dump() for v in voices]}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"ElevenLabs voices error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/voice/elevenlabs/generate")
+async def create_voice(request: VoiceGenerationRequest):
+    """Generate speech from text using ElevenLabs"""
+    try:
+        audio_data = await generate_voice(request)
+        return Response(content=audio_data, media_type="audio/mpeg")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"ElevenLabs voice generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/voice/estimate-duration")
+async def estimate_duration(text: str):
+    """Estimate audio duration based on text"""
+    result = await estimate_audio_duration(text)
+    return result
+
+
+# ============================================================================
+# Research Service Routes - Web Scraping and Research
+# ============================================================================
+
+from research_service import scrape_urls, research_topic
+
+class ScrapeRequest(BaseModel):
+    urls: List[str]
+
+class ResearchRequest(BaseModel):
+    topic: str
+    context: Optional[str] = None
+    language: str = "sv"
+    depth: str = "standard"
+
+@api_router.post("/research/scrape")
+async def scrape_websites(request: ScrapeRequest):
+    """Scrape content from URLs"""
+    try:
+        result = await scrape_urls(request.urls)
+        return result.model_dump()
+    except Exception as e:
+        logger.error(f"Scraping error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/research/topic")
+async def research(request: ResearchRequest):
+    """Research a topic using AI"""
+    try:
+        result = await research_topic(
+            topic=request.topic,
+            context=request.context,
+            language=request.language,
+            depth=request.depth
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Research error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
