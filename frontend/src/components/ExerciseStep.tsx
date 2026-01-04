@@ -209,11 +209,16 @@ export function ExerciseStep({
 
     setIsScraping(true);
     try {
-      const { data, error } = await supabase.functions.invoke('scrape-url', {
-        body: { urls },
+      // Use FastAPI backend instead of Supabase
+      const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || import.meta.env.VITE_BACKEND_URL || '';
+      const response = await fetch(`${BACKEND_URL}/api/research/scrape`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls }),
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Scraping failed');
+      const data = await response.json();
 
       if (data.success) {
         const results = data.results.map((r: { url: string; title?: string; content?: string; success: boolean }) => ({
