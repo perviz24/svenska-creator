@@ -101,3 +101,87 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "BACKEND API TESTING - Course Generation Endpoints. Test all newly migrated FastAPI endpoints to verify they work correctly with the Emergent LLM Key and Gemini 2.5 Flash."
+
+backend:
+  - task: "Title Generation API"
+    implemented: true
+    working: false
+    file: "/app/backend/course_service.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: false
+          agent: "testing"
+          comment: "CRITICAL: Budget exceeded error - 'Budget has been exceeded! Current cost: 0.004083900000000001, Max budget: 0.001'. The Emergent LLM Key has a very low budget limit that prevents API calls. This is blocking all AI-powered features."
+
+  - task: "Outline Generation API"
+    implemented: true
+    working: true
+    file: "/app/backend/course_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "Working correctly - Generated 3 modules with proper structure, total duration 75 minutes. Response time 13.03s. Minor: Input validation could be improved (accepts 0 modules)."
+
+  - task: "Script Generation API"
+    implemented: true
+    working: true
+    file: "/app/backend/course_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "Working correctly - Generated 5 sections with 1450 words. Response time 47.13s (exceeds 30s target). Minor: Input validation could be improved."
+
+  - task: "Slide Generation API"
+    implemented: true
+    working: false
+    file: "/app/backend/slides_service.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: false
+          agent: "testing"
+          comment: "CRITICAL: Pydantic validation error - 'Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]' for content field. AI response contains None values that break SlideContent model validation."
+
+frontend:
+  - task: "Frontend Integration Testing"
+    implemented: false
+    working: "NA"
+    file: "N/A"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "testing"
+          comment: "Not tested - Testing agent only handles backend API testing per system limitations."
+
+metadata:
+  created_by: "testing_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Title Generation API"
+    - "Slide Generation API"
+  stuck_tasks:
+    - "Title Generation API"
+    - "Slide Generation API"
+  test_all: false
+  test_priority: "stuck_first"
+
+agent_communication:
+    - agent: "testing"
+      message: "Backend API testing completed. Found 2 critical issues: 1) Budget exceeded error blocking Title Generation due to very low Emergent LLM Key budget limit ($0.001), 2) Slide Generation has Pydantic validation error where AI returns None values for required string fields. Outline and Script generation are working but have performance and validation concerns."
