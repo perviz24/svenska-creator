@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
+import { aiReviewEdit } from '@/lib/aiApi';
 import { toast } from 'sonner';
 
 export type AIAction = 
