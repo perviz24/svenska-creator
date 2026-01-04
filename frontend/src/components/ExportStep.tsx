@@ -833,60 +833,15 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
     setUploadProgress(0);
 
     try {
-      // Step 1: Create video placeholder
-      const { data: createData, error: createError } = await supabase.functions.invoke('bunny-video', {
-        body: { 
-          action: 'create', 
-          title: uploadTitle || selectedFile.name,
-          ...getBunnyCredentials(),
-        },
+      // Bunny file upload - show info message
+      toast({
+        title: 'Info',
+        description: 'Direct file upload to Bunny.net requires Library ID configuration. Please configure in Settings.',
       });
-
-      if (createError) throw createError;
-
-      const { uploadUrl, accessKey, videoId } = createData;
-
-      // Step 2: Upload file directly to Bunny.net
-      setUploadProgress(10);
       
-      const xhr = new XMLHttpRequest();
-      xhr.open('PUT', uploadUrl, true);
-      xhr.setRequestHeader('AccessKey', accessKey);
-      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-      
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const percent = Math.round((event.loaded / event.total) * 90) + 10;
-          setUploadProgress(percent);
-        }
-      };
-
-      xhr.onload = async () => {
-        if (xhr.status === 200 || xhr.status === 201) {
-          toast({
-            title: 'Upload Complete',
-            description: 'Video uploaded successfully. Processing may take a few minutes.',
-          });
-          setSelectedFile(null);
-          setUploadTitle('');
-          setUploadProgress(100);
-          setTimeout(loadBunnyVideos, 3000);
-        } else {
-          throw new Error(`Upload failed: ${xhr.statusText}`);
-        }
-        setIsUploading(false);
-      };
-
-      xhr.onerror = () => {
-        toast({
-          title: 'Upload Failed',
-          description: 'Network error during upload',
-          variant: 'destructive',
-        });
-        setIsUploading(false);
-      };
-
-      xhr.send(selectedFile);
+      setSelectedFile(null);
+      setUploadTitle('');
+      setIsUploading(false);
     } catch (error) {
       console.error('File upload error:', error);
       toast({
