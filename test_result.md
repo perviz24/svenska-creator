@@ -212,12 +212,12 @@ frontend:
           comment: "Working correctly - Title input field accepts text, 'Generera förslag' button functions, and displays 3 Swedish title suggestions: 'Python för Vårdsektorn: Grundläggande Programmering och Tillämpningar', 'Digitala Verktyg i Vården: Introduktion till Python', 'Effektivisering med Python: En Grundkurs för Vårdpersonal'. However, Demo Mode still uses Supabase functions instead of FastAPI backend."
 
   - task: "FastAPI Integration"
-    implemented: false
-    working: false
+    implemented: true
+    working: true
     file: "/app/frontend/src/pages/Demo.tsx"
-    stuck_count: 1
+    stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
           agent: "main"
@@ -225,6 +225,9 @@ frontend:
         - working: false
           agent: "testing"
           comment: "CRITICAL: Demo Mode still uses Supabase functions instead of FastAPI backend. Found supabase.functions.invoke('generate-titles'), supabase.functions.invoke('generate-outline'), supabase.functions.invoke('generate-script'), and supabase.functions.invoke('generate-slides') in Demo.tsx. The main useCourseWorkflow.ts has been migrated but Demo Mode needs separate migration to use FastAPI endpoints."
+        - working: true
+          agent: "testing"
+          comment: "✅ MIGRATION SUCCESSFUL: Demo Mode now correctly uses FastAPI backend. Verified complete workflow: Demo activation → 'Komplett kurs' selection → Title generation (POST /api/course/generate-titles) → Swedish title suggestions displayed → Outline generation ready. No Supabase calls detected. Demo limitations banner visible. All core functionality working correctly."
 
 metadata:
   created_by: "testing_agent"
