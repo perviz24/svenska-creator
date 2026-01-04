@@ -322,39 +322,20 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('export-slides', {
-        body: {
-          slides,
-          courseTitle: courseTitle || 'Presentation',
-          moduleTitle: courseTitle || 'Presentation',
-          format: 'pptx',
-          demoMode: isDemoMode,
-          template: 'professional',
-        },
+      // Use FastAPI export instead of Supabase
+      const blob = await exportSlides({
+        slides: slides.map(s => ({
+          title: s.title || '',
+          content: s.content || '',
+          bullet_points: s.bulletPoints || undefined,
+          speaker_notes: s.speakerNotes || undefined,
+          layout: s.layout || 'title_content',
+        })),
+        title: courseTitle || 'Presentation',
+        format: 'pptx',
       });
 
-      if (error) throw error;
-      if (!data?.content) throw new Error('Export failed: missing content');
-
-      const byteCharacters = atob(data.content);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], {
-        type: data.contentType || 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      });
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = data.filename || `${courseTitle || 'presentation'}_styled.pptx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-
+      downloadBlob(blob, `${courseTitle || 'presentation'}_styled.pptx`);
       toast({ title: 'Professionell PowerPoint nedladdad!' });
     } catch (error) {
       console.error('Export error:', error);
