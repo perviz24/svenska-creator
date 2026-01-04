@@ -86,32 +86,25 @@ export const AIRefinementPanel = forwardRef<HTMLDivElement, AIRefinementPanelPro
     setSelectedAction(action);
 
     try {
-      const { data, error } = await supabase.functions.invoke('ai-review-edit', {
-        body: {
+      // Use FastAPI backend instead of Supabase
+      const response = await fetch(`${BACKEND_URL}/api/ai/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           content,
-          action,
-          customInstruction: action === 'custom' ? customInstruction : undefined,
-          contentType,
-          context,
-          language,
-        },
+          action: action === 'custom' ? 'improve' : action,
+          context: action === 'custom' ? customInstruction : context,
+          language: language || 'sv',
+        }),
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Refinement failed');
+      const data = await response.json();
 
-      if (data.error) {
-        if (data.error.includes('Rate limit')) {
-          toast.error('För många förfrågningar. Vänta en stund.');
-        } else if (data.error.includes('Payment')) {
-          toast.error('Krediter krävs för AI-förfining.');
-        } else {
-          throw new Error(data.error);
-        }
-        return;
+      if (data.improved_content) {
+        setRefinedContent(data.improved_content);
+        toast.success('Innehåll förfinat!');
       }
-
-      setRefinedContent(data.result);
-      toast.success('Innehåll förfinat!');
     } catch (error) {
       console.error('Error refining content:', error);
       toast.error('Kunde inte förfina innehållet');
@@ -132,22 +125,31 @@ export const AIRefinementPanel = forwardRef<HTMLDivElement, AIRefinementPanelPro
     try {
       const targetLangName = AVAILABLE_LANGUAGES.find(l => l.code === targetLanguage)?.name || targetLanguage;
       
-      const { data, error } = await supabase.functions.invoke('translate-content', {
-        body: {
+      // Use FastAPI backend instead of Supabase
+      const response = await fetch(`${BACKEND_URL}/api/ai/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           content,
-          sourceLanguage: language === 'sv' ? 'Swedish' : 'English',
-          targetLanguage: targetLangName,
-        },
+          source_language: language === 'sv' ? 'Swedish' : 'English',
+          target_language: targetLangName,
+        }),
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Translation failed');
+      const data = await response.json();
 
-      if (data.error) {
-        if (data.error.includes('Rate limit')) {
-          toast.error('För många förfrågningar. Vänta en stund.');
-        } else if (data.error.includes('Payment')) {
-          toast.error('Krediter krävs för översättning.');
-        } else {
+      if (data.translated_content) {
+        setRefinedContent(data.translated_content);
+        toast.success(`Översatt till ${targetLangName}!`);
+      }
+    } catch (error) {
+      console.error('Error translating:', error);
+      toast.error('Kunde inte översätta innehållet');
+    } finally {
+      setIsTranslating(false);
+    }
+  };
           throw new Error(data.error);
         }
         return;
