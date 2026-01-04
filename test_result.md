@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "COMPREHENSIVE API TESTING - All Migrated Endpoints. Test all newly created FastAPI endpoints to ensure complete migration success including Title Generation, Outline Generation, Script Generation, Slide Generation, Exercise Generation, Quiz Generation, Slide Enhancement, and Presenton Generation."
+user_problem_statement: "Test the Course Creation workflow in Demo Mode. The application is a Swedish course/presentation creation tool (Kursskaparen). Test Demo Mode activation, course mode selection, title generation, and workflow progression."
 
 backend:
   - task: "Title Generation API"
@@ -165,66 +165,54 @@ backend:
           agent: "testing"
           comment: "Working correctly - Fixed Pydantic validation error by handling list/dict content conversion to strings. Generated 5 slides with proper structure in 12.41s. Minor: Input validation accepts empty script content but returns HTTP 520 server error."
 
-  - task: "Exercise Generation API"
-    implemented: true
-    working: true
-    file: "/app/backend/content_enhancement_service.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "testing"
-          comment: "Working correctly - Generated 2 exercises with proper structure including id, type, question, options, correct_answer, explanation, and points fields. Response time 7.71s. Minor: Input validation accepts empty content and returns HTTP 200."
-
-  - task: "Quiz Generation API"
-    implemented: true
-    working: true
-    file: "/app/backend/content_enhancement_service.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "testing"
-          comment: "Working correctly - Generated 3 quiz questions with proper structure including quiz_title, questions array, total_points, and passing_score. Response time 8.32s. Minor: Input validation accepts 0 questions and returns HTTP 200."
-
-  - task: "Slide Enhancement API"
-    implemented: true
-    working: true
-    file: "/app/backend/content_enhancement_service.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "testing"
-          comment: "Working correctly - Enhanced slide content successfully with proper structure including enhanced_content, suggestions, and improved_title fields. Response time 11.56s. Minor: Input validation accepts empty content and returns HTTP 200."
-
-  - task: "Presenton Generation API"
-    implemented: true
-    working: true
-    file: "/app/backend/presenton_service.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "testing"
-          comment: "Working correctly - Returns task ID for async processing as expected. Response time 0.96s. Minor: Input validation accepts 0 slides and returns HTTP 200 instead of rejecting invalid input."
-
 frontend:
-  - task: "Frontend Integration Testing"
-    implemented: false
+  - task: "Demo Mode Activation"
+    implemented: true
     working: "NA"
-    file: "N/A"
+    file: "/app/frontend/src/pages/Demo.tsx"
     stuck_count: 0
-    priority: "low"
-    needs_retesting: false
+    priority: "high"
+    needs_retesting: true
     status_history:
         - working: "NA"
-          agent: "testing"
-          comment: "Not tested - Testing agent only handles backend API testing per system limitations."
+          agent: "main"
+          comment: "Frontend migration completed. Demo mode page implemented with yellow banner and demo limitations. Needs testing to verify proper activation and UI display."
+
+  - task: "Course Mode Selection"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/ModeSelectionStep.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Mode selection component implemented with 'Komplett kurs' and 'Presentation' options. Needs testing to verify proper selection and workflow progression."
+
+  - task: "Title Generation Frontend"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/TitleStep.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Title step component implemented with FastAPI integration. Uses courseApi.ts for backend calls. Needs testing to verify title generation and suggestion display."
+
+  - task: "FastAPI Integration"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/hooks/useCourseWorkflow.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Course workflow hook updated to use FastAPI backend instead of Supabase functions. Title and outline generation now call /api/course/generate-titles and /api/course/generate-outline endpoints."
 
 metadata:
   created_by: "testing_agent"
