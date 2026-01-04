@@ -282,65 +282,42 @@ export function SlideStep({
     try {
       const scriptContent = currentScript?.sections?.map(s => `${s.title}\n${s.content}`).join('\n\n') || '';
       
-      // Step 1: Start async generation with enhanced parameters
-      const { data, error } = await supabase.functions.invoke('presenton-slides', {
-        body: {
-          action: 'generate',
-          topic: isPresentation ? courseTitle : currentScript?.moduleTitle,
-          numSlides: Math.min(numSlides, isDemoMode ? (demoMode?.maxSlides || 3) : 50),
-          language: 'sv',
-          style: exportTemplate,
-          tone: exportTemplate,
-          verbosity: presentonVerbosity,
-          imageType: presentonImageType,
-          webSearch: presentonWebSearch,
-          scriptContent,
-          moduleTitle: currentScript?.moduleTitle || courseTitle,
-          courseTitle,
-        },
+      // Step 1: Start async generation with enhanced parameters via FastAPI backend
+      const data = await generatePresentonPresentation({
+        topic: isPresentation ? courseTitle : currentScript?.moduleTitle || courseTitle,
+        num_slides: Math.min(numSlides, isDemoMode ? (demoMode?.maxSlides || 3) : 50),
+        language: 'sv',
+        style: exportTemplate,
+        tone: exportTemplate,
+        verbosity: presentonVerbosity,
+        image_type: presentonImageType,
+        web_search: presentonWebSearch,
+        script_content: scriptContent,
+        module_title: currentScript?.moduleTitle || courseTitle,
+        course_title: courseTitle,
+        export_format: 'pptx',
       });
 
-      if (error) {
-        console.error('Supabase function error:', error);
-        throw new Error(error.message || 'Failed to call slide generation service');
-      }
-
-      // Check if it's an async response (Presenton) or sync response (Lovable AI fallback)
-      if (data.status === 'pending' && data.taskId) {
+      if (data.status === 'pending' && data.task_id) {
         // Presenton async - start polling
-        setPresentonTaskId(data.taskId);
+        setPresentonTaskId(data.task_id);
         setPresentonProgress(10);
         setPresentonStatus('pending');
         
         // Persist initial state to database
         if (onSavePresentonState) {
           onSavePresentonState({
-            taskId: data.taskId,
+            taskId: data.task_id,
             status: 'pending',
             progress: 10,
           });
         }
         
-        toast.info('Presentation genereras via Presenton...', { duration: 3000 });
+        toast.info('Presentation genereras via Presenton med förbättrade instruktioner...', { duration: 3000 });
         
         // Poll for completion
-        await pollPresentonStatus(data.taskId);
-      } else if (data.status === 'completed' && data.slides) {
-        // Lovable AI sync response - apply slides directly
-        handleSlidesReceived(data.slides, data.source);
-        setPresentonStatus('completed');
-        toast.success(`${data.slideCount || data.slides.length} slides genererade!`);
+        await pollPresentonStatusFastAPI(data.task_id);
       } else if (data.error) {
-        // Check if retryable
-        if (data.retryable && retryCount < maxRetries) {
-          const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay);
-          console.log(`Retrying slide generation (attempt ${retryCount + 1}/${maxRetries}) in ${delay}ms...`);
-          toast.info(`Försöker igen om ${delay/1000}s... (Försök ${retryCount + 1}/${maxRetries})`, {
-            duration: delay
-          });
-          await new Promise(resolve => setTimeout(resolve, delay));
-          return handleGeneratePresenton(retryCount + 1);
-        }
         throw new Error(data.error);
       } else {
         console.error('Unexpected response format:', data);
