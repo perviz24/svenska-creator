@@ -673,9 +673,9 @@ class CourseAPITester:
         status, response, response_time = await self.make_request("POST", url)
         
         if status == 200:
-            # Validate response structure
-            if "estimated_duration" in response:
-                duration = response["estimated_duration"]
+            # Validate response structure (based on actual response)
+            if "estimated_duration_seconds" in response:
+                duration = response["estimated_duration_seconds"]
                 if isinstance(duration, (int, float)) and duration > 0:
                     self.log_test("Voice Duration Estimate", "PASS", 
                                 f"Estimated duration: {duration} seconds", response_time)
@@ -684,7 +684,7 @@ class CourseAPITester:
                                 f"Invalid duration value: {duration}", response_time)
             else:
                 self.log_test("Voice Duration Estimate", "FAIL", 
-                            "Response missing 'estimated_duration' field", response_time)
+                            "Response missing 'estimated_duration_seconds' field", response_time)
         else:
             self.log_test("Voice Duration Estimate", "FAIL", 
                         f"HTTP {status}: {response.get('detail', response)}", response_time)
