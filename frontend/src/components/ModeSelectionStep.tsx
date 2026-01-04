@@ -122,23 +122,30 @@ export function ModeSelectionStep({
 
     setIsLoadingPreview(true);
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-course-structure', {
-        body: {
+      // Use FastAPI backend instead of Supabase
+      const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || import.meta.env.VITE_BACKEND_URL || '';
+      const response = await fetch(`${BACKEND_URL}/api/ai/analyze-structure`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           title: courseTitle || '',
-          comprehensiveLevel: currentLimits.comprehensiveLevel,
-          courseLengthPreset: currentLimits.courseLengthPreset,
-          language: 'sv',
-        },
+          description: '',
+          target_audience: '',
+        }),
       });
 
-      if (error) throw error;
-      if (data?.preview) {
-        setAiPreview(data.preview);
+      if (response.ok) {
+        const data = await response.json();
+        setAiPreview({
+          estimatedModules: data.recommended_modules || 5,
+          estimatedSlidesPerModule: 8,
+          suggestions: data.suggestions || [],
+        });
         // Auto-apply AI recommendations
         onStructureLimitsChange({
           ...currentLimits,
-          maxModules: data.preview.estimatedModules,
-          slidesPerModule: data.preview.estimatedSlidesPerModule,
+          maxModules: data.recommended_modules || 5,
+          slidesPerModule: 8,
         });
         toast.success('AI-rekommendation mottagen');
       }
