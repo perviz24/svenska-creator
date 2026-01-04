@@ -86,19 +86,24 @@ export function useResearchHub() {
     setIsScraping(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('scrape-url', {
-        body: { 
-          url,
-          formats: ['markdown', 'links'],
-          onlyMainContent: true,
-        }
+      // Use FastAPI backend instead of Supabase
+      const response = await fetch(`${BACKEND_URL}/api/research/scrape`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: [url] }),
       });
 
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error || 'Scraping misslyckades');
+      if (!response.ok) throw new Error('Scraping failed');
+      const data = await response.json();
+
+      if (!data.success) throw new Error('Scraping misslyckades');
 
       toast.success('Sida skrapad!');
-      return data;
+      return {
+        success: true,
+        content: data.combined_content,
+        title: data.results?.[0]?.title,
+      };
     } catch (err) {
       console.error('Scrape error:', err);
       const message = err instanceof Error ? err.message : 'Kunde inte skrapa sidan';
