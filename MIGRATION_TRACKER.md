@@ -264,13 +264,20 @@
 - ✅ Presenton status polling
 - ✅ Advanced UI controls for Presenton
 - ✅ Error handling framework
+- ✅ Title generation API + Frontend migration (useCourseWorkflow.ts + Demo.tsx)
+- ✅ Outline generation API + Frontend migration (useCourseWorkflow.ts + Demo.tsx)
+- ✅ Script generation API + Frontend migration (useCourseWorkflow.ts + Demo.tsx)
+- ✅ Slide generation API + Frontend migration (useCourseWorkflow.ts + Demo.tsx)
+- ✅ Exercise generation API (backend ready)
+- ✅ Quiz generation API (backend ready)
+- ✅ Slide enhancement API (backend ready)
 
 **In Progress:**
-- 🟡 Core course generation migration
+- 🟡 Phase 2-7: Content enhancement, media, voice/video, export features (frontend integration pending)
 
 **Pending:**
-- ⚪ 33 Supabase functions to migrate
-- ⚪ Frontend component updates
+- ⚪ Remaining Supabase functions to migrate (export, media search, voice generation, etc.)
+- ⚪ Frontend component updates for Phase 2-7
 - ⚪ End-to-end testing
 
 ---
