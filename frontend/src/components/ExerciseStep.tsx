@@ -253,23 +253,25 @@ export function ExerciseStep({
       // Combine uploaded documents with manual knowledge base
       const combinedKnowledge = knowledgeBase;
 
-      const { data, error } = await supabase.functions.invoke('research-topic', {
-        body: {
+      // Use FastAPI backend instead of Supabase
+      const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || import.meta.env.VITE_BACKEND_URL || '';
+      const response = await fetch(`${BACKEND_URL}/api/research/topic`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           topic,
-          context: courseTitle,
+          context: `${courseTitle}\n\n${combinedKnowledge || ''}`,
           language,
-          researchMode,
-          knowledgeBase: combinedKnowledge || undefined,
-          urlsToScrape: urlsToScrape ? urlsToScrape.split('\n').filter(u => u.trim()) : undefined,
-          domainFilter: domainFilter ? domainFilter.split(',').map(d => d.trim()) : undefined,
-        },
+          depth: researchMode === 'deep' ? 'deep' : 'standard',
+        }),
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Research failed');
+      const data = await response.json();
 
-      if (data.research) {
-        setResearchResults(data.research);
-        toast.success(`Forskning klar: ${data.citations?.length || 0} källor hittade`);
+      if (data.content) {
+        setResearchResults(data.content);
+        toast.success('Forskning klar!');
       }
     } catch (error) {
       console.error('Research error:', error);
