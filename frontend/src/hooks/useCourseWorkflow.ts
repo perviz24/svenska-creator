@@ -4,7 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { generateSlides as generateSlidesAPI } from '@/lib/courseApi';
+import {
+  generateSlides as generateSlidesAPI,
+  generateTitles as generateTitlesAPI,
+  generateOutline as generateOutlineAPI,
+  generateScript as generateScriptAPI
+} from '@/lib/courseApi';
 
 // Demo limits applied when Admin Demo Mode is active
 const adminDemoLimits = {
