@@ -193,21 +193,31 @@ const Demo = () => {
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
     
     try {
-      const { data, error } = await supabase.functions.invoke('generate-outline', {
-        body: { 
-          title: state.title,
-          targetDuration: 5, // Very short for demo
-          style: state.settings.style,
-          language: state.settings.language,
-          maxModules: 1,
-          demoMode: true,
-        }
+      // Call FastAPI backend instead of Supabase
+      const data = await generateOutlineAPI({
+        title: state.title,
+        num_modules: 1, // Limited for demo
+        language: state.settings.language || 'sv',
       });
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
-
-      const outline: CourseOutline = data.outline;
+      // Map API response to CourseOutline format
+      const outline: CourseOutline = {
+        title: state.title,
+        description: `Demo course outline for: ${state.title}`,
+        totalDuration: data.total_duration,
+        modules: data.modules.map((m, index) => ({
+          id: m.id,
+          number: index + 1,
+          title: m.title,
+          description: m.description,
+          duration: m.estimated_duration,
+          learningObjectives: m.key_topics.map((topic, i) => ({
+            id: `obj-${m.id}-${i}`,
+            text: topic,
+          })),
+          subTopics: [],
+        })),
+      };
       
       setState(prev => ({
         ...prev,
@@ -215,7 +225,7 @@ const Demo = () => {
         isProcessing: false,
       }));
 
-      toast.success('Demo-kursöversikt genererad! (2 korta moduler)');
+      toast.success('Demo-kursöversikt genererad! (1 kort modul)');
     } catch (error) {
       console.error('Error generating outline:', error);
       const message = error instanceof Error ? error.message : 'Kunde inte generera kursöversikt';
