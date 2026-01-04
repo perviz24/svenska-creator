@@ -57,6 +57,30 @@ async def get_status_checks():
     status_checks = await db.status_checks.find().to_list(1000)
     return [StatusCheck(**status_check) for status_check in status_checks]
 
+
+# Presenton API Endpoints
+@api_router.post("/presenton/generate")
+async def presenton_generate(request: PresentonRequest):
+    """Generate presentation using Presenton API with enhanced instructions"""
+    try:
+        result = await generate_presenton_presentation(request)
+        return result
+    except Exception as e:
+        logger.error(f"Presenton generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/presenton/status/{task_id}")
+async def presenton_status(task_id: str):
+    """Check status of Presenton generation task"""
+    try:
+        result = await check_presenton_status(task_id)
+        return result
+    except Exception as e:
+        logger.error(f"Presenton status check error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
