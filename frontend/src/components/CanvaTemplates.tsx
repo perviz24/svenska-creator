@@ -68,7 +68,6 @@ export function CanvaTemplates({ slides, onApplyTemplate, onExportToCanva }: Can
 
       onApplyTemplate(templateId, styledSlides);
       toast.success(`Mall "${template.name}" applicerad!`);
-      }
     } catch (error) {
       console.error('Error applying template:', error);
       toast.error('Kunde inte applicera mall');
