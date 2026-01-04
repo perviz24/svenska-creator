@@ -259,6 +259,78 @@ frontend:
           agent: "testing"
           comment: "✅ MIGRATION VERIFIED: ExerciseStep component renders correctly and uses FastAPI backend. Direct API testing confirms /api/exercises/generate endpoint works properly, returning Swedish exercise content with proper structure (questions, options, explanations, points). Component requires prerequisite data (scripts) to display generation buttons, which is expected behavior. FastAPI integration successful."
 
+  - task: "Media Photos Search API"
+    implemented: true
+    working: true
+    file: "/app/backend/media_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ WORKING: Media photos search endpoint working correctly. POST /api/media/photos/search with Pexels provider returns 2 healthcare photos with proper structure (id, url, photographer, source). Response time: 0.18s. API key configured correctly."
+
+  - task: "Media Videos Search API"
+    implemented: true
+    working: true
+    file: "/app/backend/media_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ WORKING: Media videos search endpoint working correctly. POST /api/media/videos/search with Pexels provider returns 2 healthcare videos with proper structure (id, url, duration, user, provider). Response time: 0.09s. API key configured correctly."
+
+  - task: "HeyGen Avatars API"
+    implemented: true
+    working: true
+    file: "/app/backend/video_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ WORKING: HeyGen avatars endpoint working correctly. GET /api/video/heygen/avatars returns 1289 avatars (exceeds 1000+ requirement) with proper structure (id, name, thumbnail_url, gender). Response time: 6.95s. API key configured correctly."
+
+  - task: "ElevenLabs Voices API"
+    implemented: true
+    working: true
+    file: "/app/backend/voice_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ WORKING: ElevenLabs voices endpoint working correctly. GET /api/voice/elevenlabs/voices returns 22 voices (exceeds 20+ requirement) with proper structure (id, name, category, description, labels). Response time: 0.09s. API key configured correctly."
+
+  - task: "Voice Duration Estimate API"
+    implemented: true
+    working: true
+    file: "/app/backend/voice_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ WORKING: Voice duration estimate endpoint working correctly. POST /api/voice/estimate-duration returns accurate duration estimate (2.4 seconds for test text) with proper structure (word_count, estimated_duration_seconds, estimated_duration_minutes). Response time: 0.05s."
+
+  - task: "Research Scrape API"
+    implemented: true
+    working: true
+    file: "/app/backend/research_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ WORKING: Research scrape endpoint working correctly. POST /api/research/scrape successfully scrapes content from provided URLs with proper structure (results array with url and content fields). Response time: 0.11s. Successfully scraped example.com."
+
 metadata:
   created_by: "testing_agent"
   version: "3.0"
