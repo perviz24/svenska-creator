@@ -387,8 +387,6 @@ export function useCourseWorkflow() {
       if (insertData.length > 0) {
         await supabase.from('slides').insert(insertData);
       }
-      
-      console.log(`Saved ${slides.length} slides for module ${moduleId}`);
     } catch (error) {
       console.error('Error saving slides:', error);
     }
@@ -422,8 +420,6 @@ export function useCourseWorkflow() {
           ...presentonUpdates,
         },
       }));
-      
-      console.log('Saved Presenton state:', presentonUpdates);
     } catch (error) {
       console.error('Error saving Presenton state:', error);
     }
@@ -563,8 +559,6 @@ export function useCourseWorkflow() {
       await supabase
         .from('module_exercises')
         .upsert(insertData, { onConflict: 'course_id,module_id' });
-
-      console.log(`Saved exercises for module ${moduleId}`);
     } catch (error) {
       console.error('Error saving exercises:', error);
     }
@@ -584,8 +578,6 @@ export function useCourseWorkflow() {
       await supabase
         .from('module_quizzes')
         .upsert(insertData, { onConflict: 'course_id,module_id' });
-
-      console.log(`Saved quiz for module ${moduleId}`);
     } catch (error) {
       console.error('Error saving quiz:', error);
     }
@@ -600,8 +592,6 @@ export function useCourseWorkflow() {
         .update({ audio_url: audioUrl, voice_id: voiceId || null })
         .eq('course_id', courseId)
         .eq('module_id', moduleId);
-
-      console.log(`Saved audio for module ${moduleId}`);
     } catch (error) {
       console.error('Error saving audio:', error);
     }
