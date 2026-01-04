@@ -69,35 +69,36 @@ export function AIReviewEditor({
     setIsProcessing(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('ai-review-edit', {
-        body: {
-          content: editedContent,
-          action,
-          customInstruction,
-          contentType,
-          context,
-          language,
-        },
+      // Map action to FastAPI action format
+      const actionMap: Record<string, string> = {
+        'improve': 'improve',
+        'expand': 'expand',
+        'simplify': 'simplify',
+        'shorten': 'simplify',
+        'professional': 'improve',
+        'conversational': 'simplify',
+        'custom': 'improve',
+      };
+
+      const result = await aiReviewEdit({
+        content: editedContent,
+        action: actionMap[action] as any || 'improve',
+        context: customInstruction || context,
+        language,
       });
 
-      if (error) throw error;
-
-      if (data.error) {
-        if (data.error.includes('Rate limit')) {
-          toast.error('För många förfrågningar. Vänta en stund och försök igen.');
-        } else {
-          toast.error(data.error);
-        }
-        return;
-      }
-
-      if (data.result) {
-        setEditedContent(data.result);
+      if (result.improved_content) {
+        setEditedContent(result.improved_content);
         toast.success('Text uppdaterad med AI');
       }
     } catch (error) {
       console.error('AI review error:', error);
-      toast.error('Kunde inte bearbeta med AI');
+      const message = error instanceof Error ? error.message : 'Kunde inte bearbeta med AI';
+      if (message.includes('Rate limit')) {
+        toast.error('För många förfrågningar. Vänta en stund och försök igen.');
+      } else {
+        toast.error(message);
+      }
     } finally {
       setIsProcessing(false);
     }
