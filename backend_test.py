@@ -253,54 +253,210 @@ class CourseAPITester:
                         f"Should reject empty module title, got HTTP {status}", response_time)
     
     async def test_slide_generation(self):
-        """Test POST /api/slides/generate"""
-        print("\n=== Testing Slide Generation ===")
+        """Test POST /api/slides/generate with enhanced features"""
+        print("\n=== Testing Enhanced Slide Generation ===")
         
-        # Test valid request
-        test_data = {
-            "script_content": "Introduktion till ögonsjukdomar. Det finns många olika typer av ögonsjukdomar som påverkar patienter. Vi kommer att gå igenom de vanligaste.",
-            "module_title": "Introduktion till ögonsjukdomar",
-            "course_title": "Behandlingsstrategier för ögonsjukdomar",
+        # Test Case 1: Basic Generation Test (Swedish)
+        test_data_1 = {
+            "script_content": "Artificiell intelligens revolutionerar industrier. Machine learning möjliggör prediktiv analys. Deep learning hanterar komplexa mönster. AI etik är avgörande för ansvarsfull utveckling.",
+            "module_title": "AI Fundamentals",
+            "course_title": "Modern Teknologi",
             "num_slides": 5,
-            "language": "sv"
+            "language": "sv",
+            "tone": "professional",
+            "verbosity": "standard"
         }
         
-        status, response, response_time = await self.make_request("POST", "/slides/generate", test_data)
+        status, response, response_time = await self.make_request("POST", "/slides/generate", test_data_1)
         
         if status == 200:
-            # Validate response structure
+            # Validate enhanced response structure
             required_fields = ["presentation_title", "slides", "slide_count", "source"]
             if all(key in response for key in required_fields):
                 slides = response["slides"]
                 if len(slides) == 5:
-                    # Check each slide has required fields
+                    # Check enhanced slide fields
                     valid_slides = True
-                    for slide in slides:
-                        slide_fields = ["slide_number", "title", "content", "speaker_notes", "layout", "suggested_image_query"]
-                        if not all(key in slide for key in slide_fields):
+                    layout_variety = []
+                    has_key_takeaways = True
+                    has_action_verbs = True
+                    has_specific_images = True
+                    speaker_notes_valid = True
+                    
+                    for i, slide in enumerate(slides):
+                        # Check required fields including new ones
+                        enhanced_fields = ["slide_number", "title", "content", "speaker_notes", "layout", "suggested_image_query", "key_takeaway"]
+                        if not all(key in slide for key in enhanced_fields):
                             valid_slides = False
                             break
+                        
+                        # Check layout variety (no two consecutive slides should have same layout)
+                        layout = slide.get("layout")
+                        layout_variety.append(layout)
+                        if i > 0 and layout == layout_variety[i-1]:
+                            self.log_test("Slide Generation - Layout Variety", "FAIL", 
+                                        f"Consecutive slides {i} and {i+1} have same layout: {layout}", response_time)
+                        
+                        # Check key takeaways
+                        if not slide.get("key_takeaway"):
+                            has_key_takeaways = False
+                        
+                        # Check bullet points for action verbs
+                        bullet_points = slide.get("bullet_points", [])
+                        if bullet_points:
+                            for bullet in bullet_points:
+                                if not any(bullet.lower().startswith(verb) for verb in ["implementera", "analysera", "skapa", "utveckla", "förbättra", "optimera"]):
+                                    has_action_verbs = False
+                        
+                        # Check image queries are specific (not generic)
+                        image_query = slide.get("suggested_image_query", "")
+                        generic_terms = ["business", "technology", "teamwork", "success"]
+                        if any(term in image_query.lower() for term in generic_terms):
+                            has_specific_images = False
+                        
+                        # Check speaker notes length (should be 100-150 words for standard verbosity)
+                        speaker_notes = slide.get("speaker_notes", "")
+                        word_count = len(speaker_notes.split())
+                        if word_count < 100 or word_count > 150:
+                            speaker_notes_valid = False
                     
-                    if valid_slides:
-                        # Check slide count matches
-                        if response["slide_count"] == 5:
-                            self.log_test("Slide Generation - Valid Request", "PASS", 
-                                        f"Generated 5 slides with proper structure", response_time)
-                        else:
-                            self.log_test("Slide Generation - Valid Request", "WARN", 
-                                        f"Slide count mismatch: expected 5, reported {response['slide_count']}", response_time)
+                    # Check source field
+                    if response.get("source") == "internal-ai-enhanced":
+                        self.log_test("Slide Generation - Enhanced Source", "PASS", 
+                                    "Source correctly shows 'internal-ai-enhanced'", response_time)
                     else:
-                        self.log_test("Slide Generation - Valid Request", "FAIL", 
-                                    "Slides missing required fields", response_time)
+                        self.log_test("Slide Generation - Enhanced Source", "FAIL", 
+                                    f"Expected source 'internal-ai-enhanced', got '{response.get('source')}'", response_time)
+                    
+                    # Report on enhanced features
+                    if valid_slides:
+                        self.log_test("Slide Generation - Basic Structure", "PASS", 
+                                    f"Generated 5 slides with enhanced structure", response_time)
+                    else:
+                        self.log_test("Slide Generation - Basic Structure", "FAIL", 
+                                    "Slides missing enhanced required fields", response_time)
+                    
+                    if has_key_takeaways:
+                        self.log_test("Slide Generation - Key Takeaways", "PASS", 
+                                    "All slides have key takeaways", response_time)
+                    else:
+                        self.log_test("Slide Generation - Key Takeaways", "FAIL", 
+                                    "Some slides missing key takeaways", response_time)
+                    
+                    if has_specific_images:
+                        self.log_test("Slide Generation - Specific Images", "PASS", 
+                                    "Image queries are specific and descriptive", response_time)
+                    else:
+                        self.log_test("Slide Generation - Specific Images", "FAIL", 
+                                    "Some image queries are too generic", response_time)
+                    
+                    if speaker_notes_valid:
+                        self.log_test("Slide Generation - Speaker Notes", "PASS", 
+                                    "Speaker notes are 100-150 words for standard verbosity", response_time)
+                    else:
+                        self.log_test("Slide Generation - Speaker Notes", "WARN", 
+                                    "Some speaker notes outside 100-150 word range", response_time)
+                    
+                    # Check layout variety
+                    unique_layouts = len(set(layout_variety))
+                    if unique_layouts >= 4:
+                        self.log_test("Slide Generation - Layout Variety", "PASS", 
+                                    f"Good layout variety: {unique_layouts} different layouts", response_time)
+                    else:
+                        self.log_test("Slide Generation - Layout Variety", "WARN", 
+                                    f"Limited layout variety: only {unique_layouts} different layouts", response_time)
+                    
                 else:
-                    self.log_test("Slide Generation - Valid Request", "FAIL", 
+                    self.log_test("Slide Generation - Swedish Test", "FAIL", 
                                 f"Expected 5 slides, got {len(slides)}", response_time)
             else:
                 missing_fields = [f for f in required_fields if f not in response]
-                self.log_test("Slide Generation - Valid Request", "FAIL", 
+                self.log_test("Slide Generation - Swedish Test", "FAIL", 
                             f"Response missing fields: {missing_fields}", response_time)
         else:
-            self.log_test("Slide Generation - Valid Request", "FAIL", 
+            self.log_test("Slide Generation - Swedish Test", "FAIL", 
+                        f"HTTP {status}: {response.get('detail', response)}", response_time)
+        
+        # Test Case 2: Concise Style Test (TED-talk)
+        test_data_2 = {
+            "script_content": "Leadership is influence. Great leaders inspire action. They create vision and empower teams. Success comes from authentic leadership.",
+            "module_title": "Leadership Essentials",
+            "course_title": "Executive Development",
+            "num_slides": 4,
+            "language": "en",
+            "tone": "inspirational",
+            "verbosity": "concise"
+        }
+        
+        status, response, response_time = await self.make_request("POST", "/slides/generate", test_data_2)
+        
+        if status == 200:
+            slides = response.get("slides", [])
+            if len(slides) == 4:
+                # Check concise style requirements
+                concise_valid = True
+                for slide in slides:
+                    # Check title length (3-6 words for concise)
+                    title = slide.get("title", "")
+                    title_words = len(title.split())
+                    if title_words > 8:  # Allow some flexibility
+                        concise_valid = False
+                    
+                    # Check speaker notes (50-100 words for concise)
+                    speaker_notes = slide.get("speaker_notes", "")
+                    word_count = len(speaker_notes.split())
+                    if word_count > 120:  # Allow some flexibility
+                        concise_valid = False
+                
+                if concise_valid:
+                    self.log_test("Slide Generation - Concise Style", "PASS", 
+                                f"Generated 4 slides with concise TED-talk style", response_time)
+                else:
+                    self.log_test("Slide Generation - Concise Style", "WARN", 
+                                "Some slides don't follow concise style guidelines", response_time)
+            else:
+                self.log_test("Slide Generation - Concise Style", "FAIL", 
+                            f"Expected 4 slides, got {len(slides)}", response_time)
+        else:
+            self.log_test("Slide Generation - Concise Style", "FAIL", 
+                        f"HTTP {status}: {response.get('detail', response)}", response_time)
+        
+        # Test Case 3: Text-Heavy Educational Test
+        test_data_3 = {
+            "script_content": "Projektledning kräver planering, genomförande och uppföljning. Agila metoder som Scrum fokuserar på iterativ utveckling. Vattenfallsmetoden följer sekventiella faser. Hybrid-metoder kombinerar båda.",
+            "module_title": "Projektledningsmetoder",
+            "course_title": "Projektledning för nybörjare",
+            "num_slides": 6,
+            "language": "sv",
+            "tone": "educational",
+            "verbosity": "text-heavy"
+        }
+        
+        status, response, response_time = await self.make_request("POST", "/slides/generate", test_data_3)
+        
+        if status == 200:
+            slides = response.get("slides", [])
+            if len(slides) == 6:
+                # Check text-heavy style requirements
+                text_heavy_valid = True
+                for slide in slides:
+                    # Check speaker notes (150-200 words for text-heavy)
+                    speaker_notes = slide.get("speaker_notes", "")
+                    word_count = len(speaker_notes.split())
+                    if word_count < 120:  # Allow some flexibility
+                        text_heavy_valid = False
+                
+                if text_heavy_valid:
+                    self.log_test("Slide Generation - Text-Heavy Style", "PASS", 
+                                f"Generated 6 slides with educational text-heavy style", response_time)
+                else:
+                    self.log_test("Slide Generation - Text-Heavy Style", "WARN", 
+                                "Some slides don't follow text-heavy style guidelines", response_time)
+            else:
+                self.log_test("Slide Generation - Text-Heavy Style", "FAIL", 
+                            f"Expected 6 slides, got {len(slides)}", response_time)
+        else:
+            self.log_test("Slide Generation - Text-Heavy Style", "FAIL", 
                         f"HTTP {status}: {response.get('detail', response)}", response_time)
         
         # Test invalid request (empty script content)
