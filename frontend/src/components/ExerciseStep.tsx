@@ -101,36 +101,41 @@ export function ExerciseStep({
         ? `${scriptText}\n\n--- FORSKNINGSRESULTAT ---\n${researchResults}`
         : scriptText;
 
-      const { data, error } = await supabase.functions.invoke('generate-exercises', {
-        body: {
-          script: enhancedScript,
-          moduleTitle: script.moduleTitle,
-          courseTitle,
-          exerciseTemplate: exerciseTemplate || undefined,
-          exerciseCount: 3,
-          exerciseType,
-          language,
-        },
+      // Call FastAPI backend instead of Supabase
+      const data = await generateExercisesAPI({
+        module_title: script.moduleTitle,
+        module_content: enhancedScript,
+        course_title: courseTitle,
+        num_exercises: 3,
+        difficulty: exerciseType === 'practical' ? 'hard' : 'medium',
+        language,
       });
 
-      if (error) throw error;
-
-      if (data.error) {
-        toast.error(data.error);
-        return;
-      }
-
+      // Map API response to internal exercise format
       const moduleExercises: ModuleExercises = {
         moduleId: script.moduleId,
         moduleTitle: script.moduleTitle,
-        exercises: data.exercises,
+        exercises: data.exercises.map(ex => ({
+          id: ex.id,
+          title: ex.question,
+          type: ex.type as any,
+          purpose: ex.explanation,
+          estimatedTime: ex.points,
+          parts: [{
+            id: `${ex.id}-part-1`,
+            title: ex.question,
+            description: ex.explanation,
+            type: 'text',
+          }],
+        })),
       };
 
       onExercisesGenerated(script.moduleId, moduleExercises);
       toast.success(`Övningar för "${script.moduleTitle}" genererade!`);
     } catch (error) {
       console.error('Error generating exercises:', error);
-      toast.error('Kunde inte generera övningar');
+      const message = error instanceof Error ? error.message : 'Kunde inte generera övningar';
+      toast.error(message);
     } finally {
       setGeneratingModule(null);
     }
