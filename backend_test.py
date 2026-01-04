@@ -548,10 +548,10 @@ class CourseAPITester:
             if "photos" in response and "total" in response:
                 photos = response["photos"]
                 if len(photos) == 2:
-                    # Check each photo has required fields
+                    # Check each photo has required fields (based on actual response)
                     valid_photos = True
                     for photo in photos:
-                        required_fields = ["id", "url", "photographer", "alt"]
+                        required_fields = ["id", "url", "photographer", "source"]
                         if not all(key in photo for key in required_fields):
                             valid_photos = False
                             break
