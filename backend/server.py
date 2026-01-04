@@ -25,6 +25,11 @@ from course_service import (
     generate_outline,
     generate_script
 )
+from slides_service import (
+    SlideGenerationRequest,
+    SlideGenerationResponse,
+    generate_slides
+)
 
 
 ROOT_DIR = Path(__file__).parent
@@ -123,6 +128,17 @@ async def api_generate_script(request: ScriptGenerationRequest):
         return result
     except Exception as e:
         logger.error(f"Script generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/slides/generate", response_model=SlideGenerationResponse)
+async def api_generate_slides(request: SlideGenerationRequest):
+    """Generate presentation slides using Internal AI"""
+    try:
+        result = await generate_slides(request)
+        return result
+    except Exception as e:
+        logger.error(f"Slide generation error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
