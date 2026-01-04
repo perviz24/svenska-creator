@@ -338,21 +338,46 @@ const Demo = () => {
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
     
     try {
-      const { data, error } = await supabase.functions.invoke('generate-slides', {
-        body: { 
-          script,
-          courseTitle: state.title,
-          maxSlides: state.settings.demoMode?.maxSlides || 5,
-          demoMode: true
-        }
+      const scriptContent = script.sections.map(s => `${s.title}\n${s.content}`).join('\n\n');
+      const maxSlides = state.settings.demoMode?.maxSlides || 5;
+      
+      // Call FastAPI backend instead of Supabase
+      const data = await generateSlidesAPI({
+        script_content: scriptContent,
+        module_title: script.moduleTitle,
+        course_title: state.title,
+        num_slides: maxSlides,
+        language: state.settings.language || 'sv',
+        tone: state.settings.style || 'professional',
+        verbosity: 'standard',
       });
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      // Map slides to internal format
+      const slides: Slide[] = data.slides.map((slide: any) => {
+        const bulletPoints = Array.isArray(slide.bulletPoints)
+          ? slide.bulletPoints.filter(Boolean)
+          : undefined;
 
-      // Limit slides to demo max
-      const maxSlides = state.settings.demoMode?.maxSlides || 5;
-      const slides: Slide[] = (data.slides || []).slice(0, maxSlides);
+        const normalizedContent =
+          (slide.content && String(slide.content).trim())
+            ? String(slide.content)
+            : (bulletPoints && bulletPoints.length > 0)
+              ? bulletPoints.map((p: string) => `• ${p}`.trim()).join('\n')
+              : '';
+
+        return {
+          moduleId,
+          slideNumber: slide.slide_number || slide.slideNumber,
+          title: slide.title,
+          subtitle: slide.subtitle,
+          content: normalizedContent,
+          bulletPoints,
+          speakerNotes: slide.speaker_notes || slide.speakerNotes,
+          layout: slide.layout,
+          suggestedImageQuery: slide.suggested_image_query || slide.suggestedImageQuery,
+          imageUrl: slide.image_url || slide.imageUrl,
+        };
+      }).slice(0, maxSlides); // Ensure demo limit
       
       setState(prev => ({
         ...prev,
