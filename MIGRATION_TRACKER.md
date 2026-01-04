@@ -46,22 +46,25 @@
 ## Phase 2: Content Enhancement 🟡
 
 ### 2.1 Exercise Generation
-- [ ] Backend: Create `/api/exercises/generate` endpoint
-- [ ] Frontend: Update `ExerciseStep.tsx`
+- [x] Backend: Create `/api/exercises/generate` endpoint
+- [x] Frontend: Update `ExerciseStep.tsx`
 - [ ] Test: Verify exercise generation
 - **Used by:** generate-exercises (1 call)
+- **Status:** ✅ COMPLETED
 
 ### 2.2 Quiz Generation
-- [ ] Backend: Create `/api/quiz/generate` endpoint
-- [ ] Frontend: Update `QuizStep.tsx`
+- [x] Backend: Create `/api/quiz/generate` endpoint
+- [x] Frontend: Update `QuizStep.tsx`
 - [ ] Test: Verify quiz generation
 - **Used by:** generate-quiz (1 call)
+- **Status:** ✅ COMPLETED
 
 ### 2.3 Slide Enhancement
-- [ ] Backend: Create `/api/slides/enhance` endpoint
-- [ ] Frontend: Update enhancement panels
+- [x] Backend: Create `/api/slides/enhance` endpoint
+- [x] Frontend: Update `SlideStep.tsx` enhancement panel
 - [ ] Test: Verify slide enhancement
 - **Used by:** enhance-slides (1 call)
+- **Status:** ✅ COMPLETED
 
 ### 2.4 AI Review & Edit
 - [ ] Backend: Create `/api/content/ai-review` endpoint
