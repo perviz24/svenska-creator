@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { 
   ResearchMode, 
@@ -8,6 +7,8 @@ import {
   ScrapeResult,
   RESEARCH_MODES 
 } from '@/types/research';
+
+const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || import.meta.env.VITE_BACKEND_URL || '';
 
 export function useResearchHub() {
   const [isResearching, setIsResearching] = useState(false);
@@ -36,45 +37,34 @@ export function useResearchHub() {
     setIsResearching(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('research-topic', {
-        body: {
+      // Use FastAPI backend instead of Supabase
+      const response = await fetch(`${BACKEND_URL}/api/research/topic`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           topic,
-          researchMode: mode,
           context: options?.context,
           language: options?.language || 'sv',
-          domainFilter: options?.domainFilter,
-          dateFilter: options?.dateFilter,
-          knowledgeBase: options?.knowledgeBase,
-          urlsToScrape: options?.urlsToScrape,
-          maxCitations: options?.maxCitations || 10,
-        }
+          depth: mode === 'deep' ? 'deep' : 'standard',
+        }),
       });
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (!response.ok) throw new Error('Research failed');
+      const data = await response.json();
 
       const result: ResearchResult = {
-        content: data.research,
-        citations: data.citations || [],
+        content: data.content,
+        citations: [],
         topic: data.topic,
-        mode: data.researchMode,
-        model: data.modelUsed,
-        metadata: data.metadata,
+        mode: mode,
+        model: 'gemini-2.5-flash',
+        metadata: {},
       };
 
       setResults(prev => [...prev, result]);
 
-      // Add citations to collection
-      const newCitations: Citation[] = result.citations.map((url, i) => ({
-        id: `${Date.now()}-${i}`,
-        url,
-        addedAt: new Date(),
-      }));
-      
-      setCitations(prev => [...prev, ...newCitations]);
-
       const modeConfig = RESEARCH_MODES.find(m => m.id === mode);
-      toast.success(`Forskning klar med ${modeConfig?.name || mode} (${result.citations.length} källor)`);
+      toast.success(`Forskning klar med ${modeConfig?.name || mode}`);
 
       return result;
     } catch (err) {
