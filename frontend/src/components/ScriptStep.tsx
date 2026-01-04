@@ -172,35 +172,33 @@ export function ScriptStep({
     try {
       const manuscriptText = script.sections.map(s => s.content).join('\n\n');
       
-      const { data, error } = await supabase.functions.invoke('analyze-manuscript', {
-        body: {
-          manuscript: manuscriptText,
-          moduleTitle: script.moduleTitle,
-          courseTitle,
-          action,
+      // Use FastAPI backend instead of Supabase
+      const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || import.meta.env.VITE_BACKEND_URL || '';
+      const response = await fetch(`${BACKEND_URL}/api/ai/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: manuscriptText,
+          action: action === 'expand' ? 'expand' : action === 'convert' ? 'simplify' : 'improve',
+          context: `Module: ${script.moduleTitle}, Course: ${courseTitle}`,
           language,
-        },
+        }),
       });
 
-      if (error) throw error;
-
-      if (data.error) {
-        if (data.error.includes('Rate limit')) {
-          toast.error('För många förfrågningar. Försök igen senare.');
-        } else if (data.error.includes('Payment')) {
-          toast.error('Krediter krävs. Lägg till krediter för att fortsätta.');
-        } else {
-          throw new Error(data.error);
-        }
-        return;
-      }
+      if (!response.ok) throw new Error('Analysis failed');
+      const data = await response.json();
 
       // Update the script with AI-analyzed content
       const updatedScript: ModuleScript = {
         ...script,
-        sections: data.sections,
-        totalWords: data.totalWords,
-        estimatedDuration: data.estimatedDuration,
+        sections: [{
+          id: script.sections[0]?.id || 'section-1',
+          title: script.moduleTitle,
+          content: data.improved_content || manuscriptText,
+          slideMarkers: script.sections[0]?.slideMarkers || [],
+        }],
+        totalWords: data.improved_content?.split(/\s+/).length || script.totalWords,
+        estimatedDuration: script.estimatedDuration,
       };
 
       if (onUploadScript) {
