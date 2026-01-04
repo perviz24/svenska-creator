@@ -112,16 +112,11 @@ const Demo = () => {
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
     
     try {
-      const { data, error } = await supabase.functions.invoke('generate-titles', {
-        body: { 
-          title: state.title,
-          language: state.settings.language,
-          demoMode: true
-        }
+      // Call FastAPI backend instead of Supabase
+      const data = await generateTitlesAPI({
+        title: state.title,
+        language: state.settings.language || 'sv',
       });
-
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
 
       const suggestions: TitleSuggestion[] = (data.suggestions || []).slice(0, 3); // Limit for demo
       
