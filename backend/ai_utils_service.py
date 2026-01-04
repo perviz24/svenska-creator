@@ -110,15 +110,10 @@ async def translate_content(request: TranslateRequest) -> TranslateResponse:
 Maintain the original formatting, tone, and meaning.
 Only output the translated text, nothing else."""
 
-    messages = [
-        LlmMessage(role="system", content=system_prompt),
-        LlmMessage(role="user", content=request.content)
-    ]
-    
-    response = await chat(
-        api_key=EMERGENT_KEY,
-        messages=messages,
-        model="gemini-2.5-flash"
+    llm = LlmChat(api_key=EMERGENT_KEY, model="gemini-2.5-flash")
+    response = await llm.chat(
+        system_message=system_prompt,
+        user_message=request.content
     )
     
     return TranslateResponse(
