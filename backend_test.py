@@ -648,8 +648,8 @@ class CourseAPITester:
             if "voices" in response:
                 voices = response["voices"]
                 if len(voices) >= 20:
-                    # Check first voice has required fields
-                    if voices and all(key in voices[0] for key in ["voice_id", "name"]):
+                    # Check first voice has required fields (based on actual response)
+                    if voices and all(key in voices[0] for key in ["id", "name"]):
                         self.log_test("ElevenLabs Voices", "PASS", 
                                     f"Retrieved {len(voices)} voices (≥20 expected)", response_time)
                     else:
