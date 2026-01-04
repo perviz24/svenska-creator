@@ -620,8 +620,8 @@ class CourseAPITester:
             if "avatars" in response:
                 avatars = response["avatars"]
                 if len(avatars) >= 1000:
-                    # Check first avatar has required fields
-                    if avatars and all(key in avatars[0] for key in ["avatar_id", "avatar_name"]):
+                    # Check first avatar has required fields (based on actual response)
+                    if avatars and all(key in avatars[0] for key in ["id", "name"]):
                         self.log_test("HeyGen Avatars", "PASS", 
                                     f"Retrieved {len(avatars)} avatars (≥1000 expected)", response_time)
                     else:
