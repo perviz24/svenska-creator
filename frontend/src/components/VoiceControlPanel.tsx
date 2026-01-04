@@ -110,19 +110,17 @@ export function VoiceControlPanel({
         ? 'Välkommen till denna kurs. Jag kommer att guida dig genom materialet på ett tydligt och engagerande sätt.'
         : 'Welcome to this course. I will guide you through the material in a clear and engaging way.';
 
+      const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || import.meta.env.VITE_BACKEND_URL || '';
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-voice`,
+        `${BACKEND_URL}/api/voice/elevenlabs/generate`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({ 
             text: sampleText,
-            voiceId,
-            apiKey,
+            voice_id: voiceId,
           }),
         }
       );
