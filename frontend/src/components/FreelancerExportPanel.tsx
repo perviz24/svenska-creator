@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
 import { Slide } from '@/types/course';
 import { toast } from 'sonner';
 
@@ -34,24 +33,34 @@ export function FreelancerExportPanel({
   const handleGenerateBrief = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('freelancer-integration', {
-        body: {
-          action: 'generate-brief',
-          slides,
-          courseTitle,
-          moduleTitle,
-          designNotes,
-          platform,
-          stylePreferences: {
-            colorScheme: colorScheme || undefined,
-            brandColors: brandColors ? brandColors.split(',').map(c => c.trim()) : undefined,
-          },
-        },
-      });
+      // Generate brief locally instead of using Supabase
+      const briefTemplate = `
+# Presentation Design Brief
 
-      if (error) throw error;
-      
-      setGeneratedBrief(data.brief);
+## Project Details
+- **Course Title:** ${courseTitle}
+- **Module:** ${moduleTitle || 'Full Course'}
+- **Platform:** ${platform}
+- **Number of Slides:** ${slides.length}
+
+## Design Requirements
+${designNotes || 'Standard professional design'}
+
+## Style Preferences
+- Color Scheme: ${colorScheme || 'Professional Blues'}
+- Brand Colors: ${brandColors || 'Not specified'}
+
+## Slide Content
+${slides.map((s, i) => `
+### Slide ${i + 1}: ${s.title}
+${s.content || s.bulletPoints?.join('\n• ') || 'No content'}
+`).join('\n')}
+
+## Notes for Designer
+Please create visually appealing slides that match the course theme.
+      `.trim();
+
+      setGeneratedBrief(briefTemplate);
       toast.success('Brief genererad!');
     } catch (error) {
       console.error('Error generating brief:', error);
@@ -64,37 +73,28 @@ export function FreelancerExportPanel({
   const handleExportPackage = async (format: 'text' | 'json' | 'csv' | 'markdown') => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('freelancer-integration', {
-        body: {
-          action: 'export-for-designer',
-          slides,
-          courseTitle,
-          moduleTitle,
-          designNotes,
-          platform,
-          stylePreferences: {
-            colorScheme: colorScheme || undefined,
-            brandColors: brandColors ? brandColors.split(',').map(c => c.trim()) : undefined,
-          },
-        },
-      });
-
-      if (error) throw error;
+      // Generate exports locally instead of using Supabase
+      const exports = {
+        textContent: slides.map((s, i) => `Slide ${i + 1}: ${s.title}\n${s.content || ''}`).join('\n\n'),
+        jsonContent: JSON.stringify({ courseTitle, slides }, null, 2),
+        csvContent: `Slide Number,Title,Content\n${slides.map((s, i) => `${i + 1},"${s.title}","${s.content || ''}"`).join('\n')}`,
+        markdownContent: slides.map((s, i) => `## Slide ${i + 1}: ${s.title}\n\n${s.content || ''}`).join('\n\n---\n\n'),
+      };
 
       // Get the right format
       const contentMap: Record<string, { content: string; filename: string; mimeType: string }> = {
         text: { 
-          content: data.exports.textContent, 
+          content: exports.textContent, 
           filename: `${courseTitle}_slides.txt`,
           mimeType: 'text/plain',
         },
         json: { 
-          content: data.exports.jsonContent, 
+          content: exports.jsonContent, 
           filename: `${courseTitle}_slides.json`,
           mimeType: 'application/json',
         },
         csv: { 
-          content: data.exports.csvContent, 
+          content: exports.csvContent, 
           filename: `${courseTitle}_slides.csv`,
           mimeType: 'text/csv',
         },
