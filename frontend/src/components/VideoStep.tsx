@@ -198,14 +198,20 @@ export function VideoStep({
   const handleLoadAvatars = async () => {
     setIsLoadingAvatars(true);
     try {
-      const { data, error } = await supabase.functions.invoke('heygen-video', {
-        body: { action: 'list-avatars' },
-      });
-
-      if (error) throw error;
-      setAvatars(data.avatars || []);
+      // Use FastAPI backend instead of Supabase
+      const avatarList = await listHeyGenAvatars();
       
-      if (data.avatars?.length === 0) {
+      // Map to internal format
+      const mappedAvatars: HeyGenAvatar[] = avatarList.map(a => ({
+        id: a.id,
+        name: a.name,
+        thumbnailUrl: a.thumbnail_url,
+        gender: a.gender,
+      }));
+      
+      setAvatars(mappedAvatars);
+      
+      if (mappedAvatars.length === 0) {
         toast.info('Inga avatarer hittades. Kontrollera din HeyGen API-nyckel.');
       }
     } catch (error) {
@@ -229,22 +235,18 @@ export function VideoStep({
         .filter(Boolean)
         .join('\n\n');
 
-      const { data, error } = await supabase.functions.invoke('heygen-video', {
-        body: {
-          action: 'generate-video',
-          script: fullScript,
-          avatarId: videoSettings.avatarId,
-          title: `${courseTitle} - ${currentScript.moduleTitle}`,
-        },
+      // Use FastAPI backend instead of Supabase
+      const result = await generateHeyGenVideo({
+        script: fullScript,
+        avatar_id: videoSettings.avatarId,
+        title: `${courseTitle} - ${currentScript.moduleTitle}`,
       });
 
-      if (error) throw error;
-
       // Store the video ID for tracking
-      if (data.videoId && currentScript) {
+      if (result.video_id && currentScript) {
         setGeneratedVideoIds(prev => ({
           ...prev,
-          [currentScript.moduleId]: data.videoId,
+          [currentScript.moduleId]: result.video_id,
         }));
         setShowReviewPanel(true);
       }
