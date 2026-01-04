@@ -206,12 +206,22 @@ IMPORTANT: Vary the layouts throughout - avoid using same layout consecutively.
     # Convert to response model
     slides = []
     for slide_data in data.get("slides", []):
+        # Handle content field - convert list to string if needed
+        content = slide_data.get("content") or ""
+        if isinstance(content, list):
+            content = "\n".join(str(item) for item in content)
+        
+        # Handle speaker_notes field - convert list to string if needed  
+        speaker_notes = slide_data.get("speaker_notes") or ""
+        if isinstance(speaker_notes, list):
+            speaker_notes = "\n".join(str(item) for item in speaker_notes)
+            
         slides.append(SlideContent(
             slide_number=slide_data.get("slide_number", len(slides) + 1),
             title=slide_data.get("title") or "Untitled",
             subtitle=slide_data.get("subtitle"),
-            content=slide_data.get("content") or "",
-            speaker_notes=slide_data.get("speaker_notes") or "",
+            content=content,
+            speaker_notes=speaker_notes,
             layout=slide_data.get("layout") or "title-content",
             suggested_image_query=slide_data.get("suggested_image_query") or "",
             image_url=slide_data.get("image_url"),
