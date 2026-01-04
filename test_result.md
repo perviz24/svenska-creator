@@ -168,51 +168,63 @@ backend:
 frontend:
   - task: "Demo Mode Activation"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/src/pages/Demo.tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
           agent: "main"
           comment: "Frontend migration completed. Demo mode page implemented with yellow banner and demo limitations. Needs testing to verify proper activation and UI display."
+        - working: true
+          agent: "testing"
+          comment: "Working correctly - Demo mode activates properly with yellow banner 'Demoläge aktivt - Begränsad output med vattenstämpel'. Demo limitations displayed (Max 5 slides, Max 1 modul, Max 60s ljud, Vattenstämpel på). Navigation and UI elements function correctly."
 
   - task: "Course Mode Selection"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/src/components/ModeSelectionStep.tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
           agent: "main"
           comment: "Mode selection component implemented with 'Komplett kurs' and 'Presentation' options. Needs testing to verify proper selection and workflow progression."
+        - working: true
+          agent: "testing"
+          comment: "Working correctly - 'Komplett kurs' mode selection works properly. Radio button selection functions correctly and workflow progresses to title step as expected."
 
   - task: "Title Generation Frontend"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/src/components/TitleStep.tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
           agent: "main"
           comment: "Title step component implemented with FastAPI integration. Uses courseApi.ts for backend calls. Needs testing to verify title generation and suggestion display."
+        - working: true
+          agent: "testing"
+          comment: "Working correctly - Title input field accepts text, 'Generera förslag' button functions, and displays 3 Swedish title suggestions: 'Python för Vårdsektorn: Grundläggande Programmering och Tillämpningar', 'Digitala Verktyg i Vården: Introduktion till Python', 'Effektivisering med Python: En Grundkurs för Vårdpersonal'. However, Demo Mode still uses Supabase functions instead of FastAPI backend."
 
   - task: "FastAPI Integration"
-    implemented: true
-    working: "NA"
-    file: "/app/frontend/src/hooks/useCourseWorkflow.ts"
-    stuck_count: 0
+    implemented: false
+    working: false
+    file: "/app/frontend/src/pages/Demo.tsx"
+    stuck_count: 1
     priority: "high"
     needs_retesting: true
     status_history:
         - working: "NA"
           agent: "main"
           comment: "Course workflow hook updated to use FastAPI backend instead of Supabase functions. Title and outline generation now call /api/course/generate-titles and /api/course/generate-outline endpoints."
+        - working: false
+          agent: "testing"
+          comment: "CRITICAL: Demo Mode still uses Supabase functions instead of FastAPI backend. Found supabase.functions.invoke('generate-titles'), supabase.functions.invoke('generate-outline'), supabase.functions.invoke('generate-script'), and supabase.functions.invoke('generate-slides') in Demo.tsx. The main useCourseWorkflow.ts has been migrated but Demo Mode needs separate migration to use FastAPI endpoints."
 
 metadata:
   created_by: "testing_agent"
