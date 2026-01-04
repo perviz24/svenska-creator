@@ -288,7 +288,7 @@
 ## Migration Statistics
 
 - **Total Functions:** 35
-- **Migrated:** 8 (23%)
+- **Migrated:** 11 (31%)
   - Title Generation ✅
   - Outline Generation ✅
   - Script Generation ✅
@@ -297,8 +297,11 @@
   - Quiz Generation ✅
   - Slide Enhancement ✅
   - Presenton Generation ✅
+  - Demo Mode Title Gen ✅
+  - Demo Mode Outline Gen ✅
+  - Demo Mode Script Gen ✅
 - **In Progress:** 0 (0%)
-- **Remaining:** 27 (77%)
+- **Remaining:** 24 (69%)
 
 **Estimated Time:**
 - Core Flow (Phase 1): 4-6 hours
