@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Slide } from '@/types/course';
 
@@ -22,32 +21,30 @@ interface CanvaTemplatesProps {
   onExportToCanva: () => void;
 }
 
+// Predefined templates (since Canva API integration requires OAuth)
+const BUILT_IN_TEMPLATES: CanvaTemplate[] = [
+  { id: 'professional', name: 'Professionell', category: 'business', thumbnail: '', colors: ['#1e3a5f', '#ffffff', '#f0f4f8'] },
+  { id: 'modern', name: 'Modern', category: 'business', thumbnail: '', colors: ['#2d3748', '#ed8936', '#ffffff'] },
+  { id: 'creative', name: 'Kreativ', category: 'creative', thumbnail: '', colors: ['#553c9a', '#ed64a6', '#ffffff'] },
+  { id: 'minimal', name: 'Minimal', category: 'minimal', thumbnail: '', colors: ['#1a1a1a', '#ffffff', '#f7f7f7'] },
+  { id: 'corporate', name: 'Företag', category: 'business', thumbnail: '', colors: ['#003366', '#0066cc', '#ffffff'] },
+];
+
 export function CanvaTemplates({ slides, onApplyTemplate, onExportToCanva }: CanvaTemplatesProps) {
-  const [templates, setTemplates] = useState<CanvaTemplate[]>([]);
+  const [templates, setTemplates] = useState<CanvaTemplate[]>(BUILT_IN_TEMPLATES);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [isApplying, setIsApplying] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
-    loadTemplates();
+    // Templates are pre-loaded, no API call needed
+    setTemplates(BUILT_IN_TEMPLATES);
   }, []);
 
   const loadTemplates = async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('canva-integration', {
-        body: { action: 'get-templates' },
-      });
-
-      if (error) throw error;
-      setTemplates(data.templates || []);
-    } catch (error) {
-      console.error('Error loading templates:', error);
-      toast.error('Kunde inte ladda mallar');
-    } finally {
-      setIsLoading(false);
-    }
+    // Templates are built-in, show them immediately
+    setTemplates(BUILT_IN_TEMPLATES);
   };
 
   const handleApplyTemplate = async (templateId: string) => {
@@ -59,25 +56,18 @@ export function CanvaTemplates({ slides, onApplyTemplate, onExportToCanva }: Can
     setIsApplying(true);
     setSelectedTemplate(templateId);
     try {
-      const { data, error } = await supabase.functions.invoke('canva-integration', {
-        body: {
-          action: 'apply-template',
-          slides: slides.map(s => ({
-            title: s.title,
-            content: s.content,
-            layout: s.layout,
-            speakerNotes: s.speakerNotes,
-            imageUrl: s.imageUrl,
-          })),
-          templateId,
-        },
-      });
+      // Apply template styling locally
+      const template = templates.find(t => t.id === templateId);
+      if (!template) throw new Error('Template not found');
 
-      if (error) throw error;
+      const styledSlides = slides.map(s => ({
+        ...s,
+        backgroundColor: template.colors[0],
+        textColor: template.colors[2],
+      }));
 
-      if (data.slides) {
-        onApplyTemplate(templateId, data.slides);
-        toast.success(`Mall "${templates.find(t => t.id === templateId)?.name}" applicerad!`);
+      onApplyTemplate(templateId, styledSlides);
+      toast.success(`Mall "${template.name}" applicerad!`);
       }
     } catch (error) {
       console.error('Error applying template:', error);
