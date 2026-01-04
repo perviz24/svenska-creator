@@ -180,6 +180,9 @@ frontend:
         - working: true
           agent: "testing"
           comment: "Working correctly - Demo mode activates properly with yellow banner 'Demoläge aktivt - Begränsad output med vattenstämpel'. Demo limitations displayed (Max 5 slides, Max 1 modul, Max 60s ljud, Vattenstämpel på). Navigation and UI elements function correctly."
+        - working: true
+          agent: "testing"
+          comment: "✅ REGRESSION TEST VERIFIED: Demo mode activation working perfectly after compilation fix. Yellow banner 'Demoläge aktivt - Begränsad output med vattenstämpel' displays correctly, demo limitations visible, navigation functional. Application loads correctly from login page with 'Testa Demo' banner."
 
   - task: "Course Mode Selection"
     implemented: true
@@ -195,6 +198,9 @@ frontend:
         - working: true
           agent: "testing"
           comment: "Working correctly - 'Komplett kurs' mode selection works properly. Radio button selection functions correctly and workflow progresses to title step as expected."
+        - working: true
+          agent: "testing"
+          comment: "✅ REGRESSION TEST VERIFIED: Course mode selection working perfectly. 'Komplett kurs' option visible and selectable, workflow progression to title step functions correctly. UI displays properly with Swedish text."
 
   - task: "Title Generation Frontend"
     implemented: true
@@ -210,6 +216,9 @@ frontend:
         - working: true
           agent: "testing"
           comment: "Working correctly - Title input field accepts text, 'Generera förslag' button functions, and displays 3 Swedish title suggestions: 'Python för Vårdsektorn: Grundläggande Programmering och Tillämpningar', 'Digitala Verktyg i Vården: Introduktion till Python', 'Effektivisering med Python: En Grundkurs för Vårdpersonal'. However, Demo Mode still uses Supabase functions instead of FastAPI backend."
+        - working: true
+          agent: "testing"
+          comment: "✅ REGRESSION TEST VERIFIED: Title generation working perfectly after compilation fix. Successfully generates 3 Swedish title suggestions: 'Python för datadrivenvård: Grunderna för effektivisering', 'Introduktion till Python för vårdens analytiker', 'Effektivisera vårdarbetet med Python: En praktisk guide'. FastAPI backend integration confirmed working. Input field accepts text, generation button functional, workflow progression works correctly."
 
   - task: "FastAPI Integration"
     implemented: true
@@ -228,6 +237,9 @@ frontend:
         - working: true
           agent: "testing"
           comment: "✅ MIGRATION SUCCESSFUL: Demo Mode now correctly uses FastAPI backend. Verified complete workflow: Demo activation → 'Komplett kurs' selection → Title generation (POST /api/course/generate-titles) → Swedish title suggestions displayed → Outline generation ready. No Supabase calls detected. Demo limitations banner visible. All core functionality working correctly."
+        - working: true
+          agent: "testing"
+          comment: "✅ REGRESSION TEST VERIFIED: FastAPI integration working perfectly after compilation fix. Title generation successfully calls FastAPI backend (POST /api/course/generate-titles), no Supabase calls detected. Complete migration from Supabase to FastAPI confirmed working. Backend integration stable and functional."
 
   - task: "Quiz Generation Frontend"
     implemented: true
