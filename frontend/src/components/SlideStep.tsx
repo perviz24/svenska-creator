@@ -380,6 +380,16 @@ export function SlideStep({
     const maxAttempts = 60; // 2 minutes max
     const pollInterval = 2000; // 2 seconds
     
+    // Progress milestones for better UX
+    const milestones = [
+      { progress: 10, message: 'Analyserar innehåll...' },
+      { progress: 25, message: 'Genererar slide-struktur...' },
+      { progress: 40, message: 'Skapar slide-design...' },
+      { progress: 60, message: 'Lägger till bilder...' },
+      { progress: 80, message: 'Finsliper presentation...' },
+      { progress: 95, message: 'Nästan klar...' }
+    ];
+    
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const { data, error } = await supabase.functions.invoke('presenton-slides', {
@@ -392,8 +402,16 @@ export function SlideStep({
         if (error) throw error;
 
         // Update progress based on attempt (simulate progress)
-        const progress = Math.min(10 + (attempt * 1.5), 90);
+        const progress = Math.min(10 + (attempt * 1.5), 95);
         setPresentonProgress(progress);
+        
+        // Show milestone messages
+        const milestone = milestones.find(m => 
+          progress >= m.progress && progress < m.progress + 15
+        );
+        if (milestone && attempt % 5 === 0) {
+          toast.info(milestone.message, { duration: 2000 });
+        }
 
         if (data.status === 'completed') {
           setPresentonStatus('completed');
@@ -429,6 +447,7 @@ export function SlideStep({
           }
           
           toast.success('Presentation genererad via Presenton!', {
+            duration: 6000,
             action: {
               label: 'Ladda ner PPTX',
               onClick: () => window.open(data.downloadUrl, '_blank'),
@@ -492,7 +511,7 @@ export function SlideStep({
       });
     }
     
-    toast.error('Timeout - presentationen tog för lång tid att generera');
+    toast.error('Timeout - presentationen tog för lång tid att generera. Försök med färre slides eller använd Intern AI.');
   };
 
   const handleSlidesReceived = (slidesData: any[], source: string) => {
