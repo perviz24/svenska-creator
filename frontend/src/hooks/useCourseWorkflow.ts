@@ -442,8 +442,8 @@ export function useCourseWorkflow() {
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
     
     try {
-      const { data, error } = await supabase.functions.invoke('generate-titles', {
-        body: { 
+      const { data, error } = await generateTitlesAPI({
+        title: state.title, 
           title: state.title,
           language: state.settings.language 
         }
