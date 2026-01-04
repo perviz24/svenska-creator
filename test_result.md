@@ -339,10 +339,12 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Demo Mode Activation"
-    - "Course Mode Selection"
-    - "Title Generation Frontend"
-    - "FastAPI Integration"
+    - "Media Photos Search API"
+    - "Media Videos Search API"
+    - "HeyGen Avatars API"
+    - "ElevenLabs Voices API"
+    - "Voice Duration Estimate API"
+    - "Research Scrape API"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
