@@ -54,7 +54,7 @@ async def list_heygen_avatars(api_key: Optional[str] = None) -> List[Avatar]:
     if not heygen_key:
         raise ValueError("HeyGen API key not configured. Please add your API key.")
     
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(
             "https://api.heygen.com/v2/avatars",
             headers={
@@ -62,7 +62,11 @@ async def list_heygen_avatars(api_key: Optional[str] = None) -> List[Avatar]:
                 "Content-Type": "application/json"
             }
         )
-        response.raise_for_status()
+        
+        if not response.is_success:
+            error_text = response.text
+            raise ValueError(f"HeyGen API error: {response.status_code} - {error_text}")
+        
         data = response.json()
     
     avatars = []
