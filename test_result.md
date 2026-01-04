@@ -350,13 +350,7 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "Media Photos Search API"
-    - "Media Videos Search API"
-    - "HeyGen Avatars API"
-    - "ElevenLabs Voices API"
-    - "Voice Duration Estimate API"
-    - "Research Scrape API"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
