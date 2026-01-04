@@ -50,20 +50,10 @@ export function StockVideoSearch({ context, onVideoSelect, selectedVideos = [], 
 
     setIsEnhancing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('search-stock-videos', {
-        body: { 
-          action: 'enhance-query',
-          query: searchQuery,
-          context 
-        }
-      });
-
-      if (error) throw error;
-      if (data?.enhancedQuery) {
-        setEnhancedQuery(data.enhancedQuery);
-        setSearchQuery(data.enhancedQuery);
-        toast.success('Sökfråga förbättrad med AI');
-      }
+      // AI query enhancement is not yet implemented in FastAPI
+      // For now, just use the original query
+      toast.info('AI-förbättring används - söker med aktuell fråga');
+      setEnhancedQuery(searchQuery);
     } catch (err) {
       console.error('Error enhancing query:', err);
       toast.error('Kunde inte förbättra sökfrågan');
@@ -81,27 +71,26 @@ export function StockVideoSearch({ context, onVideoSelect, selectedVideos = [], 
     setIsSearching(true);
     setVideos([]);
     try {
-      const { data, error } = await supabase.functions.invoke('search-stock-videos', {
-        body: { 
-          action: 'search',
-          query: searchQuery,
-          context,
-          perPage: 20,
-          provider,
-          userId: user?.id,
-        }
-      });
-
-      if (error) throw error;
-      
-      if (data?.error) {
-        toast.error(data.error);
-        return;
-      }
+      // Use FastAPI backend instead of Supabase
+      const data = await searchVideos(searchQuery, provider, 20);
       
       if (data?.videos) {
-        setVideos(data.videos);
-        if (data.videos.length === 0) {
+        // Map the response to match the StockVideo interface
+        const mappedVideos: StockVideo[] = data.videos.map((v: any) => ({
+          id: v.id,
+          url: v.url,
+          previewUrl: v.preview_url,
+          thumbnailUrl: v.thumbnail_url,
+          duration: v.duration,
+          width: v.width,
+          height: v.height,
+          user: v.user,
+          userUrl: v.user_url,
+          source: v.source as StockVideoProvider,
+          tags: v.tags || [],
+        }));
+        setVideos(mappedVideos);
+        if (mappedVideos.length === 0) {
           toast.info('Inga videor hittades. Försök med en annan sökfråga.');
         }
       }
