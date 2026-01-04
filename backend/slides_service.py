@@ -36,10 +36,10 @@ class SlideContent(BaseModel):
     slide_number: int
     title: str
     subtitle: Optional[str] = None
-    content: str
-    speaker_notes: str
-    layout: str
-    suggested_image_query: str
+    content: Optional[str] = ""  # Allow None, default to empty string
+    speaker_notes: Optional[str] = ""  # Allow None, default to empty string
+    layout: str = "title-content"  # Default layout
+    suggested_image_query: Optional[str] = ""
     image_url: Optional[str] = None
     image_source: Optional[str] = None
     image_attribution: Optional[str] = None
