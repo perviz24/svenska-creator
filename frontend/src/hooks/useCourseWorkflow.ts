@@ -720,24 +720,31 @@ export function useCourseWorkflow() {
     const isDemoMode = effectiveDemoMode?.enabled || false;
     
     try {
-      const { data, error } = await supabase.functions.invoke('generate-script', {
-        body: { 
-          module: isDemoMode ? { ...module, duration: 2 } : module, // Shorter module duration for demo
-          courseTitle: state.title,
-          style: state.settings.style,
-          language: state.settings.language,
-          enableResearch: isDemoMode ? false : state.settings.enableResearch, // Skip research in demo for speed
-          demoMode: isDemoMode,
-        }
+      // Call FastAPI backend instead of Supabase function
+      const data: ScriptGenerationResponse = await generateScriptAPI({
+        module_title: module.title,
+        module_description: module.description || '',
+        course_title: state.title,
+        language: state.settings.language || 'sv',
+        target_duration: isDemoMode ? 2 : (module.duration || 10),
+        tone: state.settings.style || 'professional',
+        additional_context: undefined,
       });
 
-      if (error) throw error;
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      const script: ModuleScript = data.script;
+      // Map API response to ModuleScript format
+      const script: ModuleScript = {
+        moduleId: data.module_id || module.id,
+        moduleTitle: data.module_title || module.title,
+        sections: data.sections.map(s => ({
+          id: s.id,
+          title: s.title,
+          content: s.content,
+          slideMarkers: s.slide_markers,
+        })),
+        estimatedDuration: data.estimated_duration,
+        totalWords: data.total_words,
+        citations: data.citations || [],
+      };
       
       setState(prev => ({
         ...prev,
@@ -760,7 +767,7 @@ export function useCourseWorkflow() {
       }));
       toast.error(message);
     }
-  }, [state.outline, state.title, state.settings, courseId]);
+  }, [state.outline, state.title, state.settings, courseId, effectiveDemoMode]);
 
   const uploadScript = useCallback(async (moduleId: string, script: ModuleScript) => {
     // Add the uploaded script to state
