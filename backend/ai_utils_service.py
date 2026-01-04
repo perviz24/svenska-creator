@@ -143,15 +143,10 @@ Respond in JSON format:
     "suggestions": ["suggestion1"]
 }"""
 
-    messages = [
-        LlmMessage(role="system", content=system_prompt),
-        LlmMessage(role="user", content=f"Course title: {request.title}\nDescription: {request.description or 'N/A'}\nTarget audience: {request.target_audience or 'General'}")
-    ]
-    
-    response = await chat(
-        api_key=EMERGENT_KEY,
-        messages=messages,
-        model="gemini-2.5-flash"
+    llm = LlmChat(api_key=EMERGENT_KEY, model="gemini-2.5-flash")
+    response = await llm.chat(
+        system_message=system_prompt,
+        user_message=f"Course title: {request.title}\nDescription: {request.description or 'N/A'}\nTarget audience: {request.target_audience or 'General'}"
     )
     
     try:
