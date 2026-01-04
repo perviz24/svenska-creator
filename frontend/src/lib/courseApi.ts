@@ -133,12 +133,13 @@ export interface SlideGenerationRequest {
   course_title: string;
   num_slides?: number;
   language?: string;
-  tone?: string;
+  tone?: 'professional' | 'casual' | 'educational' | 'inspirational';
   verbosity?: 'concise' | 'standard' | 'text-heavy';
   include_title_slide?: boolean;
   include_table_of_contents?: boolean;
   industry?: string;
   audience_type?: string;
+  presentation_goal?: 'inform' | 'persuade' | 'inspire' | 'teach';
 }
 
 export interface SlideContent {
@@ -146,9 +147,15 @@ export interface SlideContent {
   title: string;
   subtitle?: string;
   content: string;
+  bullet_points?: string[];
+  key_takeaway?: string;
   speaker_notes: string;
   layout: string;
   suggested_image_query: string;
+  suggested_icon?: string;
+  visual_type?: 'photo' | 'illustration' | 'icon' | 'chart' | 'diagram';
+  color_accent?: string;
+  transition_hint?: string;
   image_url?: string;
   image_source?: string;
   image_attribution?: string;
@@ -159,6 +166,8 @@ export interface SlideGenerationResponse {
   slides: SlideContent[];
   slide_count: number;
   source: string;
+  narrative_structure?: string;
+  color_theme?: string;
 }
 
 export async function generateSlides(request: SlideGenerationRequest): Promise<SlideGenerationResponse> {
