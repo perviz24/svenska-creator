@@ -56,16 +56,13 @@ export function ContentUploader({
         if (file.name.endsWith('.txt') || file.name.endsWith('.md')) {
           content = await file.text();
         } else if (file.name.endsWith('.pdf') || file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
-          // Use parse-document edge function for binary files
-          const formData = new FormData();
-          formData.append('file', file);
-
-          const { data, error } = await supabase.functions.invoke('parse-document', {
-            body: formData,
-          });
-
-          if (error) throw error;
-          content = data.text || '';
+          // Read file as text for simple formats, show info for complex formats
+          try {
+            content = await file.text();
+          } catch {
+            toast.info('PDF/DOCX-filer kan kräva manuell textkopiering');
+            content = '';
+          }
         } else {
           content = await file.text();
         }
@@ -101,13 +98,17 @@ export function ContentUploader({
     setIsScraping(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('scrape-url', {
-        body: { urls: [urlInput.trim()] },
+      // Use FastAPI backend instead of Supabase
+      const response = await fetch(`${BACKEND_URL}/api/research/scrape`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: [urlInput.trim()] }),
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Scraping failed');
+      const data = await response.json();
 
-      const content = data.content || '';
+      const content = data.combined_content || '';
       const newContent: UploadedContent = {
         id: crypto.randomUUID(),
         name: urlInput.trim(),
