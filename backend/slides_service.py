@@ -3,11 +3,15 @@ Slide Generation Service (Internal AI)
 Generates presentation slides using AI with sophisticated image matching
 """
 import os
-import httpx
+from dotenv import load_dotenv
 import json
 import re
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
+from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+# Load environment variables
+load_dotenv()
 
 
 # ============================================================================
@@ -52,49 +56,42 @@ class SlideGenerationResponse(BaseModel):
 # AI Service
 # ============================================================================
 
-async def call_lovable_ai(
+async def call_ai(
     system_prompt: str,
     user_prompt: str,
-    model: str = "google/gemini-2.5-flash",
-    max_tokens: int = 8000
+    session_id: str = "slide-generation"
 ) -> str:
-    """Call Lovable AI Gateway"""
-    LOVABLE_API_KEY = os.getenv("LOVABLE_API_KEY")
-    if not LOVABLE_API_KEY:
-        raise ValueError("LOVABLE_API_KEY not configured")
+    """Call AI via Emergent LLM Key"""
+    EMERGENT_LLM_KEY = os.getenv("EMERGENT_LLM_KEY")
+    if not EMERGENT_LLM_KEY:
+        raise ValueError("EMERGENT_LLM_KEY not configured")
     
-    async with httpx.AsyncClient(timeout=90.0) as client:
-        response = await client.post(
-            "https://ai.gateway.lovable.dev/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {LOVABLE_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                "max_tokens": max_tokens
-            }
-        )
+    try:
+        # Initialize chat with Gemini 2.5 Flash
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=session_id,
+            system_message=system_prompt
+        ).with_model("gemini", "gemini-2.5-flash")
         
-        if not response.is_success:
-            error_text = response.text
-            if response.status_code == 429:
-                raise Exception("Rate limit exceeded. Please try again later.")
-            elif response.status_code == 402:
-                raise Exception("AI credits exhausted. Please add credits to continue.")
-            raise Exception(f"AI Gateway error: {response.status_code} - {error_text}")
+        # Create user message
+        user_message = UserMessage(text=user_prompt)
         
-        data = response.json()
-        content = data.get("choices", [{}])[0].get("message", {}).get("content")
+        # Send message and get response
+        response = await chat.send_message(user_message)
         
-        if not content:
+        if not response:
             raise Exception("No content in AI response")
         
-        return content
+        return response
+        
+    except Exception as e:
+        error_msg = str(e)
+        if "429" in error_msg or "rate limit" in error_msg.lower():
+            raise Exception("Rate limit exceeded. Please try again later.")
+        elif "402" in error_msg or "credit" in error_msg.lower():
+            raise Exception("AI credits exhausted. Please add credits to continue.")
+        raise Exception(f"AI error: {error_msg}")
 
 
 def extract_json_from_response(content: str) -> Dict[str, Any]:
@@ -203,7 +200,7 @@ IMPORTANT: Vary the layouts throughout - avoid using same layout consecutively.
         f'Script content:\n{request.script_content[:4000]}'
     )
     
-    content = await call_lovable_ai(system_prompt, user_prompt)
+    content = await call_ai(system_prompt, user_prompt, session_id=f"slides-gen-{request.module_title[:20]}")
     data = extract_json_from_response(content)
     
     # Convert to response model
