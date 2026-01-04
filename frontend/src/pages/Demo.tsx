@@ -31,9 +31,14 @@ import {
   ModuleExercises,
   ModuleQuiz
 } from '@/types/course';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { VoiceSettings } from '@/components/VoiceControlPanel';
+import {
+  generateTitles as generateTitlesAPI,
+  generateOutline as generateOutlineAPI,
+  generateScript as generateScriptAPI,
+  generateSlides as generateSlidesAPI,
+} from '@/lib/courseApi';
 
 const defaultDemoSettings: DemoModeSettings = {
   enabled: true,
