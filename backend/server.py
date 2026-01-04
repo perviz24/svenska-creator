@@ -92,6 +92,40 @@ async def presenton_status(task_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Course Generation Endpoints
+@api_router.post("/course/generate-titles", response_model=TitleGenerationResponse)
+async def api_generate_titles(request: TitleGenerationRequest):
+    """Generate course title suggestions"""
+    try:
+        result = await generate_titles(request)
+        return result
+    except Exception as e:
+        logger.error(f"Title generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/course/generate-outline", response_model=OutlineGenerationResponse)
+async def api_generate_outline(request: OutlineGenerationRequest):
+    """Generate course outline"""
+    try:
+        result = await generate_outline(request)
+        return result
+    except Exception as e:
+        logger.error(f"Outline generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/course/generate-script", response_model=ScriptGenerationResponse)
+async def api_generate_script(request: ScriptGenerationRequest):
+    """Generate module script"""
+    try:
+        result = await generate_script(request)
+        return result
+    except Exception as e:
+        logger.error(f"Script generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
