@@ -9,10 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slide, ModuleScript, CourseOutline, ModuleAudio, VideoSettings, DemoModeSettings } from '@/types/course';
 import { PresentationPlayer } from '@/components/PresentationPlayer';
 import { AudioReviewPanel, VideoReviewPanel } from '@/components/AudioVideoReviewPanel';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ContentUploader } from '@/components/ContentUploader';
 import { AIRefinementPanel } from '@/components/AIRefinementPanel';
+import { listHeyGenAvatars, generateHeyGenVideo, checkHeyGenVideoStatus } from '@/lib/videoApi';
 
 interface VideoStepProps {
   outline: CourseOutline | null;
