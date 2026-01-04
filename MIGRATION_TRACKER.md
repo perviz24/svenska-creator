@@ -10,29 +10,36 @@
 ## Phase 1: Core Course Generation Flow 🔴
 
 ### 1.1 Title Generation
-- [ ] Backend: Create `/api/course/generate-titles` endpoint
-- [ ] Frontend: Update `ModeSelectionStep.tsx` to use FastAPI
-- [ ] Test: Verify title generation works
+- [x] Backend: Create `/api/course/generate-titles` endpoint
+- [x] Frontend: Update `ModeSelectionStep.tsx` to use FastAPI
+- [x] Frontend: Update `Demo.tsx` to use FastAPI
+- [x] Test: Verify title generation works
 - **Used by:** generate-titles (2 calls)
+- **Status:** ✅ COMPLETED
 
 ### 1.2 Outline Generation
-- [ ] Backend: Create `/api/course/generate-outline` endpoint
-- [ ] Frontend: Update components using `generate-outline`
-- [ ] Test: Verify outline generation works
+- [x] Backend: Create `/api/course/generate-outline` endpoint
+- [x] Frontend: Update `useCourseWorkflow.ts` to use FastAPI
+- [x] Frontend: Update `Demo.tsx` to use FastAPI
+- [x] Test: Verify outline generation works
 - **Used by:** generate-outline (2 calls)
+- **Status:** ✅ COMPLETED
 
 ### 1.3 Script Generation
-- [ ] Backend: Create `/api/course/generate-script` endpoint
-- [ ] Frontend: Update `ScriptStep.tsx` to use FastAPI
-- [ ] Test: Verify script generation works
+- [x] Backend: Create `/api/course/generate-script` endpoint
+- [x] Frontend: Update `useCourseWorkflow.ts` to use FastAPI
+- [x] Frontend: Update `Demo.tsx` to use FastAPI
+- [x] Test: Verify script generation works
 - **Used by:** generate-script (2 calls)
+- **Status:** ✅ COMPLETED
 
 ### 1.4 Slide Generation (Internal AI)
-- [ ] Backend: Create `/api/slides/generate` endpoint
-- [ ] Frontend: Update `SlideStep.tsx` to use FastAPI for Internal AI
-- [ ] Test: Verify slide generation works
+- [x] Backend: Create `/api/slides/generate` endpoint
+- [x] Frontend: Update `SlideStep.tsx` to use FastAPI for Internal AI
+- [x] Frontend: Update `Demo.tsx` to use FastAPI
+- [x] Test: Verify slide generation works
 - **Used by:** generate-slides (2 calls)
-- **Status:** ✅ Presenton already migrated
+- **Status:** ✅ COMPLETED
 
 ---
 
