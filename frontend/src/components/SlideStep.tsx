@@ -709,24 +709,14 @@ export function SlideStep({
 
     setIsGeneratingImage(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-slide-image', {
-        body: {
-          prompt: currentSlide.suggestedImageQuery || currentSlide.title,
-          style: 'professional',
-        },
-      });
-
-      if (error) throw error;
-
-      if (currentModuleId) {
-        onUpdateSlide(currentModuleId, selectedSlideIndex, {
-          imageUrl: data.imageUrl,
-          imageSource: 'ai-generated',
-          imageAttribution: 'AI-generated image',
-        });
+      // AI image generation - show info message
+      // This would require integration with DALL-E, Midjourney, or similar
+      toast.info('AI-bildgenerering kräver konfiguration av bildgenereringstjänst (t.ex. DALL-E)');
+      
+      // For now, suggest searching for stock photos instead
+      if (currentSlide.suggestedImageQuery) {
+        await handleSearchPhotos(currentSlide.suggestedImageQuery);
       }
-
-      toast.success('AI-bild genererad!');
     } catch (error) {
       console.error('Error generating AI image:', error);
       toast.error('Kunde inte generera AI-bild');
