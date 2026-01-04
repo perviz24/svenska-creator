@@ -150,20 +150,6 @@ export const AIRefinementPanel = forwardRef<HTMLDivElement, AIRefinementPanelPro
       setIsTranslating(false);
     }
   };
-          throw new Error(data.error);
-        }
-        return;
-      }
-
-      setRefinedContent(data.translatedContent);
-      toast.success(`Översatt till ${targetLangName}!`);
-    } catch (error) {
-      console.error('Error translating content:', error);
-      toast.error('Kunde inte översätta innehållet');
-    } finally {
-      setIsTranslating(false);
-    }
-  };
 
   const handleAcceptRefinement = () => {
     if (refinedContent) {
