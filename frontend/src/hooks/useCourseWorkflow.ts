@@ -9,8 +9,6 @@ import {
   generateTitles as generateTitlesAPI,
   generateOutline as generateOutlineAPI,
   generateScript as generateScriptAPI,
-  type OutlineGenerationResponse,
-  type ScriptGenerationResponse
 } from '@/lib/courseApi';
 
 // Demo limits applied when Admin Demo Mode is active
