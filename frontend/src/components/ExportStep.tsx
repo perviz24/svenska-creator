@@ -27,6 +27,8 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { exportSlides, downloadBlob } from '@/lib/exportApi';
+import { listBunnyVideos } from '@/lib/videoApi';
 import type { CourseOutline, ModuleAudio, DemoModeSettings } from '@/types/course';
 import { DemoWatermark } from '@/components/DemoWatermark';
 import pptxgen from 'pptxgenjs';
