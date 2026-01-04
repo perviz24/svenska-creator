@@ -206,22 +206,32 @@ IMPORTANT: Vary the layouts throughout - avoid using same layout consecutively.
     # Convert to response model
     slides = []
     for slide_data in data.get("slides", []):
-        # Handle content field - convert list to string if needed
+        # Handle content field - convert list/dict to string if needed
         content = slide_data.get("content") or ""
         if isinstance(content, list):
             content = "\n".join(str(item) for item in content)
+        elif isinstance(content, dict):
+            # Convert dict to formatted string
+            content_parts = []
+            for key, value in content.items():
+                if isinstance(value, list):
+                    value = "\n".join(str(item) for item in value)
+                content_parts.append(f"{key}: {value}")
+            content = "\n".join(content_parts)
         
-        # Handle speaker_notes field - convert list to string if needed  
+        # Handle speaker_notes field - convert list/dict to string if needed  
         speaker_notes = slide_data.get("speaker_notes") or ""
         if isinstance(speaker_notes, list):
             speaker_notes = "\n".join(str(item) for item in speaker_notes)
+        elif isinstance(speaker_notes, dict):
+            speaker_notes = "\n".join(f"{k}: {v}" for k, v in speaker_notes.items())
             
         slides.append(SlideContent(
             slide_number=slide_data.get("slide_number", len(slides) + 1),
             title=slide_data.get("title") or "Untitled",
             subtitle=slide_data.get("subtitle"),
-            content=content,
-            speaker_notes=speaker_notes,
+            content=str(content),  # Ensure it's a string
+            speaker_notes=str(speaker_notes),  # Ensure it's a string
             layout=slide_data.get("layout") or "title-content",
             suggested_image_query=slide_data.get("suggested_image_query") or "",
             image_url=slide_data.get("image_url"),
