@@ -208,12 +208,12 @@ IMPORTANT: Vary the layouts throughout - avoid using same layout consecutively.
     for slide_data in data.get("slides", []):
         slides.append(SlideContent(
             slide_number=slide_data.get("slide_number", len(slides) + 1),
-            title=slide_data.get("title", ""),
+            title=slide_data.get("title") or "Untitled",
             subtitle=slide_data.get("subtitle"),
-            content=slide_data.get("content", ""),
-            speaker_notes=slide_data.get("speaker_notes", ""),
-            layout=slide_data.get("layout", "title-content"),
-            suggested_image_query=slide_data.get("suggested_image_query", ""),
+            content=slide_data.get("content") or "",
+            speaker_notes=slide_data.get("speaker_notes") or "",
+            layout=slide_data.get("layout") or "title-content",
+            suggested_image_query=slide_data.get("suggested_image_query") or "",
             image_url=slide_data.get("image_url"),
             image_source=slide_data.get("image_source"),
             image_attribution=slide_data.get("image_attribution")
