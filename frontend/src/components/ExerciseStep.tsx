@@ -156,26 +156,16 @@ export function ExerciseStep({
       setUploadProgress(((i + 1) / files.length) * 100);
 
       try {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const { data, error } = await supabase.functions.invoke('parse-document', {
-          body: formData,
+        // Read file content and parse locally or via FastAPI
+        const content = await file.text();
+        
+        newDocuments.push({
+          id: `doc-${Date.now()}-${i}`,
+          fileName: file.name,
+          content: content,
+          wordCount: content.split(/\s+/).length,
         });
-
-        if (error) throw error;
-
-        if (data.success && data.extractedText) {
-          newDocuments.push({
-            id: `doc-${Date.now()}-${i}`,
-            fileName: file.name,
-            content: data.extractedText,
-            wordCount: data.wordCount || 0,
-          });
-          toast.success(`"${file.name}" laddades upp`);
-        } else {
-          toast.error(`Kunde inte läsa "${file.name}"`);
-        }
+        toast.success(`"${file.name}" laddades upp`);
       } catch (error) {
         console.error('Upload error:', error);
         toast.error(`Fel vid uppladdning av "${file.name}"`);
