@@ -85,33 +85,31 @@ export function CanvaTemplates({ slides, onApplyTemplate, onExportToCanva }: Can
 
     setIsExporting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('canva-integration', {
-        body: {
-          action: 'export-to-canva',
-          slides: slides.map(s => ({
-            title: s.title,
-            content: s.content,
-            layout: s.layout,
-            speakerNotes: s.speakerNotes,
-            imageUrl: s.imageUrl,
-            backgroundColor: s.backgroundColor,
-          })),
-        },
-      });
+      // Export slides as JSON that can be imported to Canva manually
+      const exportData = {
+        slides: slides.map(s => ({
+          title: s.title,
+          content: s.content,
+          layout: s.layout,
+          speakerNotes: s.speakerNotes,
+          imageUrl: s.imageUrl,
+          backgroundColor: s.backgroundColor,
+        })),
+        exportedAt: new Date().toISOString(),
+      };
 
-      if (error) throw error;
-
-      if (data.downloadUrl) {
-        // Create download link
-        const link = document.createElement('a');
-        link.href = data.downloadUrl;
-        link.download = 'presentation-canva-export.json';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('Exporterad! Importera filen i Canva');
-      }
-
+      // Create download link
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'presentation-canva-export.json';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Exporterad! Du kan nu importera datan manuellt i Canva');
       onExportToCanva();
     } catch (error) {
       console.error('Error exporting to Canva:', error);
