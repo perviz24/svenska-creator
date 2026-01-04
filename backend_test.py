@@ -535,6 +535,192 @@ class CourseAPITester:
             self.log_test("Presenton Generation - Invalid Request", "FAIL", 
                         f"Should reject 0 slides, got HTTP {status}", response_time)
 
+    async def test_media_photos_search(self):
+        """Test POST /api/media/photos/search"""
+        print("\n=== Testing Media Photos Search ===")
+        
+        # Test Pexels photo search
+        url = "/media/photos/search?query=healthcare&provider=pexels&per_page=2"
+        status, response, response_time = await self.make_request("POST", url)
+        
+        if status == 200:
+            # Validate response structure
+            if "photos" in response and "total" in response:
+                photos = response["photos"]
+                if len(photos) == 2:
+                    # Check each photo has required fields
+                    valid_photos = True
+                    for photo in photos:
+                        required_fields = ["id", "url", "photographer", "alt"]
+                        if not all(key in photo for key in required_fields):
+                            valid_photos = False
+                            break
+                    
+                    if valid_photos:
+                        self.log_test("Media Photos Search - Pexels", "PASS", 
+                                    f"Retrieved 2 healthcare photos from Pexels", response_time)
+                    else:
+                        self.log_test("Media Photos Search - Pexels", "FAIL", 
+                                    "Photos missing required fields", response_time)
+                else:
+                    self.log_test("Media Photos Search - Pexels", "FAIL", 
+                                f"Expected 2 photos, got {len(photos)}", response_time)
+            else:
+                self.log_test("Media Photos Search - Pexels", "FAIL", 
+                            "Response missing 'photos' or 'total' fields", response_time)
+        else:
+            self.log_test("Media Photos Search - Pexels", "FAIL", 
+                        f"HTTP {status}: {response.get('detail', response)}", response_time)
+
+    async def test_media_videos_search(self):
+        """Test POST /api/media/videos/search"""
+        print("\n=== Testing Media Videos Search ===")
+        
+        # Test Pexels video search
+        url = "/media/videos/search?query=healthcare&provider=pexels&per_page=2"
+        status, response, response_time = await self.make_request("POST", url)
+        
+        if status == 200:
+            # Validate response structure
+            if "videos" in response and "total" in response and "provider" in response:
+                videos = response["videos"]
+                if len(videos) == 2:
+                    # Check each video has required fields
+                    valid_videos = True
+                    for video in videos:
+                        required_fields = ["id", "url", "duration", "user"]
+                        if not all(key in video for key in required_fields):
+                            valid_videos = False
+                            break
+                    
+                    if valid_videos and response["provider"] == "pexels":
+                        self.log_test("Media Videos Search - Pexels", "PASS", 
+                                    f"Retrieved 2 healthcare videos from Pexels", response_time)
+                    else:
+                        self.log_test("Media Videos Search - Pexels", "FAIL", 
+                                    "Videos missing required fields or wrong provider", response_time)
+                else:
+                    self.log_test("Media Videos Search - Pexels", "FAIL", 
+                                f"Expected 2 videos, got {len(videos)}", response_time)
+            else:
+                self.log_test("Media Videos Search - Pexels", "FAIL", 
+                            "Response missing required fields", response_time)
+        else:
+            self.log_test("Media Videos Search - Pexels", "FAIL", 
+                        f"HTTP {status}: {response.get('detail', response)}", response_time)
+
+    async def test_heygen_avatars(self):
+        """Test GET /api/video/heygen/avatars"""
+        print("\n=== Testing HeyGen Avatars ===")
+        
+        status, response, response_time = await self.make_request("GET", "/video/heygen/avatars")
+        
+        if status == 200:
+            # Validate response structure
+            if "avatars" in response:
+                avatars = response["avatars"]
+                if len(avatars) >= 1000:
+                    # Check first avatar has required fields
+                    if avatars and all(key in avatars[0] for key in ["avatar_id", "avatar_name"]):
+                        self.log_test("HeyGen Avatars", "PASS", 
+                                    f"Retrieved {len(avatars)} avatars (≥1000 expected)", response_time)
+                    else:
+                        self.log_test("HeyGen Avatars", "FAIL", 
+                                    "Avatars missing required fields", response_time)
+                else:
+                    self.log_test("HeyGen Avatars", "FAIL", 
+                                f"Expected ≥1000 avatars, got {len(avatars)}", response_time)
+            else:
+                self.log_test("HeyGen Avatars", "FAIL", 
+                            "Response missing 'avatars' field", response_time)
+        else:
+            self.log_test("HeyGen Avatars", "FAIL", 
+                        f"HTTP {status}: {response.get('detail', response)}", response_time)
+
+    async def test_elevenlabs_voices(self):
+        """Test GET /api/voice/elevenlabs/voices"""
+        print("\n=== Testing ElevenLabs Voices ===")
+        
+        status, response, response_time = await self.make_request("GET", "/voice/elevenlabs/voices")
+        
+        if status == 200:
+            # Validate response structure
+            if "voices" in response:
+                voices = response["voices"]
+                if len(voices) >= 20:
+                    # Check first voice has required fields
+                    if voices and all(key in voices[0] for key in ["voice_id", "name"]):
+                        self.log_test("ElevenLabs Voices", "PASS", 
+                                    f"Retrieved {len(voices)} voices (≥20 expected)", response_time)
+                    else:
+                        self.log_test("ElevenLabs Voices", "FAIL", 
+                                    "Voices missing required fields", response_time)
+                else:
+                    self.log_test("ElevenLabs Voices", "FAIL", 
+                                f"Expected ≥20 voices, got {len(voices)}", response_time)
+            else:
+                self.log_test("ElevenLabs Voices", "FAIL", 
+                            "Response missing 'voices' field", response_time)
+        else:
+            self.log_test("ElevenLabs Voices", "FAIL", 
+                        f"HTTP {status}: {response.get('detail', response)}", response_time)
+
+    async def test_voice_duration_estimate(self):
+        """Test POST /api/voice/estimate-duration"""
+        print("\n=== Testing Voice Duration Estimate ===")
+        
+        url = "/voice/estimate-duration?text=Hello%20world%20this%20is%20a%20test"
+        status, response, response_time = await self.make_request("POST", url)
+        
+        if status == 200:
+            # Validate response structure
+            if "estimated_duration" in response:
+                duration = response["estimated_duration"]
+                if isinstance(duration, (int, float)) and duration > 0:
+                    self.log_test("Voice Duration Estimate", "PASS", 
+                                f"Estimated duration: {duration} seconds", response_time)
+                else:
+                    self.log_test("Voice Duration Estimate", "FAIL", 
+                                f"Invalid duration value: {duration}", response_time)
+            else:
+                self.log_test("Voice Duration Estimate", "FAIL", 
+                            "Response missing 'estimated_duration' field", response_time)
+        else:
+            self.log_test("Voice Duration Estimate", "FAIL", 
+                        f"HTTP {status}: {response.get('detail', response)}", response_time)
+
+    async def test_research_scrape(self):
+        """Test POST /api/research/scrape"""
+        print("\n=== Testing Research Scrape ===")
+        
+        test_data = {
+            "urls": ["https://example.com"]
+        }
+        
+        status, response, response_time = await self.make_request("POST", "/research/scrape", test_data)
+        
+        if status == 200:
+            # Validate response structure
+            if "results" in response:
+                results = response["results"]
+                if isinstance(results, list) and len(results) > 0:
+                    # Check first result has required fields
+                    if all(key in results[0] for key in ["url", "content"]):
+                        self.log_test("Research Scrape", "PASS", 
+                                    f"Successfully scraped {len(results)} URL(s)", response_time)
+                    else:
+                        self.log_test("Research Scrape", "FAIL", 
+                                    "Scraped results missing required fields", response_time)
+                else:
+                    self.log_test("Research Scrape", "FAIL", 
+                                "No results returned from scraping", response_time)
+            else:
+                self.log_test("Research Scrape", "FAIL", 
+                            "Response missing 'results' field", response_time)
+        else:
+            self.log_test("Research Scrape", "FAIL", 
+                        f"HTTP {status}: {response.get('detail', response)}", response_time)
+
     async def test_response_times(self):
         """Test that all endpoints respond within 60 seconds"""
         print("\n=== Testing Response Times ===")
