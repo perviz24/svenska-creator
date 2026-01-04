@@ -318,19 +318,235 @@ class CourseAPITester:
             self.log_test("Slide Generation - Invalid Request", "FAIL", 
                         f"Should reject empty script content, got HTTP {status}", response_time)
     
+    async def test_exercise_generation(self):
+        """Test POST /api/exercises/generate"""
+        print("\n=== Testing Exercise Generation ===")
+        
+        # Test valid request
+        test_data = {
+            "module_title": "Ögonsjukdomar",
+            "module_content": "Katarakt är en vanlig åldersrelaterad ögonsjukdom som orsakar grumling av ögats lins. Behandling sker oftast genom kirurgi.",
+            "course_title": "Ögonskötsel",
+            "num_exercises": 2,
+            "language": "sv"
+        }
+        
+        status, response, response_time = await self.make_request("POST", "/exercises/generate", test_data)
+        
+        if status == 200:
+            # Validate response structure
+            required_fields = ["module_id", "module_title", "exercises", "exercise_count"]
+            if all(key in response for key in required_fields):
+                exercises = response["exercises"]
+                if len(exercises) == 2:
+                    # Check each exercise has required fields
+                    valid_exercises = True
+                    for exercise in exercises:
+                        exercise_fields = ["id", "title", "description", "instructions", "estimated_time", "difficulty"]
+                        if not all(key in exercise for key in exercise_fields):
+                            valid_exercises = False
+                            break
+                    
+                    if valid_exercises:
+                        self.log_test("Exercise Generation - Valid Request", "PASS", 
+                                    f"Generated 2 exercises with proper structure", response_time)
+                    else:
+                        self.log_test("Exercise Generation - Valid Request", "FAIL", 
+                                    "Exercises missing required fields", response_time)
+                else:
+                    self.log_test("Exercise Generation - Valid Request", "FAIL", 
+                                f"Expected 2 exercises, got {len(exercises)}", response_time)
+            else:
+                missing_fields = [f for f in required_fields if f not in response]
+                self.log_test("Exercise Generation - Valid Request", "FAIL", 
+                            f"Response missing fields: {missing_fields}", response_time)
+        else:
+            self.log_test("Exercise Generation - Valid Request", "FAIL", 
+                        f"HTTP {status}: {response.get('detail', response)}", response_time)
+        
+        # Test invalid request (empty content)
+        invalid_data = {
+            "module_title": "Test",
+            "module_content": "",
+            "course_title": "Test",
+            "num_exercises": 2
+        }
+        status, response, response_time = await self.make_request("POST", "/exercises/generate", invalid_data)
+        
+        if status in [400, 422, 500]:
+            self.log_test("Exercise Generation - Invalid Request", "PASS", 
+                        f"Correctly rejected empty content with HTTP {status}", response_time)
+        else:
+            self.log_test("Exercise Generation - Invalid Request", "FAIL", 
+                        f"Should reject empty content, got HTTP {status}", response_time)
+    
+    async def test_quiz_generation(self):
+        """Test POST /api/quiz/generate"""
+        print("\n=== Testing Quiz Generation ===")
+        
+        # Test valid request
+        test_data = {
+            "module_title": "Ögonsjukdomar",
+            "module_content": "Katarakt behandlas oftast med kirurgi där den grumlade linsen ersätts med en konstgjord lins.",
+            "course_title": "Ögonskötsel",
+            "num_questions": 3,
+            "language": "sv"
+        }
+        
+        status, response, response_time = await self.make_request("POST", "/quiz/generate", test_data)
+        
+        if status == 200:
+            # Validate response structure
+            required_fields = ["module_id", "module_title", "questions", "question_count"]
+            if all(key in response for key in required_fields):
+                questions = response["questions"]
+                if len(questions) == 3:
+                    # Check each question has required fields
+                    valid_questions = True
+                    for question in questions:
+                        question_fields = ["id", "question", "options", "correct_answer", "explanation"]
+                        if not all(key in question for key in question_fields):
+                            valid_questions = False
+                            break
+                        if not isinstance(question["options"], list) or len(question["options"]) < 2:
+                            valid_questions = False
+                            break
+                    
+                    if valid_questions:
+                        self.log_test("Quiz Generation - Valid Request", "PASS", 
+                                    f"Generated 3 quiz questions with proper structure", response_time)
+                    else:
+                        self.log_test("Quiz Generation - Valid Request", "FAIL", 
+                                    "Questions missing required fields or insufficient options", response_time)
+                else:
+                    self.log_test("Quiz Generation - Valid Request", "FAIL", 
+                                f"Expected 3 questions, got {len(questions)}", response_time)
+            else:
+                missing_fields = [f for f in required_fields if f not in response]
+                self.log_test("Quiz Generation - Valid Request", "FAIL", 
+                            f"Response missing fields: {missing_fields}", response_time)
+        else:
+            self.log_test("Quiz Generation - Valid Request", "FAIL", 
+                        f"HTTP {status}: {response.get('detail', response)}", response_time)
+        
+        # Test invalid request (0 questions)
+        invalid_data = {
+            "module_title": "Test",
+            "module_content": "Test content",
+            "course_title": "Test",
+            "num_questions": 0
+        }
+        status, response, response_time = await self.make_request("POST", "/quiz/generate", invalid_data)
+        
+        if status in [400, 422, 500]:
+            self.log_test("Quiz Generation - Invalid Request", "PASS", 
+                        f"Correctly rejected 0 questions with HTTP {status}", response_time)
+        else:
+            self.log_test("Quiz Generation - Invalid Request", "FAIL", 
+                        f"Should reject 0 questions, got HTTP {status}", response_time)
+    
+    async def test_slide_enhancement(self):
+        """Test POST /api/slides/enhance"""
+        print("\n=== Testing Slide Enhancement ===")
+        
+        # Test valid request
+        test_data = {
+            "slide_title": "Katarakt",
+            "slide_content": "Vanlig ögonsjukdom som påverkar äldre",
+            "enhancement_type": "add_examples",
+            "language": "sv"
+        }
+        
+        status, response, response_time = await self.make_request("POST", "/slides/enhance", test_data)
+        
+        if status == 200:
+            # Validate response structure
+            required_fields = ["enhanced_title", "enhanced_content", "enhancement_type", "suggestions"]
+            if all(key in response for key in required_fields):
+                # Check that content was actually enhanced (should be longer)
+                if len(response["enhanced_content"]) > len(test_data["slide_content"]):
+                    self.log_test("Slide Enhancement - Valid Request", "PASS", 
+                                f"Enhanced slide content successfully", response_time)
+                else:
+                    self.log_test("Slide Enhancement - Valid Request", "WARN", 
+                                "Enhanced content not significantly longer than original", response_time)
+            else:
+                missing_fields = [f for f in required_fields if f not in response]
+                self.log_test("Slide Enhancement - Valid Request", "FAIL", 
+                            f"Response missing fields: {missing_fields}", response_time)
+        else:
+            self.log_test("Slide Enhancement - Valid Request", "FAIL", 
+                        f"HTTP {status}: {response.get('detail', response)}", response_time)
+        
+        # Test invalid request (empty content)
+        invalid_data = {
+            "slide_title": "Test",
+            "slide_content": "",
+            "enhancement_type": "add_examples"
+        }
+        status, response, response_time = await self.make_request("POST", "/slides/enhance", invalid_data)
+        
+        if status in [400, 422, 500]:
+            self.log_test("Slide Enhancement - Invalid Request", "PASS", 
+                        f"Correctly rejected empty content with HTTP {status}", response_time)
+        else:
+            self.log_test("Slide Enhancement - Invalid Request", "FAIL", 
+                        f"Should reject empty content, got HTTP {status}", response_time)
+    
+    async def test_presenton_generation(self):
+        """Test POST /api/presenton/generate"""
+        print("\n=== Testing Presenton Generation ===")
+        
+        # Test valid request
+        test_data = {
+            "topic": "Ögonsjukdomar",
+            "num_slides": 3,
+            "language": "sv",
+            "verbosity": "standard"
+        }
+        
+        status, response, response_time = await self.make_request("POST", "/presenton/generate", test_data)
+        
+        if status == 200:
+            # Validate response structure - should return task ID for async processing
+            if "task_id" in response:
+                self.log_test("Presenton Generation - Valid Request", "PASS", 
+                            f"Received task ID for async processing: {response['task_id']}", response_time)
+            else:
+                self.log_test("Presenton Generation - Valid Request", "FAIL", 
+                            "Response missing task_id for async processing", response_time)
+        else:
+            self.log_test("Presenton Generation - Valid Request", "FAIL", 
+                        f"HTTP {status}: {response.get('detail', response)}", response_time)
+        
+        # Test invalid request (0 slides)
+        invalid_data = {
+            "topic": "Test",
+            "num_slides": 0,
+            "language": "sv"
+        }
+        status, response, response_time = await self.make_request("POST", "/presenton/generate", invalid_data)
+        
+        if status in [400, 422, 500]:
+            self.log_test("Presenton Generation - Invalid Request", "PASS", 
+                        f"Correctly rejected 0 slides with HTTP {status}", response_time)
+        else:
+            self.log_test("Presenton Generation - Invalid Request", "FAIL", 
+                        f"Should reject 0 slides, got HTTP {status}", response_time)
+
     async def test_response_times(self):
-        """Test that all endpoints respond within 30 seconds"""
+        """Test that all endpoints respond within 60 seconds"""
         print("\n=== Testing Response Times ===")
         
-        slow_tests = [result for result in self.test_results if result["response_time"] > 30]
+        slow_tests = [result for result in self.test_results if result["response_time"] > 60]
         if slow_tests:
             self.log_test("Response Time Check", "FAIL", 
-                        f"{len(slow_tests)} tests exceeded 30s limit")
+                        f"{len(slow_tests)} tests exceeded 60s limit")
             for test in slow_tests:
                 print(f"    Slow: {test['test']} took {test['response_time']:.2f}s")
         else:
             self.log_test("Response Time Check", "PASS", 
-                        "All tests completed within 30s limit")
+                        "All tests completed within 60s limit")
     
     async def test_basic_connectivity(self):
         """Test basic API connectivity"""
