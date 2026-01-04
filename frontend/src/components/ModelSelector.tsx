@@ -135,16 +135,26 @@ export function ModelSelector({
     
     setIsLoadingRecommendation(true);
     try {
-      const { data, error } = await supabase.functions.invoke('recommend-model', {
-        body: {
-          step,
-          courseTitle,
-          availableModels: AI_MODELS.map(m => ({ id: m.id, name: m.name, bestFor: m.bestFor })),
-        },
+      // Use FastAPI backend instead of Supabase
+      const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || import.meta.env.VITE_BACKEND_URL || '';
+      const response = await fetch(`${BACKEND_URL}/api/ai/recommend-model`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          course_type: step,
+          content_complexity: 'medium',
+          target_quality: 'high',
+        }),
       });
 
-      if (!error && data?.recommendation) {
-        setRecommendation(data.recommendation);
+      if (response.ok) {
+        const data = await response.json();
+        if (data?.recommended_model) {
+          setRecommendation({
+            modelId: data.recommended_model,
+            reason: data.reason,
+          });
+        }
       }
     } catch (err) {
       console.log('Could not get AI recommendation, using defaults');
