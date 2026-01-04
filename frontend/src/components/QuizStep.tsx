@@ -8,10 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ModuleScript, CourseOutline, ModuleQuiz, QuizQuestion } from '@/types/course';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ContentUploader } from '@/components/ContentUploader';
 import { AIReviewEditor } from '@/components/AIReviewEditor';
+import { generateQuiz as generateQuizAPI } from '@/lib/contentApi';
 
 interface QuizStepProps {
   outline: CourseOutline | null;
