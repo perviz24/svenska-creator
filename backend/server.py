@@ -30,6 +30,17 @@ from slides_service import (
     SlideGenerationResponse,
     generate_slides
 )
+from content_enhancement_service import (
+    ExerciseGenerationRequest,
+    ExerciseGenerationResponse,
+    QuizGenerationRequest,
+    QuizGenerationResponse,
+    SlideEnhancementRequest,
+    SlideEnhancementResponse,
+    generate_exercises,
+    generate_quiz,
+    enhance_slide
+)
 
 
 ROOT_DIR = Path(__file__).parent
@@ -139,6 +150,39 @@ async def api_generate_slides(request: SlideGenerationRequest):
         return result
     except Exception as e:
         logger.error(f"Slide generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/exercises/generate", response_model=ExerciseGenerationResponse)
+async def api_generate_exercises(request: ExerciseGenerationRequest):
+    """Generate exercises for a module"""
+    try:
+        result = await generate_exercises(request)
+        return result
+    except Exception as e:
+        logger.error(f"Exercise generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/quiz/generate", response_model=QuizGenerationResponse)
+async def api_generate_quiz(request: QuizGenerationRequest):
+    """Generate quiz for a module"""
+    try:
+        result = await generate_quiz(request)
+        return result
+    except Exception as e:
+        logger.error(f"Quiz generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/slides/enhance", response_model=SlideEnhancementResponse)
+async def api_enhance_slide(request: SlideEnhancementRequest):
+    """Enhance a single slide"""
+    try:
+        result = await enhance_slide(request)
+        return result
+    except Exception as e:
+        logger.error(f"Slide enhancement error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
