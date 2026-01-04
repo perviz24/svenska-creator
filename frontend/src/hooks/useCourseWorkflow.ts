@@ -8,7 +8,9 @@ import {
   generateSlides as generateSlidesAPI,
   generateTitles as generateTitlesAPI,
   generateOutline as generateOutlineAPI,
-  generateScript as generateScriptAPI
+  generateScript as generateScriptAPI,
+  type OutlineGenerationResponse,
+  type ScriptGenerationResponse
 } from '@/lib/courseApi';
 
 // Demo limits applied when Admin Demo Mode is active
@@ -656,24 +658,28 @@ export function useCourseWorkflow() {
     const isDemoMode = effectiveDemoMode?.enabled || false;
     
     try {
-      const { data, error } = await supabase.functions.invoke('generate-outline', {
-        body: { 
-          title: state.title,
-          targetDuration: isDemoMode ? 5 : state.settings.targetDuration, // Very short for demo
-          style: state.settings.style,
-          language: state.settings.language,
-          maxModules: isDemoMode ? effectiveDemoMode.maxModules : state.settings.structureLimits?.maxModules,
-          demoMode: isDemoMode,
-        }
+      // Call FastAPI backend instead of Supabase function
+      const data: OutlineGenerationResponse = await generateOutlineAPI({
+        title: state.title,
+        num_modules: isDemoMode ? (effectiveDemoMode?.maxModules || 1) : (state.settings.structureLimits?.maxModules || 5),
+        language: state.settings.language || 'sv',
+        additional_context: undefined,
       });
 
-      if (error) throw error;
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      const outline: CourseOutline = data.outline;
+      // Map API response to CourseOutline format
+      const outline: CourseOutline = {
+        courseId: courseId || '',
+        title: state.title,
+        modules: data.modules.map((m, index) => ({
+          id: m.id,
+          title: m.title,
+          description: m.description,
+          duration: m.estimated_duration,
+          topics: m.key_topics,
+          order: index + 1,
+        })),
+        estimatedDuration: data.total_duration,
+      };
       
       setState(prev => ({
         ...prev,
@@ -695,7 +701,7 @@ export function useCourseWorkflow() {
       }));
       toast.error(message);
     }
-  }, [state.title, state.settings, courseId]);
+  }, [state.title, state.settings, courseId, effectiveDemoMode]);
 
   const generateScript = useCallback(async (moduleIndex: number) => {
     if (!state.outline) {
