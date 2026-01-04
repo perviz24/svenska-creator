@@ -86,7 +86,8 @@ class CourseAPITester:
                     
                     if valid_suggestions:
                         # Check for Swedish characters
-                        has_swedish = any("å" in str(response) or "ä" in str(response) or "ö" in str(response))
+                        response_str = str(response)
+                        has_swedish = any(char in response_str for char in ["å", "ä", "ö"])
                         if has_swedish:
                             self.log_test("Title Generation - Valid Request", "PASS", 
                                         f"Generated 5 titles with Swedish content", response_time)
