@@ -78,6 +78,12 @@ export function SlideStep({
   const [exportTemplate, setExportTemplate] = useState<ExportTemplate>('professional');
   const [isGeneratingPresenton, setIsGeneratingPresenton] = useState(false);
   
+  // Advanced Presenton configuration
+  const [presentonVerbosity, setPresentonVerbosity] = useState<'concise' | 'standard' | 'text-heavy'>('standard');
+  const [presentonImageType, setPresentonImageType] = useState<'stock' | 'ai-generated'>('stock');
+  const [presentonWebSearch, setPresentonWebSearch] = useState(false);
+  const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
+  
   // Apply demo mode limits to slide count
   const maxSlidesAllowed = isDemoMode ? (demoMode?.maxSlides || 3) : 50;
   const [numSlides, setNumSlides] = useState(() => {
