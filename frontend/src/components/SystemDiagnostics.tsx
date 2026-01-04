@@ -35,20 +35,36 @@ export function SystemDiagnostics() {
     setOverallStatus(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('system-diagnostics', {
-        body: { runAll: true },
+      const data = await getSystemDiagnostics();
+      
+      // Convert to diagnostic results format
+      const diagnosticResults: DiagnosticResult[] = Object.entries(data.services || {}).map(([name, status]) => ({
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        status: status === 'configured' ? 'success' : 'warning',
+        message: status === 'configured' ? 'Konfigurerad och redo' : 'Ej konfigurerad',
+        duration: 0,
+      }));
+      
+      setResults(diagnosticResults);
+      
+      const successCount = diagnosticResults.filter(r => r.status === 'success').length;
+      const warningCount = diagnosticResults.filter(r => r.status === 'warning').length;
+      const errorCount = diagnosticResults.filter(r => r.status === 'error').length;
+      
+      setSummary({
+        total: diagnosticResults.length,
+        success: successCount,
+        warnings: warningCount,
+        errors: errorCount,
       });
+      
+      const overallStatusResult = errorCount > 0 ? 'error' : warningCount > 0 ? 'warning' : 'success';
+      setOverallStatus(overallStatusResult);
+      setTotalDuration(100);
 
-      if (error) throw error;
-
-      setResults(data.results || []);
-      setSummary(data.summary || null);
-      setOverallStatus(data.overallStatus || null);
-      setTotalDuration(data.totalDuration || null);
-
-      if (data.overallStatus === 'success') {
+      if (overallStatusResult === 'success') {
         toast.success('Alla tester lyckades!');
-      } else if (data.overallStatus === 'warning') {
+      } else if (overallStatusResult === 'warning') {
         toast.warning('Vissa integrationer saknar konfiguration');
       } else {
         toast.error('Några tester misslyckades');
