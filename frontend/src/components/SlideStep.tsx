@@ -746,51 +746,29 @@ export function SlideStep({
 
     setIsEnhancing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('enhance-slides', {
-        body: {
-          slides: currentModuleSlides.map(slide => ({
-            title: slide.title,
-            content: slide.content,
-            layout: slide.layout,
-            speakerNotes: slide.speakerNotes,
-            backgroundColor: slide.backgroundColor,
-          })),
-          enhanceType,
-          courseTitle,
+      // Enhance each slide individually using FastAPI backend
+      for (let index = 0; index < currentModuleSlides.length; index++) {
+        const slide = currentModuleSlides[index];
+        
+        const enhanced = await enhanceSlideAPI({
+          slide_title: slide.title,
+          slide_content: slide.content || '',
+          enhancement_type: enhanceType,
           language: 'sv',
-        },
-      });
+        });
 
-      if (error) throw error;
-
-      if (data.error) {
-        toast.error(data.error);
-        return;
+        // Apply enhanced content to slide
+        onUpdateSlide(currentModuleId, index, {
+          title: enhanced.improved_title || slide.title,
+          content: enhanced.enhanced_content || slide.content,
+        });
       }
 
-      // Apply enhanced slides
-      const enhancedSlides = data.enhancedSlides || [];
-      enhancedSlides.forEach((enhanced: any, index: number) => {
-        if (index < currentModuleSlides.length) {
-          onUpdateSlide(currentModuleId, index, {
-            title: enhanced.title || currentModuleSlides[index].title,
-            content: enhanced.content || currentModuleSlides[index].content,
-            layout: enhanced.layout || currentModuleSlides[index].layout,
-            speakerNotes: enhanced.speakerNotes || currentModuleSlides[index].speakerNotes,
-            backgroundColor: enhanced.backgroundColor || currentModuleSlides[index].backgroundColor,
-          });
-        }
-      });
-
-      // Show design suggestions if available
-      if (data.overallSuggestions?.designNotes) {
-        toast.info(data.overallSuggestions.designNotes, { duration: 5000 });
-      }
-
-      toast.success(`${enhancedSlides.length} slides förbättrade med AI!`);
+      toast.success(`${currentModuleSlides.length} slides förbättrade med AI!`);
     } catch (error) {
       console.error('Error enhancing slides:', error);
-      toast.error('Kunde inte förbättra slides');
+      const message = error instanceof Error ? error.message : 'Kunde inte förbättra slides';
+      toast.error(message);
     } finally {
       setIsEnhancing(false);
     }
