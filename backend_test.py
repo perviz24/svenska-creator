@@ -398,7 +398,7 @@ class CourseAPITester:
         
         if status == 200:
             # Validate response structure
-            required_fields = ["module_id", "module_title", "questions", "question_count"]
+            required_fields = ["quiz_title", "questions", "total_points", "passing_score"]
             if all(key in response for key in required_fields):
                 questions = response["questions"]
                 if len(questions) == 3:
