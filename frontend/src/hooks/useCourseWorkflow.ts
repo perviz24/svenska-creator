@@ -442,27 +442,10 @@ export function useCourseWorkflow() {
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
     
     try {
-      const { data, error } = await generateTitlesAPI({
-        title: state.title, 
-          title: state.title,
-          language: state.settings.language 
-        }
+      const data = await generateTitlesAPI({
+        title: state.title,
+        language: state.settings.language || 'sv'
       });
-
-      if (error) {
-        // Check if it's a FunctionsHttpError with response body
-        if (error.message?.includes('402') || data?.error?.includes('credits')) {
-          throw new Error('AI-krediter slut. Vänligen fyll på krediter för att fortsätta.');
-        }
-        throw error;
-      }
-
-      if (data?.error) {
-        if (data.error.includes('credits') || data.error.includes('402')) {
-          throw new Error('AI-krediter slut. Vänligen fyll på krediter för att fortsätta.');
-        }
-        throw new Error(data.error);
-      }
 
       const suggestions: TitleSuggestion[] = data.suggestions || [];
       
