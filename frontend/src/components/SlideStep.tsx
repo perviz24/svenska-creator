@@ -360,6 +360,133 @@ export function SlideStep({
     }
   };
 
+  const pollPresentonStatusFastAPI = async (taskId: string) => {
+    const maxAttempts = 60; // 2 minutes max
+    const pollInterval = 2000; // 2 seconds
+    
+    // Progress milestones for better UX
+    const milestones = [
+      { progress: 10, message: 'Analyserar innehåll...' },
+      { progress: 25, message: 'Genererar slide-struktur...' },
+      { progress: 40, message: 'Skapar slide-design...' },
+      { progress: 60, message: 'Lägger till bilder...' },
+      { progress: 80, message: 'Finsliper presentation...' },
+      { progress: 95, message: 'Nästan klar...' }
+    ];
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const data = await checkPresentonStatus(taskId);
+
+        // Update progress based on attempt (simulate progress)
+        const progress = Math.min(10 + (attempt * 1.5), 95);
+        setPresentonProgress(progress);
+        
+        // Show milestone messages
+        const milestone = milestones.find(m => 
+          progress >= m.progress && progress < m.progress + 15
+        );
+        if (milestone && attempt % 5 === 0) {
+          toast.info(milestone.message, { duration: 2000 });
+        }
+
+        if (data.status === 'completed') {
+          setPresentonStatus('completed');
+          setPresentonProgress(100);
+          setPresentonDownloadUrl(data.download_url || null);
+          setPresentonEditUrl(data.edit_url || null);
+          setPresentonPresentationId(data.presentation_id || null);
+          setIsGeneratingPresenton(false);
+          
+          // Save to generation history for alternatives
+          const newHistoryEntry: PresentonGenerationEntry = {
+            id: taskId,
+            presentationId: data.presentation_id || '',
+            timestamp: new Date().toISOString(),
+            downloadUrl: data.download_url || '',
+            editUrl: data.edit_url || '',
+            style: exportTemplate,
+          };
+          const updatedHistory = [...generationHistory, newHistoryEntry];
+          setGenerationHistory(updatedHistory);
+          
+          // Persist to database
+          if (onSavePresentonState) {
+            onSavePresentonState({
+              taskId,
+              presentationId: data.presentation_id,
+              status: 'completed',
+              progress: 100,
+              downloadUrl: data.download_url,
+              editUrl: data.edit_url,
+              generationHistory: updatedHistory,
+            });
+          }
+          
+          toast.success('Presentation genererad via Presenton med förbättrade instruktioner!', {
+            duration: 6000,
+            action: {
+              label: 'Ladda ner PPTX',
+              onClick: () => window.open(data.download_url, '_blank'),
+            },
+          });
+          
+          return;
+        }
+
+        if (data.status === 'failed') {
+          if (onSavePresentonState) {
+            onSavePresentonState({
+              status: 'failed',
+              progress: 0,
+            });
+          }
+          throw new Error(data.message || 'Generation failed');
+        }
+
+        setPresentonStatus(data.status);
+        
+        // Persist progress every 10 attempts (~20 seconds)
+        if (attempt > 0 && attempt % 10 === 0 && onSavePresentonState) {
+          onSavePresentonState({
+            status: data.status,
+            progress: Math.round(progress),
+          });
+        }
+
+        // Wait before next poll
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+      } catch (error) {
+        console.error('Polling error:', error);
+        setPresentonStatus('failed');
+        setIsGeneratingPresenton(false);
+        
+        if (onSavePresentonState) {
+          onSavePresentonState({
+            status: 'failed',
+            progress: 0,
+          });
+        }
+        
+        toast.error('Fel vid hämtning av presentation status');
+        return;
+      }
+    }
+
+    // Timeout
+    setPresentonStatus('failed');
+    setIsGeneratingPresenton(false);
+    
+    if (onSavePresentonState) {
+      onSavePresentonState({
+        status: 'failed',
+        progress: 0,
+      });
+    }
+    
+    toast.error('Timeout - presentationen tog för lång tid att generera. Försök med färre slides eller använd Intern AI.');
+  };
+
   const pollPresentonStatus = async (taskId: string) => {
     const maxAttempts = 60; // 2 minutes max
     const pollInterval = 2000; // 2 seconds
