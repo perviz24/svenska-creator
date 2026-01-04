@@ -17,6 +17,7 @@ import { GoogleSlidesExport } from '@/components/GoogleSlidesExport';
 import { AIRefinementPanel } from '@/components/AIRefinementPanel';
 import { DemoWatermark } from '@/components/DemoWatermark';
 import { SlidePreviewCard } from '@/components/SlidePreviewCard';
+import { generatePresentonPresentation, checkPresentonStatus } from '@/lib/presentonApi';
 
 type SlideGenerator = 'internal' | 'presenton';
 type ExportTemplate = 'professional' | 'modern' | 'minimal' | 'creative';
