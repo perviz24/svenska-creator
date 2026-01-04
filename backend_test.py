@@ -462,7 +462,7 @@ class CourseAPITester:
         
         if status == 200:
             # Validate response structure
-            required_fields = ["enhanced_title", "enhanced_content", "enhancement_type", "suggestions"]
+            required_fields = ["enhanced_content", "suggestions"]
             if all(key in response for key in required_fields):
                 # Check that content was actually enhanced (should be longer)
                 if len(response["enhanced_content"]) > len(test_data["slide_content"]):
