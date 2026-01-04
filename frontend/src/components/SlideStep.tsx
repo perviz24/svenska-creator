@@ -19,6 +19,7 @@ import { DemoWatermark } from '@/components/DemoWatermark';
 import { SlidePreviewCard } from '@/components/SlidePreviewCard';
 import { generatePresentonPresentation, checkPresentonStatus } from '@/lib/presentonApi';
 import { generateSlides as generateSlidesAPI } from '@/lib/courseApi';
+import { enhanceSlide as enhanceSlideAPI } from '@/lib/contentApi';
 
 type SlideGenerator = 'internal' | 'presenton';
 type ExportTemplate = 'professional' | 'modern' | 'minimal' | 'creative';
