@@ -676,16 +676,26 @@ export function SlideStep({
 
     setIsSearchingPhotos(true);
     try {
-      const { data, error } = await supabase.functions.invoke('search-stock-photos', {
-        body: {
-          query: searchQuery,
-          providers: ['unsplash', 'pexels'],
-          perPage: 12,
-        },
-      });
-
-      if (error) throw error;
-      setStockPhotos(data.photos || []);
+      // Use FastAPI backend instead of Supabase
+      const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || import.meta.env.VITE_BACKEND_URL || '';
+      const response = await fetch(
+        `${BACKEND_URL}/api/media/photos/search?query=${encodeURIComponent(searchQuery)}&provider=pexels&per_page=12`,
+        { method: 'POST' }
+      );
+      
+      if (!response.ok) throw new Error('Search failed');
+      const data = await response.json();
+      
+      // Map to StockPhoto format
+      const photos = (data.photos || []).map((p: any) => ({
+        id: p.id,
+        url: p.url,
+        thumbnailUrl: p.thumbnail_url,
+        attribution: `Photo by ${p.photographer}`,
+        source: p.source,
+      }));
+      
+      setStockPhotos(photos);
     } catch (error) {
       console.error('Error searching photos:', error);
       toast.error('Kunde inte söka bilder');
