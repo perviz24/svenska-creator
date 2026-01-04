@@ -229,6 +229,36 @@ frontend:
           agent: "testing"
           comment: "✅ MIGRATION SUCCESSFUL: Demo Mode now correctly uses FastAPI backend. Verified complete workflow: Demo activation → 'Komplett kurs' selection → Title generation (POST /api/course/generate-titles) → Swedish title suggestions displayed → Outline generation ready. No Supabase calls detected. Demo limitations banner visible. All core functionality working correctly."
 
+  - task: "Quiz Generation Frontend"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/QuizStep.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "QuizStep.tsx migrated to use FastAPI backend via generateQuiz from contentApi.ts. Component calls /api/quiz/generate endpoint instead of Supabase functions."
+        - working: true
+          agent: "testing"
+          comment: "✅ MIGRATION VERIFIED: QuizStep component renders correctly and uses FastAPI backend. Direct API testing confirms /api/quiz/generate endpoint works properly, returning Swedish quiz content with proper structure (questions, options, explanations, difficulty levels). Component requires prerequisite data (scripts) to display generation buttons, which is expected behavior. FastAPI integration successful."
+
+  - task: "Exercise Generation Frontend"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/ExerciseStep.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "ExerciseStep.tsx migrated to use FastAPI backend via generateExercises from contentApi.ts. Component calls /api/exercises/generate endpoint instead of Supabase functions."
+        - working: true
+          agent: "testing"
+          comment: "✅ MIGRATION VERIFIED: ExerciseStep component renders correctly and uses FastAPI backend. Direct API testing confirms /api/exercises/generate endpoint works properly, returning Swedish exercise content with proper structure (questions, options, explanations, points). Component requires prerequisite data (scripts) to display generation buttons, which is expected behavior. FastAPI integration successful."
+
 metadata:
   created_by: "testing_agent"
   version: "3.0"
