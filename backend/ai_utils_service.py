@@ -215,15 +215,10 @@ Respond in JSON:
     "target_audience": "description"
 }}"""
 
-    messages = [
-        LlmMessage(role="system", content=system_prompt),
-        LlmMessage(role="user", content=content[:10000])  # Limit content length
-    ]
-    
-    response = await chat(
-        api_key=EMERGENT_KEY,
-        messages=messages,
-        model="gemini-2.5-flash"
+    llm = LlmChat(api_key=EMERGENT_KEY, model="gemini-2.5-flash")
+    response = await llm.chat(
+        system_message=system_prompt,
+        user_message=content[:10000]  # Limit content length
     )
     
     try:
