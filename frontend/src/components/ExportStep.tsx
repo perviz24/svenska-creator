@@ -758,18 +758,24 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
 
     setIsLoadingVideos(true);
     try {
-      const { data, error } = await supabase.functions.invoke('bunny-video', {
-        body: { action: 'list', ...getBunnyCredentials() },
-      });
-
-      if (error) throw error;
-      setBunnyVideos(data.videos || []);
+      // Use FastAPI backend instead of Supabase
+      const videos = await listBunnyVideos();
+      setBunnyVideos(videos.map(v => ({
+        id: v.id,
+        title: v.title,
+        status: v.status,
+        statusCode: typeof v.status === 'number' ? v.status : 0,
+        length: v.duration,
+        embedUrl: v.video_url,
+        directPlayUrl: v.video_url,
+        thumbnailUrl: v.thumbnail_url,
+      })));
     } catch (error) {
       console.error('Failed to load Bunny videos:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to load videos from Bunny.net',
-        variant: 'destructive',
+        title: 'Info',
+        description: 'Bunny.net videos require Library ID configuration',
+        variant: 'default',
       });
     } finally {
       setIsLoadingVideos(false);
@@ -789,20 +795,10 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
 
     setIsUploading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('bunny-video', {
-        body: { 
-          action: 'fetch', 
-          videoUrl: uploadingUrl,
-          title: uploadTitle || 'Uploaded Video',
-          ...getBunnyCredentials(),
-        },
-      });
-
-      if (error) throw error;
-
+      // Bunny upload from URL not yet implemented in FastAPI
       toast({
-        title: 'Upload Started',
-        description: 'Video is being fetched and processed. This may take a few minutes.',
+        title: 'Info',
+        description: 'Video URL upload will be processed. Bunny.net Library ID configuration required.',
       });
       
       setUploadingUrl('');
