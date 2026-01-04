@@ -7,7 +7,7 @@ import json
 import re
 from typing import Optional, List
 from pydantic import BaseModel
-from emergentintegrations.llm.chat import chat, LlmMessage
+from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 EMERGENT_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 
