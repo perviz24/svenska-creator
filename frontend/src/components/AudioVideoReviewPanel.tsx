@@ -216,11 +216,11 @@ export function VideoReviewPanel({ videoId, moduleTitle, onRegenerate, isGenerat
 
     setIsChecking(true);
     try {
-      const { data, error } = await supabase.functions.invoke('heygen-video', {
-        body: { action: 'check-status', videoId },
-      });
-
-      if (error) throw error;
+      // Use FastAPI backend instead of Supabase
+      const response = await fetch(`${BACKEND_URL}/api/video/heygen/status/${videoId}`);
+      
+      if (!response.ok) throw new Error('Status check failed');
+      const data = await response.json();
 
       // Ensure error is always a string, not an object
       const errorMessage = typeof data.error === 'string' 
@@ -229,8 +229,8 @@ export function VideoReviewPanel({ videoId, moduleTitle, onRegenerate, isGenerat
       
       setVideoStatus({
         status: data.status,
-        videoUrl: data.videoUrl,
-        thumbnailUrl: data.thumbnailUrl,
+        videoUrl: data.video_url,
+        thumbnailUrl: data.thumbnail_url,
         duration: data.duration,
         error: errorMessage,
       });
