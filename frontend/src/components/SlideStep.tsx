@@ -196,8 +196,75 @@ export function SlideStep({
     }
   };
 
+  // Enhanced error categorization
+  const categorizeError = (error: any): { type: string; retryable: boolean; userMessage: string; solution: string } => {
+    const message = error?.message || String(error);
+    
+    if (/timeout|timed out/i.test(message)) {
+      return {
+        type: 'timeout',
+        retryable: true,
+        userMessage: 'Presenton tar längre tid än förväntat.',
+        solution: 'Försöker igen med kortare presentation eller färre bilder.'
+      };
+    }
+    
+    if (/credits|insufficient|payment|402/i.test(message)) {
+      return {
+        type: 'insufficient_credits',
+        retryable: false,
+        userMessage: 'Presenton har slut på krediter.',
+        solution: 'Lägg till krediter i Presenton eller använd intern generator.'
+      };
+    }
+    
+    if (/rate limit|429/i.test(message)) {
+      return {
+        type: 'rate_limit',
+        retryable: true,
+        userMessage: 'Presenton API rate limit nådd.',
+        solution: 'Väntar några sekunder och försöker igen.'
+      };
+    }
+    
+    if (/network|fetch|connection/i.test(message)) {
+      return {
+        type: 'network',
+        retryable: true,
+        userMessage: 'Nätverksproblem vid anslutning till Presenton.',
+        solution: 'Kontrollerar anslutning och försöker igen.'
+      };
+    }
+    
+    return {
+      type: 'unknown',
+      retryable: true,
+      userMessage: 'Ett oväntat fel inträffade.',
+      solution: 'Försöker igen eller växlar till intern generator.'
+    };
+  };
+
+  // Confirm fallback with user
+  const confirmFallback = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      toast.error('Presenton misslyckades efter flera försök.', {
+        duration: 10000,
+        action: {
+          label: 'Använd Intern AI',
+          onClick: () => resolve(true),
+        },
+        cancel: {
+          label: 'Avbryt',
+          onClick: () => resolve(false),
+        },
+      });
+    });
+  };
+
   const handleGeneratePresenton = async (retryCount = 0) => {
-    const maxRetries = 2;
+    const maxRetries = 3; // Increased from 2
+    const baseDelay = 2000;
+    const maxDelay = 10000;
     
     setIsGeneratingPresenton(true);
     setPresentonStatus('pending');
@@ -208,7 +275,7 @@ export function SlideStep({
     try {
       const scriptContent = currentScript?.sections?.map(s => `${s.title}\n${s.content}`).join('\n\n') || '';
       
-      // Step 1: Start async generation
+      // Step 1: Start async generation with enhanced parameters
       const { data, error } = await supabase.functions.invoke('presenton-slides', {
         body: {
           action: 'generate',
@@ -216,7 +283,10 @@ export function SlideStep({
           numSlides: Math.min(numSlides, isDemoMode ? (demoMode?.maxSlides || 3) : 50),
           language: 'sv',
           style: exportTemplate,
-          tone: exportTemplate, // Pass both for proper mapping
+          tone: exportTemplate,
+          verbosity: 'standard', // Can be made configurable
+          imageType: 'stock', // Can be made configurable
+          webSearch: false, // Can be made configurable
           scriptContent,
           moduleTitle: currentScript?.moduleTitle || courseTitle,
           courseTitle,
@@ -244,7 +314,7 @@ export function SlideStep({
           });
         }
         
-        toast.info('Presentation genereras via Presenton...');
+        toast.info('Presentation genereras via Presenton...', { duration: 3000 });
         
         // Poll for completion
         await pollPresentonStatus(data.taskId);
@@ -256,9 +326,12 @@ export function SlideStep({
       } else if (data.error) {
         // Check if retryable
         if (data.retryable && retryCount < maxRetries) {
-          console.log(`Retrying slide generation (attempt ${retryCount + 1}/${maxRetries})...`);
-          toast.info('Försöker igen...');
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay);
+          console.log(`Retrying slide generation (attempt ${retryCount + 1}/${maxRetries}) in ${delay}ms...`);
+          toast.info(`Försöker igen om ${delay/1000}s... (Försök ${retryCount + 1}/${maxRetries})`, {
+            duration: delay
+          });
+          await new Promise(resolve => setTimeout(resolve, delay));
           return handleGeneratePresenton(retryCount + 1);
         }
         throw new Error(data.error);
@@ -270,25 +343,32 @@ export function SlideStep({
       console.error('Presenton generation error:', error);
       setPresentonStatus('failed');
 
+      const errorInfo = categorizeError(error);
+      
       // Check if we should retry
-      if (retryCount < maxRetries) {
-        console.log(`Retrying slide generation (attempt ${retryCount + 1}/${maxRetries})...`);
-        toast.info('Ett fel uppstod. Försöker igen...');
-        await new Promise(resolve => setTimeout(resolve, 1500));
+      if (errorInfo.retryable && retryCount < maxRetries) {
+        const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay);
+        console.log(`Retrying slide generation (attempt ${retryCount + 1}/${maxRetries}) in ${delay}ms...`);
+        toast.info(`${errorInfo.userMessage} ${errorInfo.solution} (Försök ${retryCount + 1}/${maxRetries})`, {
+          duration: delay
+        });
+        await new Promise(resolve => setTimeout(resolve, delay));
         return handleGeneratePresenton(retryCount + 1);
       }
 
-      const msg = error instanceof Error ? error.message : 'Okänt fel';
-      const isCredits = /credits|payment required|402/i.test(msg);
-
-      toast.error(
-        isCredits
-          ? 'Presenton har inte tillräckliga krediter för att generera presentationen.'
-          : 'Presenton misslyckades. Kontrollera inställningar och försök igen.'
-      );
-
-      // Do NOT auto-fallback here: user explicitly chose Presenton.
-      // They can switch to "Intern" manually if they want.
+      // All retries exhausted - offer fallback
+      if (retryCount >= maxRetries) {
+        toast.error(`${errorInfo.userMessage} ${errorInfo.solution}`, { duration: 5000 });
+        
+        const shouldFallback = await confirmFallback();
+        if (shouldFallback) {
+          toast.info('Växlar till Intern AI generator...', { duration: 3000 });
+          await fallbackToInternalGenerator();
+          return;
+        }
+      } else {
+        toast.error(`${errorInfo.userMessage} ${errorInfo.solution}`, { duration: 5000 });
+      }
     } finally {
       if (presentonStatus !== 'pending' && presentonStatus !== 'processing') {
         setIsGeneratingPresenton(false);
