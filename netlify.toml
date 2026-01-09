@@ -1,0 +1,36 @@
+# Netlify Configuration for Svenska Creator Frontend
+# This configuration is FREE to use on Netlify's free tier
+
+[build]
+  # Base directory where the frontend code lives
+  base = "frontend/"
+
+  # Command to build the production site
+  command = "npm install && npm run build"
+
+  # Directory with the production build output
+  publish = "build/"
+
+# Build environment variables
+[build.environment]
+  NODE_VERSION = "18"
+
+# Redirect rules (if needed later)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
