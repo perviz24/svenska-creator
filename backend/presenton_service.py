@@ -156,200 +156,55 @@ def get_layout_guidance(content_type: str) -> str:
 
 
 def get_text_density_instructions(verbosity: str, content_type: str) -> str:
-    """Get text density control instructions"""
-    if verbosity == "concise":
-        return """CRITICAL TEXT DENSITY RULES:
-- Maximum 15 words per slide body (total, not per bullet)
-- Headlines: 5-7 words maximum, must be scannable in 2 seconds, use action verbs
-- Bullets: 3-5 bullets max, each 3-5 words (short phrases only)
-- Font sizes: Minimum 28pt for body text, 40pt+ for headlines
-- Use VAST white space - text should occupy <40% of slide area
-- NO paragraphs or full sentences in body text
-- Use impactful single words or short phrases
-- Replace long text with icons, diagrams, or visuals
-- Each slide should have ONE key takeaway
-- Speaker notes: 80-120 words with full context"""
-
-    elif verbosity == "text-heavy":
-        return """DETAILED TEXT DENSITY RULES:
-- Maximum 60 words per slide body (still avoid walls of text)
-- Headlines: 8-12 words, can be full sentences, must clearly state benefit or outcome
-- Bullets: 5-7 bullets max, each 8-12 words (can be full sentences)
-- Font sizes: Minimum 18pt for body, 32pt+ for headlines
-- Use subheadings to organize longer content into scannable sections
-- Allow brief paragraphs (2-3 sentences) for context, but break with visuals
-- Include detailed explanations but maintain visual hierarchy
-- Use numbered lists for sequential information
-- Add callout boxes for critical information
-- Speaker notes: 150-200 words with comprehensive detail, examples, and transitions"""
-
-    else:  # standard
-        return """BALANCED TEXT DENSITY RULES:
-- Maximum 30-35 words per slide body
-- Headlines: 6-10 words, benefit-focused and action-oriented, answer "why this matters"
-- Bullets: 4-5 bullets, each 5-8 words (short complete thoughts)
-- Font sizes: Minimum 22pt for body, 36pt+ for headlines
-- Use mix of short and medium-length bullets for variety and emphasis
-- Occasional short paragraphs (1-2 sentences) for complex ideas
-- Maintain clear visual hierarchy with size, weight, and color
-- Use parallel structure (all bullets start with verb, noun, etc.)
-- Highlight key numbers, terms, or statistics with color or bold
-- Speaker notes: 100-130 words with additional context, examples, and smooth transitions"""
+    """Get simplified text density guidance"""
+    guides = {
+        "concise": "Create minimal slides with short headlines, few bullet points, and emphasis on visuals over text.",
+        "standard": "Balance text and visuals with clear headlines, concise bullets, and good use of white space.",
+        "text-heavy": "Include detailed content with comprehensive explanations, more bullets, and thorough coverage of topics."
+    }
+    return guides.get(verbosity, guides["standard"])
 
 
 def get_image_and_visual_guidance(industry: str, image_style: str, mood: str) -> str:
-    """Get detailed image and visual design guidance"""
-    base_guidance = """IMAGE QUALITY & SELECTION:
-- Every image must directly support the slide message - no generic stock photos
-- Use high-resolution images (minimum 1920x1080, prefer 4K)
-- Images should evoke emotion and connection, not just fill space
-- Prefer authentic, diverse representation of people
-- Avoid cliché imagery (handshakes, thumbs up, generic office scenes)
-- Use consistent image treatment (filters, overlays) throughout
-- Images should have clear focal points and good composition
-- When using AI-generated images, ensure photorealistic quality
-- Consider cultural context and sensitivity
-- Leave breathing room - don't crop too tightly"""
-
-    style_specific = {
-        "photography": "Use professional photography with natural lighting. Prefer candid over staged shots. Ensure faces are visible and expressive. Use depth of field to create focus.",
-        "illustrations": "Use modern, clean vector illustrations. Maintain consistent style and color palette. Ensure illustrations are simple enough to understand at a glance. Use flat design or subtle gradients.",
-        "mixed": "Combine photography for emotional impact and illustrations for concepts/data. Maintain visual consistency through color palette and style. Use photography for people/places, illustrations for processes/ideas."
-    }
-
-    mood_guidance = {
-        "inspiring": "Use uplifting imagery with bright, warm tones. Show achievement, growth, and success. Use upward movement and aspirational scenes.",
-        "serious": "Use professional, subdued imagery. Prefer cool tones and minimal decoration. Focus on credibility and expertise.",
-        "energetic": "Use dynamic imagery with bold colors and movement. Show action and excitement. Use diagonal lines and vibrant contrasts.",
-        "confident": "Use strong, clear imagery with good contrast. Show competence and reliability. Use balanced composition and professional aesthetics."
-    }
-
-    parts = [base_guidance]
-    if image_style in style_specific:
-        parts.append(f"IMAGE STYLE: {style_specific[image_style]}")
-    if mood in mood_guidance:
-        parts.append(f"MOOD & TONE: {mood_guidance[mood]}")
-
-    return " ".join(parts)
+    """Get simplified image guidance"""
+    return "Use high-quality, relevant images that support the message. Maintain visual consistency throughout."
 
 
-def get_color_and_design_principles() -> str:
-    """Get color theory and design principles"""
-    return """COLOR & DESIGN PRINCIPLES:
-- Use 60-30-10 rule: 60% dominant color, 30% secondary, 10% accent
-- Ensure WCAG AA contrast ratio minimum: 4.5:1 for text, 3:1 for large text
-- Use color psychology: Blue=trust/calm, Red=urgency/passion, Green=growth/health, Yellow=optimism/caution
-- Create visual rhythm through repetition of colors, shapes, and spacing
-- Use whitespace as a design element, not leftover space
-- Align elements to create invisible grid structure
-- Use the rule of thirds for image placement
-- Create balance: symmetrical for formal, asymmetrical for dynamic
-- Ensure consistency: same element types should look the same throughout
-- Use proximity to group related information
-- Create contrast to draw attention to key elements
-- Maintain visual unity through consistent style, colors, and fonts"""
-
-
-def get_slide_type_specific_guidance() -> str:
-    """Get guidance for specific slide types"""
-    return """SLIDE TYPE BEST PRACTICES:
-TITLE SLIDE: Large, bold title (60-72pt). Compelling subtitle explaining benefit. Minimal text. Strong hero image covering 50-70% of slide. Include presenter name/credentials if relevant.
-
-AGENDA/TABLE OF CONTENTS: Maximum 5-7 main points. Use icons for each section. Include time estimates if relevant. Make it scannable - not a wall of text. Consider visual timeline or roadmap instead of bullet list.
-
-DATA VISUALIZATION: One chart per slide. Clear axis labels and legend. Highlight key insights with color or annotations. Include data source. Use appropriate chart type: line for trends, bar for comparisons, pie for proportions (max 5 slices).
-
-QUOTE SLIDE: Large, impactful quote (32-44pt). Clear attribution with photo if available. Minimal other text. Use quotation marks for clarity. Context in speaker notes if needed.
-
-IMAGE SLIDE: Full-bleed or large featured image. Minimal text overlay. Ensure text is readable (use overlay or shadow). Text should complement, not explain the obvious.
-
-COMPARISON SLIDE: Clear two-column or side-by-side layout. Consistent structure for each option. Use color coding to distinguish options. Include summary recommendation if appropriate.
-
-CLOSING/THANK YOU: Clear call-to-action. Contact information. Next steps. Optional QR code for additional resources. Memorable closing statement or visual."""
 
 
 def build_enhanced_instructions(params: Dict[str, Any]) -> str:
-    """Build comprehensive enhanced instructions for Presenton"""
+    """Build simplified, focused instructions for Presenton"""
     content_type = params.get("content_type", "general")
     verbosity = params.get("verbosity", "standard")
-    industry = params.get("industry", "general")
-    image_style = params.get("image_style", "photography")
-    mood = params.get("mood", "confident")
-    audience_level = params.get("audience_level", "general")
-    presentation_structure = params.get("presentation_structure", "standard")
 
     parts = []
 
-    # Content-specific structure guidance
-    parts.append(get_layout_guidance(content_type))
+    # Simplified content structure (1-2 sentences per type)
+    layout_hints = {
+        "tutorial": "Structure as step-by-step progression with clear action items.",
+        "comparison": "Use side-by-side layouts to compare options effectively.",
+        "pitch": "Follow pitch structure: problem, solution, traction, ask.",
+        "report": "Lead with key findings, support with data visualizations.",
+        "training": "Include learning objectives and knowledge check slides.",
+        "timeline": "Use chronological progression with clear milestones.",
+        "case-study": "Show: challenge, solution, results with specific metrics.",
+        "general": "Create clear narrative flow from introduction to conclusion."
+    }
 
-    # Text density control
+    if content_type in layout_hints:
+        parts.append(layout_hints[content_type])
+
+    # Text density
     parts.append(get_text_density_instructions(verbosity, content_type))
 
-    # Typography rules
-    parts.append("TYPOGRAPHY HIERARCHY: Use clear size progression - 44-48pt for main titles, 32-36pt for subtitles, 24-28pt for section headers, 20-24pt for body text. Bold key terms and numbers. Use consistent font family throughout (prefer sans-serif for modern look, serif for traditional/academic). Maintain 1.4-1.6 line spacing for readability. Use font weight (light, regular, bold) to create hierarchy without size changes.")
+    # Image guidance
+    parts.append(get_image_and_visual_guidance("", "", ""))
 
-    # Spacing and layout rules
-    parts.append("SPACING & LAYOUT: Generous margins minimum 8-10% on all sides. Maintain consistent padding between elements (24-32px). Group related items visually with proximity. Use grid alignment - no arbitrary positioning. Create clear visual paths for eye movement (Z-pattern for text-heavy, F-pattern for scan-friendly). Balance text and white space at 50-50 or 40-60 ratio. Use the rule of thirds for optimal element placement.")
+    # Core quality principles
+    parts.append("CORE PRINCIPLES: One main idea per slide, clear visual hierarchy, professional design, consistent styling throughout.")
 
-    # Visual hierarchy
-    parts.append("VISUAL HIERARCHY: Most critical information in top-left or center (F-pattern reading). Use size, color, position, and weight to establish importance. Headlines should communicate key message even if body text is ignored. Bullet points should be scannable in 3 seconds. Numbers and statistics should stand out visually with larger size or contrasting color. Use color sparingly for emphasis - maximum 3 colors plus neutrals.")
-
-    # Add new image and visual guidance
-    parts.append(get_image_and_visual_guidance(industry, image_style, mood))
-
-    # Add color and design principles
-    parts.append(get_color_and_design_principles())
-
-    # Add slide type guidance
-    parts.append(get_slide_type_specific_guidance())
-    
-    # Industry-specific design guidance
-    industry_guides = {
-        "healthcare": "HEALTHCARE DESIGN: Use professional medical imagery with clean, clinical aesthetics. Prioritize data accuracy and scientific rigor. Include clear citations for medical claims. Use calming blues, greens, and whites. Medical diagrams should be anatomically accurate and professionally illustrated. Include disclaimers where appropriate.",
-        
-        "finance": "FINANCE DESIGN: Every claim requires data support with sources. Use charts for trends (line/area), tables for detailed numbers, bar charts for comparisons. Conservative color palette (blues, grays, minimal accent colors). Include disclaimers and risk disclosures. Focus on ROI, metrics, and quantifiable outcomes. Use financial terminology correctly.",
-        
-        "technology": "TECHNOLOGY DESIGN: Use modern geometric shapes and clean lines. Code snippets in monospace font with syntax highlighting. System architecture diagrams with clear component relationships. Feature-benefit pairs (technical capability → user value). Use tech-appropriate iconography. Include API examples or integration diagrams where relevant.",
-        
-        "education": "EDUCATION DESIGN: Include learning objectives slide early (3-5 specific, measurable outcomes). Use engaging educational imagery and clear explanatory diagrams. Create visual hierarchy for key concepts vs. supporting details. Include knowledge check questions after major sections. Use mnemonic devices or visual metaphors for complex topics.",
-        
-        "marketing": "MARKETING DESIGN: Use dynamic, attention-grabbing visuals. Include customer journey maps or funnel diagrams. Show before/after transformations. Use compelling statistics and social proof. Include brand personality through color and imagery. Feature real customer testimonials with photos. Use persuasive language focused on benefits and outcomes."
-    }
-    
-    if industry in industry_guides:
-        parts.append(industry_guides[industry])
-    
-    # Universal quality standards - enhanced
-    parts.append("""UNIVERSAL QUALITY STANDARDS:
-(1) 5-Second Rule: Can viewer understand the key message in 5 seconds without reading everything?
-(2) One Idea Per Slide: Each slide should communicate ONE main concept - split complex topics across multiple slides
-(3) Narrative Flow: Does each slide advance the story logically? Include clear transitions and connections
-(4) Image Relevance: Are all images directly supporting the message? No decorative filler images
-(5) Legibility Test: Is text readable from 10 feet away? Test minimum font sizes
-(6) Color Contrast: Do colors have sufficient contrast (WCAG AA minimum 4.5:1)? Avoid low-contrast combinations
-(7) Consistency: Are fonts, colors, spacing, and alignment consistent throughout? Create visual unity
-(8) Data Integrity: Are all statistics accurate and properly sourced? Include citations for claims
-(9) Accessibility: Consider colorblind-friendly palettes, alt text concepts, and clear visual hierarchy
-(10) Professional Polish: No typos, consistent formatting, proper grammar, aligned elements
-(11) Audience Appropriateness: Language, tone, and complexity match audience level and context
-(12) Actionable Content: Each slide should drive understanding or action - no filler slides""")
-
-    # Character encoding notice - enhanced
-    parts.append("SWEDISH LANGUAGE REQUIREMENTS: Use proper UTF-8 encoding for all Swedish characters (å, ä, ö, Å, Ä, Ö). Ensure all text is properly encoded without character substitutions or encoding errors. Use Swedish grammar conventions and appropriate formality level. Verify all special characters display correctly in final output.")
-
-    # Add storytelling and engagement principles
-    parts.append("""STORYTELLING & ENGAGEMENT:
-- Start with a hook: compelling question, surprising statistic, or bold statement
-- Create emotional connection: use stories, examples, and relatable scenarios
-- Build tension and resolution: present problem before solution
-- Use the Rule of Three: group information in threes for memorability
-- Include surprising or counterintuitive insights to maintain interest
-- End with clear takeaway and next steps
-- Use transitions that connect slides logically
-- Vary slide layouts to maintain visual interest
-- Include moments for audience reflection or discussion
-- Make content scannable for different audience attention levels""")
+    # Swedish encoding - critical
+    parts.append("SWEDISH LANGUAGE: Ensure proper encoding of Swedish characters (å, ä, ö, Å, Ä, Ö). Use correct Swedish grammar and formality level.")
 
     return " ".join(parts)
 
