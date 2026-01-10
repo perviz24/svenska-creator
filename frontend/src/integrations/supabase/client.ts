@@ -6,6 +6,20 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'placeholder-key';
 
+// Export configuration status for components to check
+export const isSupabaseConfigured = Boolean(
+  import.meta.env.VITE_SUPABASE_URL &&
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+);
+
+// Log warning if not configured (only once)
+if (!isSupabaseConfigured && typeof window !== 'undefined') {
+  console.warn(
+    '⚠️ Supabase not configured. Authentication features will not work.\n' +
+    'Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY environment variables.'
+  );
+}
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 

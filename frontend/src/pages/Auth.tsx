@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { Loader2, GraduationCap, FlaskConical, ArrowRight } from 'lucide-react';
+import { Loader2, GraduationCap, FlaskConical, ArrowRight, AlertTriangle } from 'lucide-react';
+import { isSupabaseConfigured } from '@/integrations/supabase/client';
 
 const authSchema = z.object({
   email: z.string().email('Ogiltig e-postadress'),
@@ -122,6 +123,31 @@ export default function Auth() {
           <ArrowRight className="w-5 h-5 text-amber-500 group-hover:translate-x-1 transition-transform" />
         </div>
       </Link>
+
+      {/* Supabase Not Configured Warning */}
+      {!isSupabaseConfigured && (
+        <div className="mb-6 w-full max-w-md">
+          <div className="flex items-start gap-3 p-4 rounded-xl border-2 border-orange-500/50 bg-orange-500/5">
+            <div className="p-2 rounded-lg bg-orange-500 text-white shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground mb-1">
+                Autentisering inte konfigurerad
+              </h3>
+              <p className="text-sm text-muted-foreground mb-2">
+                Supabase-anslutning krävs för inloggning. Använd demo-läget för att testa systemet.
+              </p>
+              <Link to="/demo">
+                <Button variant="outline" size="sm" className="mt-2">
+                  <FlaskConical className="w-4 h-4 mr-2" />
+                  Gå till Demo
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
