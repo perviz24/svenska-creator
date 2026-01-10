@@ -5,7 +5,9 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: mode === 'production' ? '/svenska-creator/' : '/',
+  // Use root path for emergent.sh, subdirectory for GitHub Pages
+  // Set VITE_DEPLOY_TARGET=github-pages in GitHub Actions to use subdirectory
+  base: process.env.VITE_DEPLOY_TARGET === 'github-pages' ? '/svenska-creator/' : '/',
   build: {
     outDir: 'build'
   },

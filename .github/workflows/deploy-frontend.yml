@@ -34,6 +34,7 @@ jobs:
         run: cd frontend && npm run build
         env:
           VITE_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL }}
+          VITE_DEPLOY_TARGET: github-pages
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
