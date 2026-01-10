@@ -569,6 +569,7 @@ const Demo = () => {
             courseTitle={state.title}
             demoMode={state.settings.demoMode}
             projectMode={state.settings.projectMode}
+            settings={state.settings}
             onGenerateSlides={generateSlides}
             onUpdateSlide={updateSlide}
             onSetModuleSlides={setModuleSlides}

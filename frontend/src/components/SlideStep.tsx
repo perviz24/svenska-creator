@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slide, ModuleScript, StockPhoto, CourseOutline, DemoModeSettings, ProjectMode, PresentonState, PresentonGenerationEntry } from '@/types/course';
+import { Slide, ModuleScript, StockPhoto, CourseOutline, DemoModeSettings, ProjectMode, PresentonState, PresentonGenerationEntry, CourseSettings } from '@/types/course';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -33,6 +33,7 @@ interface SlideStepProps {
   demoMode?: DemoModeSettings;
   projectMode?: ProjectMode;
   presentonState?: PresentonState;
+  settings?: CourseSettings;
   onGenerateSlides: (moduleId: string, script: ModuleScript) => Promise<void>;
   onUpdateSlide: (moduleId: string, slideIndex: number, updates: Partial<Slide>) => void;
   onSetModuleSlides?: (moduleId: string, slides: Slide[]) => void;
@@ -51,6 +52,7 @@ export function SlideStep({
   demoMode,
   projectMode = 'course',
   presentonState,
+  settings,
   onGenerateSlides,
   onUpdateSlide,
   onSetModuleSlides,
@@ -161,6 +163,18 @@ export function SlideStep({
       // Clean up multiple newlines
       .replace(/\n{3,}/g, '\n\n')
       .trim();
+  };
+
+  // Map UI tone to Presenton API tone values
+  const mapToneToPresenton = (uiTone: string | undefined): string => {
+    const toneMap: Record<string, string> = {
+      'formal': 'professional',
+      'professional': 'professional',
+      'friendly': 'casual',
+      'casual': 'casual',
+      'inspirational': 'sales_pitch',
+    };
+    return toneMap[uiTone || 'professional'] || 'professional';
   };
 
   // In presentation mode, we don't need scripts - generate from title directly
@@ -283,20 +297,30 @@ export function SlideStep({
     
     try {
       const scriptContent = currentScript?.sections?.map(s => `${s.title}\n${s.content}`).join('\n\n') || '';
-      
+
+      // Build additional context from presentation settings
+      const presentationSettings = settings?.presentationSettings;
+      const additionalContext = [
+        presentationSettings?.primaryColor && `Primary color: ${presentationSettings.primaryColor}`,
+        presentationSettings?.accentColor && `Accent color: ${presentationSettings.accentColor}`,
+        presentationSettings?.imageRichness && `Image richness: ${presentationSettings.imageRichness}`,
+        presentationSettings?.includeCharts && 'Include charts and data visualizations',
+        presentationSettings?.includeAnimations && 'Include slide transitions',
+      ].filter(Boolean).join('. ');
+
       // Step 1: Start async generation with enhanced parameters via FastAPI backend
       const data = await generatePresentonPresentation({
         topic: isPresentation ? courseTitle : currentScript?.moduleTitle || courseTitle,
         num_slides: Math.min(numSlides, isDemoMode ? (demoMode?.maxSlides || 3) : 50),
-        language: 'sv',
+        language: settings?.language || 'sv',
         style: exportTemplate,
-        tone: exportTemplate,
+        tone: mapToneToPresenton(presentationSettings?.tone),
         verbosity: presentonVerbosity,
-        image_type: presentonImageType,
         web_search: presentonWebSearch,
         script_content: scriptContent,
         module_title: currentScript?.moduleTitle || courseTitle,
         course_title: courseTitle,
+        additional_context: additionalContext || undefined,
         export_format: 'pptx',
       });
 

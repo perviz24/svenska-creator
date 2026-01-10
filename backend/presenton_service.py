@@ -354,6 +354,60 @@ def build_enhanced_instructions(params: Dict[str, Any]) -> str:
     return " ".join(parts)
 
 
+def append_user_preferences_to_instructions(instructions: str, request: PresentonRequest) -> str:
+    """Append explicit user preferences from additional_context to instructions"""
+
+    if not request.additional_context:
+        return instructions
+
+    additions = []
+    context = request.additional_context.lower()
+
+    # Parse primary color
+    if "primary color:" in context:
+        try:
+            color = request.additional_context.split("primary color:")[1].split(".")[0].strip()
+            additions.append(f"PRIMARY BRAND COLOR: Use {color} as the primary brand color throughout the presentation. Apply this color to headings, key elements, accent items, and important callouts. Ensure consistency across all slides.")
+        except:
+            pass
+
+    # Parse accent color
+    if "accent color:" in context:
+        try:
+            color = request.additional_context.split("accent color:")[1].split(".")[0].strip()
+            additions.append(f"ACCENT COLOR: Use {color} as the secondary accent color for highlights, callouts, buttons, and emphasis elements. Create visual hierarchy through color contrast.")
+        except:
+            pass
+
+    # Parse image richness
+    if "image richness:" in context:
+        richness_guides = {
+            "minimal": "MINIMAL IMAGE USAGE: Use images sparingly - only 1-2 slides should have images. Focus primarily on text, bullet points, and simple diagrams. When images are used, they should be highly relevant and impactful.",
+            "moderate": "MODERATE IMAGE USAGE: Balance images and text content - approximately 40-50% of slides should include relevant, high-quality images. Mix text-focused and image-focused slides for variety.",
+            "rich": "RICH IMAGE USAGE: Image-rich presentation - 60-70% of slides should feature high-quality, relevant images. Use large images that support the message. Balance with sufficient white space.",
+            "visual-heavy": "VISUAL-HEAVY PRESENTATION: Highly visual presentation - every slide should include compelling, high-quality imagery. Minimize text, use images as primary communication tool. Images should be full-bleed or occupy majority of slide space."
+        }
+
+        for richness_level, guide in richness_guides.items():
+            if richness_level in context:
+                additions.append(guide)
+                break
+
+    # Parse charts requirement
+    if "include charts" in context or "data visualizations" in context:
+        additions.append("CHARTS & DATA VISUALIZATION REQUIREMENT: Include 2-3 data visualization slides with charts, graphs, or diagrams to illustrate key points and data. Use appropriate chart types: line charts for trends over time, bar charts for comparisons between categories, pie charts for proportions (maximum 5 slices), scatter plots for correlations. Ensure all charts have clear titles, labeled axes, legends, and highlight key insights with color or annotations. Include data sources for credibility.")
+
+    # Parse animations requirement
+    if "include slide transitions" in context or "include animations" in context:
+        additions.append("TRANSITIONS & ANIMATIONS: Design slides with smooth transitions and animations in mind. Create opportunities for progressive disclosure where information builds up step-by-step. Plan visual flow between slides. Use consistent transition styles throughout the presentation.")
+
+    if additions:
+        separator = "\n\n" + "="*80 + "\n"
+        return instructions + separator + "EXPLICIT USER PREFERENCES:\n" + "\n\n".join(additions)
+
+    return instructions
+
+
 def preprocess_content(content: str, topic: str, num_slides: int) -> str:
     """Preprocess and optimize content for better Presenton output"""
     if not content or not content.strip():
@@ -401,18 +455,6 @@ def optimize_presenton_payload(request: PresentonRequest, payload: Dict[str, Any
     if payload.get("web_search") is None and not request.script_content:
         payload["web_search"] = True
 
-    # Optimize image settings
-    if request.image_type == "ai-generated":
-        # Add specific image generation guidance
-        payload["image_generation_style"] = "photorealistic"
-
-    # Ensure markdown emphasis for better formatting
-    payload["markdown_emphasis"] = True
-
-    # Set quality mode to highest
-    if "quality_mode" not in payload:
-        payload["quality_mode"] = "high"
-
     return payload
 
 
@@ -449,7 +491,14 @@ async def generate_presenton_presentation(request: PresentonRequest) -> Dict[str
     effective_theme = topic_context["color_scheme"]
     
     # Map tone
-    tone_map = {"professional": "professional", "casual": "casual", "funny": "funny", "educational": "educational", "inspirational": "educational"}
+    tone_map = {
+        "professional": "professional",
+        "casual": "casual",
+        "funny": "funny",
+        "educational": "educational",
+        "inspirational": "sales_pitch",  # Better for inspirational content
+        "sales_pitch": "sales_pitch"
+    }
     effective_tone = tone_map.get(request.tone or request.style or "professional", "professional")
     
     # Build enhanced instructions
@@ -469,6 +518,9 @@ async def generate_presenton_presentation(request: PresentonRequest) -> Dict[str
     
     enhanced_instructions = build_enhanced_instructions(instruction_params)
 
+    # Append user preferences from additional_context
+    enhanced_instructions = append_user_preferences_to_instructions(enhanced_instructions, request)
+
     # Preprocess content for better quality
     raw_content = content_for_analysis[:10000]  # Limit to 10k chars
     optimized_content = preprocess_content(raw_content, request.topic, request.num_slides)
@@ -483,14 +535,10 @@ async def generate_presenton_presentation(request: PresentonRequest) -> Dict[str
         "tone": effective_tone,
         "instructions": enhanced_instructions,
         "verbosity": request.verbosity,
-        "markdown_emphasis": True,
         "web_search": request.web_search,
-        "image_type": request.image_type,
         "include_title_slide": request.include_title_slide,
         "include_table_of_contents": effective_include_toc,
-        "allow_access_to_user_info": True,
         "export_as": request.export_format,
-        "trigger_webhook": False
     }
 
     # Optimize payload for better quality

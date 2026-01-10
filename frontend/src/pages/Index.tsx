@@ -131,6 +131,7 @@ const Index = () => {
             demoMode={state.settings.demoMode}
             projectMode={state.settings.projectMode}
             presentonState={state.presenton}
+            settings={state.settings}
             onGenerateSlides={generateSlides}
             onUpdateSlide={updateSlide}
             onSetModuleSlides={setModuleSlides}
