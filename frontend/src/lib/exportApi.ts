@@ -79,12 +79,25 @@ export async function exportWord(request: ExportWordRequest): Promise<Blob> {
 // ============================================================================
 
 export function downloadBlob(blob: Blob, filename: string) {
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  window.URL.revokeObjectURL(url);
-  document.body.removeChild(a);
+  try {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+
+    document.body.appendChild(a);
+    a.click();
+
+    // Clean up after a delay to ensure download started
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+      if (document.body.contains(a)) {
+        document.body.removeChild(a);
+      }
+    }, 100);
+  } catch (error) {
+    console.error('Download error:', error);
+    throw new Error('Failed to download file. Please try again.');
+  }
 }

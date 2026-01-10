@@ -302,11 +302,26 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
         });
       }
 
-      await pptx.writeFile({ fileName: `${courseTitle || 'presentation'}_clean.pptx` });
-      toast({ title: 'Ren PowerPoint nedladdad!' });
+      // Sanitize filename - remove special characters
+      const safeFilename = (courseTitle || 'presentation')
+        .replace(/[^a-zA-Z0-9\s_-]/g, '')
+        .replace(/\s+/g, '_')
+        .substring(0, 50);
+
+      await pptx.writeFile({ fileName: `${safeFilename}_clean.pptx` });
+
+      toast({
+        title: 'Ren PowerPoint nedladdad!',
+        description: `${slides.length} slides exporterade`
+      });
     } catch (error) {
       console.error('Export error:', error);
-      toast({ title: 'Kunde inte exportera PowerPoint', variant: 'destructive' });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast({
+        title: 'Kunde inte exportera PowerPoint',
+        description: errorMessage,
+        variant: 'destructive'
+      });
     } finally {
       setIsExportingPptxClean(false);
     }
@@ -322,6 +337,12 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
         return;
       }
 
+      // Sanitize filename
+      const safeFilename = (courseTitle || 'presentation')
+        .replace(/[^a-zA-Z0-9\s_-]/g, '')
+        .replace(/\s+/g, '_')
+        .substring(0, 50);
+
       // Use FastAPI export instead of Supabase
       const blob = await exportSlides({
         slides: slides.map(s => ({
@@ -335,11 +356,29 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
         format: 'pptx',
       });
 
-      downloadBlob(blob, `${courseTitle || 'presentation'}_styled.pptx`);
-      toast({ title: 'Professionell PowerPoint nedladdad!' });
+      downloadBlob(blob, `${safeFilename}_styled.pptx`);
+      toast({
+        title: 'Professionell PowerPoint nedladdad!',
+        description: `${slides.length} slides exporterade med professionell design`
+      });
     } catch (error) {
       console.error('Export error:', error);
-      toast({ title: 'Kunde inte exportera PowerPoint', variant: 'destructive' });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // Check if it's a backend connection error
+      if (errorMessage.includes('fetch') || errorMessage.includes('Failed to fetch')) {
+        toast({
+          title: 'Backend inte tillgänglig',
+          description: 'Prova "Ren" PPTX istället eller kontrollera backend-anslutning',
+          variant: 'destructive'
+        });
+      } else {
+        toast({
+          title: 'Kunde inte exportera PowerPoint',
+          description: errorMessage,
+          variant: 'destructive'
+        });
+      }
     } finally {
       setIsExportingPptx(false);
     }
@@ -367,17 +406,46 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
       size: landscape;
       margin: 0;
     }
+    @media print {
+      body { margin: 0; }
+      .slide { page-break-after: always; page-break-inside: avoid; }
+      .slide:last-child { page-break-after: auto; }
+      .print-instructions { display: none; }
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; }
+    body { font-family: Arial, sans-serif; background: #f0f0f0; }
+    .print-instructions {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #4CAF50;
+      color: white;
+      padding: 15px 25px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      z-index: 1000;
+      font-size: 14px;
+      max-width: 300px;
+    }
+    .print-instructions button {
+      margin-top: 10px;
+      background: white;
+      color: #4CAF50;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+    }
     .slide {
       width: 100vw;
       height: 100vh;
-      page-break-after: always;
       display: flex;
       flex-direction: column;
       padding: 40px;
+      margin-bottom: 20px;
     }
-    .slide:last-child { page-break-after: auto; }
     .title-slide {
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
       color: white;
@@ -387,7 +455,7 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
     }
     .title-slide h1 { font-size: 48px; margin-bottom: 20px; }
     .title-slide p { font-size: 24px; color: #aaa; }
-    .content-slide { background: #fff; }
+    .content-slide { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
     .content-slide .header {
       background: #1a1a2e;
       color: white;
@@ -395,13 +463,18 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
       margin: -40px -40px 30px -40px;
     }
     .content-slide h2 { font-size: 28px; margin-bottom: 20px; }
-    .content-slide .body { flex: 1; font-size: 20px; line-height: 1.6; }
+    .content-slide .body { flex: 1; font-size: 20px; line-height: 1.6; padding: 20px; }
     .content-slide ul { padding-left: 30px; }
     .content-slide li { margin-bottom: 12px; }
     ${isDemoMode ? '.demo-watermark { position: fixed; bottom: 10px; right: 10px; color: #ccc; font-size: 12px; }' : ''}
   </style>
 </head>
 <body>
+  <div class="print-instructions">
+    <strong>För att spara som PDF:</strong><br>
+    Tryck Ctrl+P (Cmd+P på Mac) och välj "Spara som PDF" som skrivare.
+    <button onclick="window.print()">Öppna utskrift</button>
+  </div>
   ${slides.map((slide, index) => {
     if (slide.layout === 'title' || index === 0) {
       return `
@@ -426,24 +499,24 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
     }
   }).join('')}
   ${isDemoMode ? '<div class="demo-watermark">DEMO MODE</div>' : ''}
+  <script>
+    // Auto-trigger print dialog after page loads
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+      }, 500);
+    };
+  </script>
 </body>
 </html>`;
 
-      // Create downloadable HTML that can be printed as PDF
-      const blob = new Blob([htmlContent], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      
-      // Open in new window for print-to-PDF
-      const printWindow = window.open(url, '_blank');
-      if (printWindow) {
-        printWindow.onload = () => {
-          setTimeout(() => printWindow.print(), 500);
-        };
-      }
-      
-      toast({ 
-        title: 'PDF öppnad!', 
-        description: 'Använd webbläsarens utskriftsfunktion för att spara som PDF.' 
+      // Download HTML file that can be opened and printed to PDF
+      const blob = new Blob([htmlContent], { type: 'text/html; charset=utf-8' });
+      downloadBlob(blob, `${courseTitle || 'presentation'}.html`);
+
+      toast({
+        title: 'HTML-fil nedladdad!',
+        description: 'Öppna filen och använd Ctrl+P för att spara som PDF.'
       });
     } catch (error) {
       console.error('Export error:', error);
