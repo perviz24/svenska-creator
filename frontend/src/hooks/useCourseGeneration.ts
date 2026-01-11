@@ -174,18 +174,67 @@ export function useCourseGeneration(
     courseTitle: string
   ): Promise<Slide[]> => {
     onProcessingStart();
-    
+
     try {
       const scriptContent = script.sections.map(s => `${s.title}\n${s.content}`).join('\n\n');
-      
+
+      // Map presentation settings to slide generation parameters
+      const presentationSettings = settings.presentationSettings;
+      const projectMode = settings.projectMode;
+
+      // Map professionality level to audience type
+      const audienceTypeMap: Record<string, string> = {
+        'very-casual': 'general',
+        'casual': 'general',
+        'professional': 'professional',
+        'formal': 'executive',
+        'very-formal': 'executive'
+      };
+
+      // Map presentation tone to backend tone
+      const toneMap: Record<string, string> = {
+        'formal': 'professional',
+        'professional': 'professional',
+        'friendly': 'casual',
+        'casual': 'casual',
+        'inspirational': 'inspirational'
+      };
+
+      // Map image richness to verbosity
+      const verbosityMap: Record<string, 'concise' | 'standard' | 'text-heavy'> = {
+        'minimal': 'concise',
+        'moderate': 'standard',
+        'rich': 'standard',
+        'visual-heavy': 'concise'
+      };
+
+      // Determine slide count
+      const numSlides = isDemoMode
+        ? (effectiveDemoMode?.maxSlides || 3)
+        : (presentationSettings?.slideCount || 10);
+
+      // Determine presentation goal
+      const presentationGoal = projectMode === 'course' ? 'teach' : 'inform';
+
       const data = await generateSlidesAPI({
         script_content: scriptContent,
         module_title: script.moduleTitle,
         course_title: courseTitle,
-        num_slides: isDemoMode ? effectiveDemoMode?.maxSlides || 3 : 10,
+        num_slides: numSlides,
         language: settings.language || 'sv',
-        tone: settings.style || 'professional',
-        verbosity: 'standard',
+        tone: presentationSettings?.tone ? toneMap[presentationSettings.tone] : settings.style || 'professional',
+        verbosity: presentationSettings?.imageRichness ? verbosityMap[presentationSettings.imageRichness] : 'standard',
+        include_title_slide: true,
+        include_table_of_contents: numSlides > 8,
+        audience_type: presentationSettings?.professionalityLevel
+          ? audienceTypeMap[presentationSettings.professionalityLevel]
+          : 'general',
+        presentation_goal: presentationGoal,
+        industry: null,
+        primary_color: presentationSettings?.primaryColor,
+        accent_color: presentationSettings?.accentColor,
+        image_richness: presentationSettings?.imageRichness,
+        include_charts: presentationSettings?.includeCharts,
       });
 
       let slides: Slide[] = data.slides.map((slide: any) => {

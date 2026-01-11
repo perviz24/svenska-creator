@@ -802,23 +802,82 @@ export function useCourseWorkflow() {
     });
   }, [courseId]);
 
+  // Helper function to map presentation settings to slide generation parameters
+  const mapPresentationSettingsToParams = useCallback(() => {
+    const presentationSettings = state.settings.presentationSettings;
+    const projectMode = state.settings.projectMode;
+    const isDemoMode = effectiveDemoMode?.enabled || false;
+
+    // Map professionality level to audience type
+    const audienceTypeMap: Record<string, string> = {
+      'very-casual': 'general',
+      'casual': 'general',
+      'professional': 'professional',
+      'formal': 'executive',
+      'very-formal': 'executive'
+    };
+
+    // Map presentation tone to backend tone
+    const toneMap: Record<string, string> = {
+      'formal': 'professional',
+      'professional': 'professional',
+      'friendly': 'casual',
+      'casual': 'casual',
+      'inspirational': 'inspirational'
+    };
+
+    // Map image richness to verbosity
+    const verbosityMap: Record<string, 'concise' | 'standard' | 'text-heavy'> = {
+      'minimal': 'concise',       // Minimal images = concise text
+      'moderate': 'standard',     // Balanced
+      'rich': 'standard',         // Rich images = standard text
+      'visual-heavy': 'concise'   // Heavy images = minimal text
+    };
+
+    // Determine slide count
+    const numSlides = isDemoMode
+      ? effectiveDemoMode.maxSlides
+      : (presentationSettings?.slideCount || 10);
+
+    // Determine presentation goal
+    const presentationGoal = projectMode === 'course' ? 'teach' : 'inform';
+
+    return {
+      num_slides: numSlides,
+      language: state.settings.language || 'sv',
+      tone: presentationSettings?.tone ? toneMap[presentationSettings.tone] : state.settings.style || 'professional',
+      verbosity: presentationSettings?.imageRichness ? verbosityMap[presentationSettings.imageRichness] : 'standard',
+      include_title_slide: true,
+      include_table_of_contents: numSlides > 8,
+      audience_type: presentationSettings?.professionalityLevel
+        ? audienceTypeMap[presentationSettings.professionalityLevel]
+        : 'general',
+      presentation_goal: presentationGoal,
+      industry: null as string | null,
+      primary_color: presentationSettings?.primaryColor,
+      accent_color: presentationSettings?.accentColor,
+      image_richness: presentationSettings?.imageRichness,
+      include_charts: presentationSettings?.includeCharts,
+    };
+  }, [state.settings, effectiveDemoMode]);
+
   const generateSlides = useCallback(async (moduleId: string, script: ModuleScript) => {
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
-    
+
     const isDemoMode = effectiveDemoMode?.enabled || false;
-    
+
     try {
       const scriptContent = script.sections.map(s => `${s.title}\n${s.content}`).join('\n\n');
-      
-      // Call FastAPI backend instead of Supabase function
+
+      // Get mapped parameters from presentation settings
+      const slideParams = mapPresentationSettingsToParams();
+
+      // Call FastAPI backend with comprehensive parameters
       const data = await generateSlidesAPI({
         script_content: scriptContent,
         module_title: script.moduleTitle,
         course_title: state.title,
-        num_slides: isDemoMode ? effectiveDemoMode.maxSlides : 10,
-        language: state.settings.language || 'sv',
-        tone: state.settings.style || 'professional',
-        verbosity: 'standard',
+        ...slideParams,
       });
 
       let slides: Slide[] = data.slides.map((slide: any) => {

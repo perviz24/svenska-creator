@@ -31,6 +31,10 @@ class SlideGenerationRequest(BaseModel):
     industry: Optional[str] = None
     audience_type: Optional[str] = "general"
     presentation_goal: Optional[str] = None  # inform, persuade, inspire, teach
+    primary_color: Optional[str] = None  # Brand primary color (hex)
+    accent_color: Optional[str] = None  # Brand accent color (hex)
+    image_richness: Optional[str] = None  # minimal, moderate, rich, visual-heavy
+    include_charts: Optional[bool] = False  # Include data visualizations
 
 
 class SlideContent(BaseModel):
@@ -463,6 +467,72 @@ async def generate_slides(request: SlideGenerationRequest) -> SlideGenerationRes
 - Slides {request.num_slides - closing_slides + 1}-{request.num_slides}: CLOSING - Key takeaways, call-to-action, next steps
 """
 
+    # Build color guidance if provided
+    color_guidance = ""
+    if request.primary_color:
+        if request.language == "sv":
+            color_guidance = f"""
+## FÄRGTEMA
+- Primärfärg: {request.primary_color} (använd för rubriker, accenter, nyckelbudskap, visuella highlight)
+- Accentfärg: {request.accent_color or request.primary_color} (använd för highlights, callouts, ikoner)
+- Säkerställ god kontrast mot vit/ljus bakgrund (minst 4.5:1 för text)
+- Använd färger konsekvent genom hela presentationen
+- Lägg till color_accent fält i varje slide med hex-värden
+"""
+        else:
+            color_guidance = f"""
+## COLOR THEME
+- Primary Color: {request.primary_color} (use for headings, accents, key messages, visual highlights)
+- Accent Color: {request.accent_color or request.primary_color} (use for highlights, callouts, icons)
+- Ensure good contrast against white/light background (minimum 4.5:1 for text)
+- Use colors consistently throughout the presentation
+- Add color_accent field in each slide with hex values
+"""
+
+    # Build image richness guidance if provided
+    image_richness_guidance = ""
+    if request.image_richness:
+        if request.language == "sv":
+            guides = {
+                "minimal": "MINIMAL BILDANVÄNDNING: Använd bilder sparsamt - endast 1-2 slides bör ha bilder. Fokusera på text, bullet points och enkla diagram. När bilder används ska de vara mycket relevanta och kraftfulla.",
+                "moderate": "MÅTTLIG BILDANVÄNDNING: Balansera bilder och text - cirka 40-50% av slides bör inkludera relevanta, högkvalitativa bilder. Blanda textfokuserade och bildberikade slides för variation.",
+                "rich": "BILDRIK PRESENTATION: Bildrik presentation - 60-70% av slides bör innehålla högkvalitativa, relevanta bilder. Använd stora bilder som stödjer budskapet. Balansera med tillräckligt vitt space.",
+                "visual-heavy": "MYCKET VISUELL PRESENTATION: Varje slide bör innehålla övertygande imagery. Minimera text, använd bilder som primärt kommunikationsverktyg. Bilder bör vara fullbredd eller täcka majoriteten av sliden."
+            }
+            image_richness_guidance = f"\n{guides.get(request.image_richness, guides['moderate'])}"
+        else:
+            guides = {
+                "minimal": "MINIMAL IMAGE USAGE: Use images sparingly - only 1-2 slides should have images. Focus on text, bullet points, and simple diagrams. When images are used, they should be highly relevant and impactful.",
+                "moderate": "MODERATE IMAGE USAGE: Balance images and text - approximately 40-50% of slides should include relevant, high-quality images. Mix text-focused and image-rich slides for variety.",
+                "rich": "RICH IMAGE USAGE: Image-rich presentation - 60-70% of slides should feature high-quality, relevant images. Use large images that support the message. Balance with sufficient white space.",
+                "visual-heavy": "VISUAL-HEAVY PRESENTATION: Every slide should include compelling imagery. Minimize text, use images as primary communication tool. Images should be full-bleed or occupy majority of slide space."
+            }
+            image_richness_guidance = f"\n{guides.get(request.image_richness, guides['moderate'])}"
+
+    # Build charts guidance if requested
+    charts_guidance = ""
+    if request.include_charts:
+        if request.language == "sv":
+            charts_guidance = """
+## DIAGRAM OCH DATAVISUALISERING
+- Inkludera 2-3 datavisualiseringsslides med diagram, grafer eller infografik
+- Använd lämpliga diagramtyper: linjediagram för trender, stapeldiagram för jämförelser, cirkeldiagram för proportioner (max 5 segment)
+- Varje diagram ska ha tydlig titel, märkta axlar, förklaring och datakälla
+- Markera viktiga insikter med färg eller annotationer
+- Använd "data-visualization" layout för dessa slides
+- I suggested_image_query, specificera typ av diagram/data som behövs
+"""
+        else:
+            charts_guidance = """
+## CHARTS AND DATA VISUALIZATION
+- Include 2-3 data visualization slides with charts, graphs, or infographics
+- Use appropriate chart types: line charts for trends, bar charts for comparisons, pie charts for proportions (max 5 segments)
+- Each chart should have clear title, labeled axes, legend, and data source
+- Highlight key insights with color or annotations
+- Use "data-visualization" layout for these slides
+- In suggested_image_query, specify type of chart/data needed
+"""
+
     # Build the enhanced system prompt
     if request.language == "sv":
         system_prompt = f"""Du är en världsledande presentationsdesigner med expertis inom visuell kommunikation och berättande.
@@ -478,6 +548,12 @@ async def generate_slides(request: SlideGenerationRequest) -> SlideGenerationRes
 TON: {tone_guidance}
 
 {image_guidance}
+
+{color_guidance}
+
+{image_richness_guidance}
+
+{charts_guidance}
 
 ## INSTRUKTIONER
 Skapa exakt {request.num_slides} professionella slides.
@@ -526,6 +602,12 @@ KRITISKA REGLER:
 TONE: {tone_guidance}
 
 {image_guidance}
+
+{color_guidance}
+
+{image_richness_guidance}
+
+{charts_guidance}
 
 ## INSTRUCTIONS
 Create exactly {request.num_slides} professional slides.

@@ -140,6 +140,10 @@ export interface SlideGenerationRequest {
   industry?: string;
   audience_type?: string;
   presentation_goal?: 'inform' | 'persuade' | 'inspire' | 'teach';
+  primary_color?: string;  // Brand primary color (hex format)
+  accent_color?: string;   // Brand accent color (hex format)
+  image_richness?: 'minimal' | 'moderate' | 'rich' | 'visual-heavy';
+  include_charts?: boolean;  // Include data visualization slides
 }
 
 export interface SlideContent {
