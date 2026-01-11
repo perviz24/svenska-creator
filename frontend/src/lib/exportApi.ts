@@ -41,6 +41,8 @@ export interface ExportWordRequest {
 // ============================================================================
 
 export async function exportSlides(request: ExportSlidesRequest): Promise<Blob> {
+  console.log(`Exporting ${request.slides.length} slides to ${request.format}...`);
+
   const response = await fetch(`${BACKEND_URL}/api/export/slides`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -48,11 +50,27 @@ export async function exportSlides(request: ExportSlidesRequest): Promise<Blob> 
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(error.detail || `HTTP ${response.status}`);
+    const errorText = await response.text();
+    console.error('Export failed:', response.status, errorText);
+
+    // Try to parse as JSON for detailed error
+    try {
+      const error = JSON.parse(errorText);
+      throw new Error(error.detail || `HTTP ${response.status}`);
+    } catch {
+      throw new Error(`Export failed: ${response.status} - ${errorText.substring(0, 100)}`);
+    }
   }
 
-  return response.blob();
+  const blob = await response.blob();
+  console.log(`Received blob: ${blob.size} bytes, type: ${blob.type}`);
+
+  // Validate blob
+  if (blob.size === 0) {
+    throw new Error('Server returned empty file');
+  }
+
+  return blob;
 }
 
 // ============================================================================
@@ -80,24 +98,38 @@ export async function exportWord(request: ExportWordRequest): Promise<Blob> {
 
 export function downloadBlob(blob: Blob, filename: string) {
   try {
+    // Validate blob has content
+    if (!blob || blob.size === 0) {
+      console.error('Empty blob received for download');
+      throw new Error('File is empty. Please try generating again.');
+    }
+
+    console.log(`Downloading ${filename} (${blob.size} bytes, type: ${blob.type})`);
+
+    // Create download link
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = url;
     a.download = filename;
 
+    // Append to body and trigger click
     document.body.appendChild(a);
-    a.click();
 
-    // Clean up after a delay to ensure download started
-    setTimeout(() => {
-      window.URL.revokeObjectURL(url);
-      if (document.body.contains(a)) {
-        document.body.removeChild(a);
-      }
-    }, 100);
+    // Use requestAnimationFrame to ensure DOM update before click
+    requestAnimationFrame(() => {
+      a.click();
+
+      // Clean up after longer delay to ensure download initiated
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        if (document.body.contains(a)) {
+          document.body.removeChild(a);
+        }
+      }, 500);
+    });
   } catch (error) {
     console.error('Download error:', error);
-    throw new Error('Failed to download file. Please try again.');
+    throw new Error(error instanceof Error ? error.message : 'Failed to download file. Please try again.');
   }
 }

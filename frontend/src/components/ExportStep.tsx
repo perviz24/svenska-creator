@@ -205,11 +205,14 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
   const handleDownloadPptxClean = async () => {
     setIsExportingPptxClean(true);
     try {
+      console.log('Starting clean PPTX export...');
       const slides = collectAllSlides();
       if (slides.length === 0) {
         toast({ title: 'Inga slides att exportera', variant: 'destructive' });
         return;
       }
+
+      console.log(`Collected ${slides.length} slides for export`);
 
       const pptx = new pptxgen();
       pptx.author = 'Course Generator';
@@ -308,11 +311,13 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
         .replace(/\s+/g, '_')
         .substring(0, 50);
 
+      console.log(`Writing PPTX file: ${safeFilename}_clean.pptx`);
       await pptx.writeFile({ fileName: `${safeFilename}_clean.pptx` });
+      console.log('Clean PPTX download initiated');
 
       toast({
-        title: 'Ren PowerPoint nedladdad!',
-        description: `${slides.length} slides exporterade`
+        title: 'PowerPoint nedladdning startad!',
+        description: `${slides.length} slides • Kontrollera din nedladdningsmapp`
       });
     } catch (error) {
       console.error('Export error:', error);
@@ -343,6 +348,8 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
         .replace(/\s+/g, '_')
         .substring(0, 50);
 
+      console.log('Starting styled PPTX export...');
+
       // Use FastAPI export instead of Supabase
       const blob = await exportSlides({
         slides: slides.map(s => ({
@@ -358,10 +365,16 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
         format: 'pptx',
       });
 
+      console.log('Export successful, initiating download...');
+
+      // Download the file
       downloadBlob(blob, `${safeFilename}_styled.pptx`);
+
+      // Only show success toast after download is initiated
+      console.log('Download initiated successfully');
       toast({
-        title: 'Professionell PowerPoint nedladdad!',
-        description: `${slides.length} slides exporterade med professionell design`
+        title: 'PowerPoint nedladdning startad!',
+        description: `${slides.length} slides • Kontrollera din nedladdningsmapp`
       });
     } catch (error) {
       console.error('Export error:', error);
