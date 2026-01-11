@@ -348,7 +348,9 @@ export function ExportStep({ outline, moduleAudio, courseTitle, scripts, slides:
         slides: slides.map(s => ({
           title: s.title || '',
           content: s.content || '',
-          bullet_points: s.bulletPoints || undefined,
+          bullet_points: s.content
+            ? s.content.split('\n').filter(line => line.trim()).map(line => line.replace(/^[•\-]\s*/, ''))
+            : undefined,
           speaker_notes: s.speakerNotes || undefined,
           layout: s.layout || 'title_content',
         })),
