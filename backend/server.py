@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Header
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -7,7 +7,7 @@ import io
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime
 from presenton_service import (
@@ -531,6 +531,194 @@ async def export_word_document(request: ExportWordRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Word export error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Canva Integration
+# ============================================================================
+
+from canva_service import canva_service, SlideData
+
+# In-memory storage for OAuth state (in production, use database or session store)
+oauth_states: Dict[str, Dict[str, Any]] = {}
+
+@api_router.get("/canva/authorize")
+async def canva_authorize():
+    """
+    Initiate Canva OAuth flow
+    Returns authorization URL with state and code_verifier for frontend
+    """
+    try:
+        auth_url, state, code_verifier = canva_service.get_authorization_url()
+
+        # Store state and verifier (in production, use secure session storage)
+        oauth_states[state] = {
+            "code_verifier": code_verifier,
+            "created_at": datetime.utcnow()
+        }
+
+        return {
+            "auth_url": auth_url,
+            "state": state,
+            "code_verifier": code_verifier
+        }
+    except Exception as e:
+        logger.error(f"Canva authorization error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/canva/callback")
+async def canva_callback(code: str, state: str):
+    """
+    Handle OAuth callback from Canva
+    Exchange authorization code for access tokens
+    """
+    try:
+        # Verify state
+        if state not in oauth_states:
+            raise HTTPException(status_code=400, detail="Invalid state parameter")
+
+        oauth_data = oauth_states.pop(state)
+        code_verifier = oauth_data["code_verifier"]
+
+        # Exchange code for tokens
+        tokens = await canva_service.exchange_code_for_tokens(code, code_verifier)
+
+        # TODO: Store tokens in database associated with user
+        # For now, return them to frontend for storage
+        return {
+            "success": True,
+            "tokens": tokens.dict()
+        }
+    except Exception as e:
+        logger.error(f"Canva callback error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/canva/refresh")
+async def canva_refresh_token(refresh_token: str):
+    """Refresh expired Canva access token"""
+    try:
+        tokens = await canva_service.refresh_access_token(refresh_token)
+        return {"tokens": tokens.dict()}
+    except Exception as e:
+        logger.error(f"Canva token refresh error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/canva/disconnect")
+async def canva_disconnect():
+    """Disconnect from Canva (clear tokens)"""
+    # TODO: Remove tokens from database
+    return {"success": True}
+
+
+@api_router.get("/canva/status")
+async def canva_status():
+    """Check if user is connected to Canva"""
+    # TODO: Check if valid tokens exist in database
+    return {"connected": False}  # Placeholder
+
+
+@api_router.get("/canva/brand-templates")
+async def get_canva_brand_templates(
+    access_token: str = Header(..., alias="Authorization"),
+    limit: int = 20
+):
+    """Fetch user's Canva brand templates"""
+    try:
+        # Remove 'Bearer ' prefix if present
+        token = access_token.replace("Bearer ", "")
+
+        templates = await canva_service.get_brand_templates(token, limit)
+        return {"templates": [t.dict() for t in templates]}
+    except Exception as e:
+        logger.error(f"Fetch Canva templates error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/canva/designs")
+async def create_canva_design(
+    request: Dict[str, Any],
+    access_token: str = Header(..., alias="Authorization")
+):
+    """Create a new Canva design"""
+    try:
+        token = access_token.replace("Bearer ", "")
+
+        design = await canva_service.create_design(
+            access_token=token,
+            title=request["title"],
+            design_type=request.get("design_type", "Presentation"),
+            template_id=request.get("template_id")
+        )
+
+        return {"design": design.dict()}
+    except Exception as e:
+        logger.error(f"Create Canva design error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/canva/autofill")
+async def autofill_canva_template(
+    request: Dict[str, Any],
+    access_token: str = Header(..., alias="Authorization")
+):
+    """Autofill a Canva template with slide data"""
+    try:
+        token = access_token.replace("Bearer ", "")
+
+        # Convert slides data to SlideData models
+        slides = [SlideData(**slide) for slide in request["slides"]]
+
+        design = await canva_service.autofill_template(
+            access_token=token,
+            template_id=request["template_id"],
+            title=request["title"],
+            slides=slides
+        )
+
+        return {"design": design.dict()}
+    except Exception as e:
+        logger.error(f"Autofill Canva template error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/canva/export")
+async def export_canva_design(
+    request: Dict[str, Any],
+    access_token: str = Header(..., alias="Authorization")
+):
+    """Export a Canva design"""
+    try:
+        token = access_token.replace("Bearer ", "")
+
+        job_id = await canva_service.export_design(
+            access_token=token,
+            design_id=request["design_id"],
+            format_type=request.get("format", "pptx")
+        )
+
+        return {"job_id": job_id}
+    except Exception as e:
+        logger.error(f"Export Canva design error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/canva/export/{job_id}")
+async def get_canva_export_status(
+    job_id: str,
+    access_token: str = Header(..., alias="Authorization")
+):
+    """Check Canva export job status"""
+    try:
+        token = access_token.replace("Bearer ", "")
+
+        job = await canva_service.get_export_status(token, job_id)
+        return {"job": job}
+    except Exception as e:
+        logger.error(f"Get Canva export status error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
