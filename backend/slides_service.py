@@ -533,13 +533,15 @@ async def generate_slides(request: SlideGenerationRequest) -> SlideGenerationRes
 - In suggested_image_query, specify type of chart/data needed
 """
 
-    # Build the enhanced system prompt
+    # Build simplified content-focused system prompt
     if request.language == "sv":
-        system_prompt = f"""Du är en världsledande presentationsdesigner med expertis inom visuell kommunikation och berättande.
+        system_prompt = f"""Du är expert på att strukturera presentationsinnehåll för professionell designförbättring.
 
-{design_principles}
+## DIN UPPGIFT
+Skapa välorganiserat, designer-vänligt innehåll som en grafisk designer kan förbättra visuellt.
+Fokusera på STRUKTUR och INNEHÅLL, inte visuell design.
 
-{layout_guidance}
+## INNEHÅLLSPRINCIPER
 
 {verbosity_guidance}
 
@@ -547,53 +549,52 @@ async def generate_slides(request: SlideGenerationRequest) -> SlideGenerationRes
 
 TON: {tone_guidance}
 
-{image_guidance}
+## SLIDES-STRUKTUR
 
-{color_guidance}
-
-{image_richness_guidance}
+Varje slide ska ha:
+1. **Tydlig titel** (max 8 ord, kraftfull och beskrivande)
+2. **3-5 bullet points** (kortfattade, börjar med aktiva verb)
+3. **Omfattande speaker notes** (150-200 ord med fullständigt manus)
+4. **Design-förslag** (i speaker notes: bildidéer, layout-tips, visuella element)
 
 {charts_guidance}
 
-## INSTRUKTIONER
-Skapa exakt {request.num_slides} professionella slides.
-
-SVARA ENDAST med giltig JSON i detta exakta format:
+## SVARA ENDAST med giltig JSON:
 {{
-  "presentation_title": "Titel som fångar essensen",
+  "presentation_title": "Beskrivande titel",
   "narrative_structure": "opening-body-conclusion",
   "slides": [
     {{
       "slide_number": 1,
-      "title": "Kort, kraftfull titel (max 8 ord)",
-      "subtitle": "Stödjande kontext (valfri)",
-      "content": "Huvudinnehåll",
-      "bullet_points": ["Punkt 1 med aktiv verb", "Punkt 2 med parallell struktur"],
-      "key_takeaway": "Vad publiken ska minnas från denna slide",
-      "speaker_notes": "Detaljerade anteckningar för presentatören (100-150 ord)",
-      "layout": "title-content",
-      "suggested_image_query": "specifik, beskrivande sökfråga för stockfoto",
-      "visual_type": "photo",
-      "color_accent": "#3B82F6",
-      "transition_hint": "Koppla till nästa slide"
+      "title": "Kort, tydlig titel (max 8 ord)",
+      "bullet_points": [
+        "Första punkten med aktiv verb",
+        "Andra punkten, parallell struktur",
+        "Tredje punkten, konkret och handlingsbar"
+      ],
+      "speaker_notes": "MANUS: Fullständigt manus för vad presentatören ska säga (150-200 ord). Inkludera introduktion, förklaring av varje punkt, och övergång till nästa slide.\\n\\nDESIGN-FÖRSLAG för grafisk designer:\\n- Förslag på bilder/ikoner\\n- Layout-rekommendation\\n- Visuella element som stödjer budskapet",
+      "layout": "bullet-points",
+      "suggested_image_query": "specifik bildbeskrivning för designer"
     }}
   ]
 }}
 
-KRITISKA REGLER:
-1. Variera layouts - aldrig samma layout två gånger i rad
-2. Varje slide = ETT huvudbudskap
-3. Bullet points börjar med aktiva verb
-4. Bildförslag: SPECIFIKA, undvik klyschor
-5. Key takeaway på varje slide
-6. Speaker notes ska ge presentatören allt de behöver säga
+## KRITISKA REGLER:
+1. Varje slide = ETT tydligt budskap
+2. Bullet points: 3-5 stycken, kortfattade, börjar med verb
+3. Speaker notes: ALLTID 150-200 ord med komplett manus + design-förslag
+4. Tänk hierarki: titel → bullet points → detaljer i speaker notes
+5. Design-förslag i speaker notes hjälper grafikern att förbättra visuellt
+6. INGET försök att specificera färger eller exakt layout (det är grafikerns jobb)
 """
     else:
-        system_prompt = f"""You are a world-leading presentation designer with expertise in visual communication and storytelling.
+        system_prompt = f"""You are an expert at structuring presentation content for professional design enhancement.
 
-{design_principles}
+## YOUR TASK
+Create well-organized, designer-friendly content that a graphic designer can enhance visually.
+Focus on STRUCTURE and CONTENT, not visual design.
 
-{layout_guidance}
+## CONTENT PRINCIPLES
 
 {verbosity_guidance}
 
@@ -601,46 +602,43 @@ KRITISKA REGLER:
 
 TONE: {tone_guidance}
 
-{image_guidance}
+## SLIDE STRUCTURE
 
-{color_guidance}
-
-{image_richness_guidance}
+Each slide should have:
+1. **Clear title** (max 8 words, powerful and descriptive)
+2. **3-5 bullet points** (concise, start with action verbs)
+3. **Comprehensive speaker notes** (150-200 words with complete script)
+4. **Design suggestions** (in speaker notes: image ideas, layout tips, visual elements)
 
 {charts_guidance}
 
-## INSTRUCTIONS
-Create exactly {request.num_slides} professional slides.
-
-RESPOND ONLY with valid JSON in this exact format:
+## RESPOND ONLY with valid JSON:
 {{
-  "presentation_title": "Title that captures the essence",
+  "presentation_title": "Descriptive title",
   "narrative_structure": "opening-body-conclusion",
   "slides": [
     {{
       "slide_number": 1,
-      "title": "Short, powerful title (max 8 words)",
-      "subtitle": "Supporting context (optional)",
-      "content": "Main content",
-      "bullet_points": ["Point 1 with active verb", "Point 2 with parallel structure"],
-      "key_takeaway": "What the audience should remember from this slide",
-      "speaker_notes": "Detailed notes for the presenter (100-150 words)",
-      "layout": "title-content",
-      "suggested_image_query": "specific, descriptive search query for stock photo",
-      "visual_type": "photo",
-      "color_accent": "#3B82F6",
-      "transition_hint": "Connection to next slide"
+      "title": "Short, clear title (max 8 words)",
+      "bullet_points": [
+        "First point with action verb",
+        "Second point, parallel structure",
+        "Third point, concrete and actionable"
+      ],
+      "speaker_notes": "SCRIPT: Complete script for what presenter should say (150-200 words). Include introduction, explanation of each point, and transition to next slide.\\n\\nDESIGN SUGGESTIONS for graphic designer:\\n- Suggested images/icons\\n- Layout recommendation\\n- Visual elements that support the message",
+      "layout": "bullet-points",
+      "suggested_image_query": "specific image description for designer"
     }}
   ]
 }}
 
 CRITICAL RULES:
-1. Vary layouts - never same layout twice in a row
-2. Each slide = ONE main message
-3. Bullet points start with active verbs
-4. Image suggestions: SPECIFIC, avoid clichés
-5. Key takeaway on every slide
-6. Speaker notes should give presenter everything they need to say
+1. Each slide = ONE clear message
+2. Bullet points: 3-5 items, concise, start with verbs
+3. Speaker notes: ALWAYS 150-200 words with complete script + design suggestions
+4. Think hierarchy: title → bullet points → details in speaker notes
+5. Design suggestions in speaker notes help graphic designer enhance visually
+6. NO attempt to specify colors or exact layout (that's the designer's job)
 """
 
     # Build user prompt with context

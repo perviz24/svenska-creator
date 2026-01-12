@@ -35,56 +35,174 @@ class ExportWordRequest(BaseModel):
 # ============================================================================
 
 async def export_slides_pptx(request: ExportSlidesRequest) -> bytes:
-    """Generate a PowerPoint presentation"""
+    """Generate a PowerPoint presentation optimized for designer editing
+
+    Creates a clean, well-structured presentation with:
+    - Clear content hierarchy
+    - Comprehensive speaker notes
+    - Visual suggestions in notes
+    - Professional formatting ready for design
+    """
     try:
         from pptx import Presentation
         from pptx.util import Inches, Pt
         from pptx.dml.color import RgbColor
-        from pptx.enum.text import PP_ALIGN
+        from pptx.enum.text import PP_ALIGN, PP_PARAGRAPH_ALIGNMENT
     except ImportError:
         raise ValueError("python-pptx not installed. Run: pip install python-pptx")
-    
+
     prs = Presentation()
-    prs.slide_width = Inches(13.333)
+    prs.slide_width = Inches(10)  # Standard 16:9 ratio
     prs.slide_height = Inches(7.5)
-    
-    # Title slide
+
+    # Title slide - clean and professional
     title_slide_layout = prs.slide_layouts[0]
     slide = prs.slides.add_slide(title_slide_layout)
     title = slide.shapes.title
     title.text = request.title
-    
-    # Content slides
-    content_layout = prs.slide_layouts[1]  # Title and content
-    
+
+    # Style title for designer-friendly output
+    if title.text_frame.paragraphs:
+        title.text_frame.paragraphs[0].font.size = Pt(44)
+        title.text_frame.paragraphs[0].font.bold = True
+        title.text_frame.paragraphs[0].alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
+
+    # Content slides - optimized for clarity and designer editing
     for slide_data in request.slides:
-        slide = prs.slides.add_slide(content_layout)
-        
-        # Title
-        if slide.shapes.title:
-            slide.shapes.title.text = slide_data.title
-        
-        # Content
-        if len(slide.placeholders) > 1:
-            body = slide.placeholders[1]
-            tf = body.text_frame
-            
-            if slide_data.bullet_points:
-                for i, point in enumerate(slide_data.bullet_points):
-                    if i == 0:
-                        tf.text = point
-                    else:
-                        p = tf.add_paragraph()
-                        p.text = point
-                        p.level = 0
-            elif slide_data.content:
-                tf.text = slide_data.content
-        
-        # Speaker notes
-        if slide_data.speaker_notes:
+        # Use blank layout for maximum designer flexibility
+        blank_layout = prs.slide_layouts[6]  # Blank slide
+        slide = prs.slides.add_slide(blank_layout)
+
+        # Add title text box
+        left = Inches(0.5)
+        top = Inches(0.5)
+        width = Inches(9)
+        height = Inches(1)
+
+        title_box = slide.shapes.add_textbox(left, top, width, height)
+        title_frame = title_box.text_frame
+        title_frame.word_wrap = True
+
+        title_p = title_frame.paragraphs[0]
+        title_p.text = slide_data.title
+        title_p.font.size = Pt(32)
+        title_p.font.bold = True
+        title_p.font.color.rgb = RgbColor(0, 0, 0)
+
+        # Add subtitle if present
+        content_top = Inches(1.8)
+        if slide_data.content and not slide_data.bullet_points:
+            subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(9), Inches(0.5))
+            subtitle_frame = subtitle_box.text_frame
+            subtitle_frame.word_wrap = True
+
+            subtitle_p = subtitle_frame.paragraphs[0]
+            subtitle_p.text = slide_data.content[:200]  # First 200 chars as subtitle
+            subtitle_p.font.size = Pt(18)
+            subtitle_p.font.color.rgb = RgbColor(100, 100, 100)
+            content_top = Inches(2.2)
+
+        # Add bullet points with proper formatting
+        if slide_data.bullet_points:
+            content_box = slide.shapes.add_textbox(Inches(1), content_top, Inches(8), Inches(4))
+            content_frame = content_box.text_frame
+            content_frame.word_wrap = True
+
+            for i, point in enumerate(slide_data.bullet_points):
+                if i == 0:
+                    p = content_frame.paragraphs[0]
+                else:
+                    p = content_frame.add_paragraph()
+
+                # Clean bullet point text
+                clean_point = point.strip()
+                if clean_point.startswith(('•', '-', '*')):
+                    clean_point = clean_point[1:].strip()
+
+                p.text = clean_point
+                p.level = 0
+                p.font.size = Pt(20)
+                p.font.color.rgb = RgbColor(50, 50, 50)
+                p.space_before = Pt(12)
+
+                # Add bullet
+                p.font.name = 'Arial'
+
+        # Add comprehensive speaker notes for designers
+        if slide_data.speaker_notes or slide_data.layout or slide_data.image_url:
             notes_slide = slide.notes_slide
-            notes_slide.notes_text_frame.text = slide_data.speaker_notes
-    
+            notes_text = []
+
+            # Add speaker notes
+            if slide_data.speaker_notes:
+                notes_text.append("CONTENT NOTES:")
+                notes_text.append(slide_data.speaker_notes)
+                notes_text.append("")
+
+            # Add layout suggestion
+            if slide_data.layout:
+                notes_text.append(f"SUGGESTED LAYOUT: {slide_data.layout}")
+                notes_text.append("")
+
+            # Add image suggestion
+            if slide_data.image_url or (slide_data.bullet_points and len(slide_data.bullet_points) > 3):
+                notes_text.append("DESIGN SUGGESTIONS:")
+                if slide_data.image_url:
+                    notes_text.append(f"- Suggested image: {slide_data.image_url}")
+                notes_text.append("- Consider adding visual elements (icons, illustrations, or photos)")
+                notes_text.append("- Use whitespace effectively - avoid text-heavy slides")
+                notes_text.append("- Apply brand colors and fonts")
+                notes_text.append("")
+
+            # Add content structure note
+            if slide_data.bullet_points:
+                notes_text.append(f"CONTENT STRUCTURE: {len(slide_data.bullet_points)} key points")
+                notes_text.append("- Each point should be visually distinct")
+                notes_text.append("- Consider using icons or numbers for each point")
+
+            notes_slide.notes_text_frame.text = "\n".join(notes_text)
+
+    # Add a final "Designer Notes" slide
+    notes_layout = prs.slide_layouts[6]
+    final_slide = prs.slides.add_slide(notes_layout)
+
+    notes_box = final_slide.shapes.add_textbox(Inches(1), Inches(1), Inches(8), Inches(5))
+    notes_frame = notes_box.text_frame
+    notes_frame.word_wrap = True
+
+    designer_notes = [
+        "DESIGNER NOTES",
+        "",
+        "This presentation has been structured for professional design enhancement.",
+        "",
+        "Content Structure:",
+        f"  • {len(request.slides)} content slides",
+        "  • Clear hierarchy: titles, subtitles, bullet points",
+        "  • Speaker notes contain detailed guidance",
+        "",
+        "Design Recommendations:",
+        "  • Apply consistent brand colors and fonts",
+        "  • Add relevant images, icons, or illustrations",
+        "  • Ensure proper whitespace and visual balance",
+        "  • Use animations sparingly and purposefully",
+        "  • Maintain readability (minimum 18pt body text)",
+        "",
+        "All content is ready for your creative enhancement!",
+    ]
+
+    for i, line in enumerate(designer_notes):
+        if i == 0:
+            p = notes_frame.paragraphs[0]
+            p.text = line
+            p.font.size = Pt(28)
+            p.font.bold = True
+        else:
+            p = notes_frame.add_paragraph()
+            p.text = line
+            p.font.size = Pt(14) if line.startswith("  •") else Pt(16)
+            if line and not line.startswith(" "):
+                p.font.bold = True
+
     # Save to bytes
     output = io.BytesIO()
     prs.save(output)
