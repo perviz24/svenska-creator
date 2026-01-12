@@ -106,28 +106,65 @@ export function downloadBlob(blob: Blob, filename: string) {
 
     console.log(`Downloading ${filename} (${blob.size} bytes, type: ${blob.type})`);
 
-    // Create download link
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = filename;
+    // Try multiple download methods for maximum compatibility
 
-    // Append to body and trigger click
-    document.body.appendChild(a);
+    // Method 1: Try native saveAs if available (most reliable)
+    if (window.navigator && (window.navigator as any).msSaveOrOpenBlob) {
+      console.log('Using IE/Edge native save method');
+      (window.navigator as any).msSaveOrOpenBlob(blob, filename);
+      return;
+    }
 
-    // Use requestAnimationFrame to ensure DOM update before click
-    requestAnimationFrame(() => {
-      a.click();
+    // Method 2: Standard download link method
+    try {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
 
-      // Clean up after longer delay to ensure download initiated
+      // Force download attribute
+      a.setAttribute('download', filename);
+
+      // Append to body
+      document.body.appendChild(a);
+
+      // Use multiple event triggers for better compatibility
+      console.log('Triggering download via click...');
+
+      // Try programmatic click first
+      if (a.click) {
+        a.click();
+      } else {
+        // Fallback for older browsers
+        const clickEvent = document.createEvent('MouseEvents');
+        clickEvent.initMouseEvent('click', true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+        a.dispatchEvent(clickEvent);
+      }
+
+      // Clean up after delay
       setTimeout(() => {
+        console.log('Cleaning up download link');
         window.URL.revokeObjectURL(url);
         if (document.body.contains(a)) {
           document.body.removeChild(a);
         }
-      }, 500);
-    });
+      }, 1000);
+    } catch (linkError) {
+      console.error('Download link method failed:', linkError);
+
+      // Method 3: Last resort - open in new window
+      console.log('Trying fallback: opening in new window');
+      const url = window.URL.createObjectURL(blob);
+      const newWindow = window.open(url, '_blank');
+      if (!newWindow) {
+        throw new Error('Download failed. Please check browser popup blockers and try again.');
+      }
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+    }
   } catch (error) {
     console.error('Download error:', error);
     throw new Error(error instanceof Error ? error.message : 'Failed to download file. Please try again.');
