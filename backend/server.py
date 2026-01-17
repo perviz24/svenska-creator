@@ -695,7 +695,8 @@ async def canva_callback(
             <p>This window will close automatically...</p>
             <script>
                 // Store tokens in sessionStorage so parent window can access them
-                sessionStorage.setItem('canva_tokens', JSON.stringify({tokens_json}));
+                const tokensData = {tokens_json};
+                sessionStorage.setItem('canva_tokens', JSON.stringify(tokensData));
 
                 // Close window after a brief delay
                 setTimeout(() => {{
