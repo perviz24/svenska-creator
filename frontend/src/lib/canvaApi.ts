@@ -90,37 +90,64 @@ export async function connectCanva(): Promise<CanvaTokens> {
       throw new Error('Popup blocked. Please allow popups for this site.');
     }
 
-    // Wait for OAuth callback
+    // Wait for OAuth callback via postMessage
     return new Promise((resolve, reject) => {
-      const checkInterval = setInterval(() => {
-        try {
-          // Check if window closed
-          if (authWindow.closed) {
-            clearInterval(checkInterval);
-            reject(new Error('Authorization cancelled'));
-            return;
+      let messageReceived = false;
+
+      // Listen for message from popup
+      const handleMessage = (event: MessageEvent) => {
+        // Check if message is from our OAuth callback
+        if (event.data && event.data.type === 'canva_oauth_success') {
+          messageReceived = true;
+          window.removeEventListener('message', handleMessage);
+          clearInterval(checkInterval);
+
+          // Store tokens in sessionStorage
+          const tokens = event.data.tokens;
+          sessionStorage.setItem('canva_tokens', JSON.stringify(tokens));
+
+          // Close popup if still open
+          if (!authWindow.closed) {
+            authWindow.close();
           }
 
-          // Check for stored tokens (set by callback)
-          const tokensStr = sessionStorage.getItem('canva_tokens');
-          if (tokensStr) {
-            clearInterval(checkInterval);
-            sessionStorage.removeItem('canva_tokens');
-            authWindow.close();
-            resolve(JSON.parse(tokensStr));
+          resolve(tokens);
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+
+      // Also check if window was closed (as fallback/cancellation detection)
+      const checkInterval = setInterval(() => {
+        if (authWindow.closed) {
+          clearInterval(checkInterval);
+          window.removeEventListener('message', handleMessage);
+
+          if (!messageReceived) {
+            // Check localStorage fallback
+            const fallbackTokens = localStorage.getItem('canva_tokens_temp');
+            if (fallbackTokens) {
+              localStorage.removeItem('canva_tokens_temp');
+              const tokens = JSON.parse(fallbackTokens);
+              sessionStorage.setItem('canva_tokens', JSON.stringify(tokens));
+              resolve(tokens);
+            } else {
+              reject(new Error('Authorization cancelled'));
+            }
           }
-        } catch (error) {
-          // Ignore cross-origin errors while window is on Canva domain
         }
       }, 500);
 
       // Timeout after 5 minutes
       setTimeout(() => {
         clearInterval(checkInterval);
+        window.removeEventListener('message', handleMessage);
         if (!authWindow.closed) {
           authWindow.close();
         }
-        reject(new Error('Authorization timeout'));
+        if (!messageReceived) {
+          reject(new Error('Authorization timeout'));
+        }
       }, 300000);
     });
   } catch (error) {

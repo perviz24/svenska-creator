@@ -694,14 +694,27 @@ async def canva_callback(
             <h2 class="success">✓ Connected to Canva!</h2>
             <p>This window will close automatically...</p>
             <script>
-                // Store tokens in sessionStorage so parent window can access them
+                // Send tokens to parent window via postMessage
                 const tokensData = {tokens_json};
-                sessionStorage.setItem('canva_tokens', JSON.stringify(tokensData));
 
-                // Close window after a brief delay
-                setTimeout(() => {{
-                    window.close();
-                }}, 1000);
+                if (window.opener) {{
+                    // Send to parent window
+                    window.opener.postMessage({{
+                        type: 'canva_oauth_success',
+                        tokens: tokensData
+                    }}, '*');
+
+                    // Close window after a brief delay
+                    setTimeout(() => {{
+                        window.close();
+                    }}, 500);
+                }} else {{
+                    // Fallback: store in localStorage (shared across tabs)
+                    localStorage.setItem('canva_tokens_temp', JSON.stringify(tokensData));
+                    setTimeout(() => {{
+                        window.close();
+                    }}, 500);
+                }}
             </script>
         </body>
         </html>
