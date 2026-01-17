@@ -133,10 +133,12 @@ class CanvaService:
 
         # Required scopes for our integration
         scopes = [
-            "design:content:write",  # Create and edit designs
-            "design:content:read",   # Read design content
-            "asset:write",           # Upload assets
-            "brand:read"             # Read brand templates
+            "design:content:write",       # Create and edit designs
+            "design:content:read",        # Read design content
+            "asset:write",                # Upload assets
+            "asset:read",                 # Read assets
+            "brandtemplate:content:read", # Read brand template content
+            "folder:read"                 # Read folders
         ]
 
         params = {

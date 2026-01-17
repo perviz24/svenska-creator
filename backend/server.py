@@ -569,12 +569,29 @@ async def canva_authorize():
 
 
 @api_router.get("/canva/callback")
-async def canva_callback(code: str, state: str):
+async def canva_callback(
+    state: str,
+    code: Optional[str] = None,
+    error: Optional[str] = None,
+    error_description: Optional[str] = None
+):
     """
     Handle OAuth callback from Canva
-    Exchange authorization code for access tokens
+    Exchange authorization code for access tokens or handle errors
     """
     try:
+        # Check for error response from Canva
+        if error:
+            error_msg = f"Canva OAuth error: {error}"
+            if error_description:
+                error_msg += f" - {error_description}"
+            logger.error(error_msg)
+            raise HTTPException(status_code=400, detail=error_msg)
+
+        # Check if code is present
+        if not code:
+            raise HTTPException(status_code=400, detail="No authorization code received from Canva")
+
         # Verify state
         if state not in oauth_states:
             raise HTTPException(status_code=400, detail="Invalid state parameter")
@@ -591,6 +608,8 @@ async def canva_callback(code: str, state: str):
             "success": True,
             "tokens": tokens.dict()
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Canva callback error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
