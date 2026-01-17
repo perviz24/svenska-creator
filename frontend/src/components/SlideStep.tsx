@@ -86,7 +86,7 @@ export function SlideStep({
   // Advanced Presenton configuration
   const [presentonVerbosity, setPresentonVerbosity] = useState<'concise' | 'standard' | 'text-heavy'>('standard');
   const [presentonImageType, setPresentonImageType] = useState<'stock' | 'ai-generated'>('stock');
-  const [presentonWebSearch, setPresentonWebSearch] = useState(false);
+  const [presentonWebSearch, setPresentonWebSearch] = useState(true);  // Enable by default for 20-30% quality improvement
   const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
   
   // Apply demo mode limits to slide count
