@@ -1782,6 +1782,7 @@ export function SlideStep({
                 <TabsContent value="canva" className="space-y-4">
                   <CanvaTemplates
                     slides={currentModuleSlides}
+                    courseTitle={courseTitle}
                     onApplyTemplate={(templateId, styledSlides) => {
                       if (!currentModuleId) return;
                       styledSlides.forEach((slide, index) => {
@@ -1791,7 +1792,7 @@ export function SlideStep({
                       });
                     }}
                     onExportToCanva={() => {
-                      toast.info('Öppna den nedladdade filen i Canva för att redigera');
+                      toast.info('Design skapad i Canva!');
                     }}
                   />
                 </TabsContent>
