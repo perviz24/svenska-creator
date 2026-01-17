@@ -387,9 +387,31 @@ export function SlideStep({
   };
 
   const pollPresentonStatusFastAPI = async (taskId: string) => {
-    const maxAttempts = 60; // 2 minutes max
-    const pollInterval = 2000; // 2 seconds
-    
+    const basePollInterval = 3000; // 3 seconds - reduced from 2s to reduce server load
+    const maxAttempts = 100; // Increased from 60 to allow 5 minutes polling (was 2 minutes)
+
+    // Helper: Calculate next poll interval with exponential backoff
+    const getNextPollInterval = (attempt: number): number => {
+      const maxInterval = 10000; // Cap at 10 seconds
+      // Exponential backoff: increases every 10 attempts
+      const backoff = Math.min(
+        basePollInterval * Math.pow(1.5, Math.floor(attempt / 10)),
+        maxInterval
+      );
+      // Add jitter (0-1s random) to prevent thundering herd
+      const jitter = Math.random() * 1000;
+      return Math.floor(backoff + jitter);
+    };
+
+    // Helper: More realistic progress estimation (logarithmic curve)
+    const estimateProgress = (attempt: number, maxAttempts: number): number => {
+      const completion = attempt / maxAttempts;
+      // Logarithmic curve - fast start, slow end (realistic for AI tasks)
+      // Goes from 10% to 95%, never reaches 100% until actually completed
+      const logProgress = Math.log(1 + completion * 9) / Math.log(10);
+      return Math.min(Math.floor(10 + logProgress * 85), 95);
+    };
+
     // Progress milestones for better UX
     const milestones = [
       { progress: 10, message: 'Analyserar innehåll...' },
@@ -399,13 +421,23 @@ export function SlideStep({
       { progress: 80, message: 'Finsliper presentation...' },
       { progress: 95, message: 'Nästan klar...' }
     ];
+
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
+        // Check network connectivity before attempting request
+        if (!navigator.onLine) {
+          console.log('Offline detected, pausing polling...');
+          toast.info('Anslutningen förlorad - återupptar när online igen', { duration: 3000 });
+          // Wait 5 seconds and try again
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          continue; // Skip this attempt, don't increment
+        }
+
         const data = await checkPresentonStatus(taskId);
 
-        // Update progress based on attempt (simulate progress)
-        const progress = Math.min(10 + (attempt * 1.5), 95);
+        // Update progress with realistic logarithmic curve
+        const progress = estimateProgress(attempt, maxAttempts);
         setPresentonProgress(progress);
         
         // Show milestone messages
@@ -471,8 +503,8 @@ export function SlideStep({
         }
 
         setPresentonStatus(data.status);
-        
-        // Persist progress every 10 attempts (~20 seconds)
+
+        // Persist progress every 10 attempts
         if (attempt > 0 && attempt % 10 === 0 && onSavePresentonState) {
           onSavePresentonState({
             status: data.status,
@@ -480,8 +512,9 @@ export function SlideStep({
           });
         }
 
-        // Wait before next poll
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        // Wait before next poll with exponential backoff
+        const nextInterval = getNextPollInterval(attempt);
+        await new Promise(resolve => setTimeout(resolve, nextInterval));
       } catch (error) {
         console.error('Polling error:', error);
         setPresentonStatus('failed');
@@ -514,9 +547,27 @@ export function SlideStep({
   };
 
   const pollPresentonStatus = async (taskId: string) => {
-    const maxAttempts = 60; // 2 minutes max
-    const pollInterval = 2000; // 2 seconds
-    
+    const basePollInterval = 3000; // 3 seconds - reduced from 2s to reduce server load
+    const maxAttempts = 100; // Increased from 60 to allow 5 minutes polling (was 2 minutes)
+
+    // Helper: Calculate next poll interval with exponential backoff
+    const getNextPollInterval = (attempt: number): number => {
+      const maxInterval = 10000; // Cap at 10 seconds
+      const backoff = Math.min(
+        basePollInterval * Math.pow(1.5, Math.floor(attempt / 10)),
+        maxInterval
+      );
+      const jitter = Math.random() * 1000;
+      return Math.floor(backoff + jitter);
+    };
+
+    // Helper: More realistic progress estimation (logarithmic curve)
+    const estimateProgress = (attempt: number, maxAttempts: number): number => {
+      const completion = attempt / maxAttempts;
+      const logProgress = Math.log(1 + completion * 9) / Math.log(10);
+      return Math.min(Math.floor(10 + logProgress * 85), 95);
+    };
+
     // Progress milestones for better UX
     const milestones = [
       { progress: 10, message: 'Analyserar innehåll...' },
@@ -526,14 +577,22 @@ export function SlideStep({
       { progress: 80, message: 'Finsliper presentation...' },
       { progress: 95, message: 'Nästan klar...' }
     ];
-    
+
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
+        // Check network connectivity before attempting request
+        if (!navigator.onLine) {
+          console.log('Offline detected, pausing polling...');
+          toast.info('Anslutningen förlorad - återupptar när online igen', { duration: 3000 });
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          continue;
+        }
+
         // Use FastAPI backend instead of Supabase
         const data = await checkPresentonStatus(taskId);
 
-        // Update progress based on attempt (simulate progress)
-        const progress = Math.min(10 + (attempt * 1.5), 95);
+        // Update progress with realistic logarithmic curve
+        const progress = estimateProgress(attempt, maxAttempts);
         setPresentonProgress(progress);
         
         // Show milestone messages
@@ -601,8 +660,8 @@ export function SlideStep({
         }
 
         setPresentonStatus(data.status);
-        
-        // Persist progress every 10 attempts (~20 seconds)
+
+        // Persist progress every 10 attempts
         if (attempt > 0 && attempt % 10 === 0 && onSavePresentonState) {
           onSavePresentonState({
             status: data.status,
@@ -610,8 +669,9 @@ export function SlideStep({
           });
         }
 
-        // Wait before next poll
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        // Wait before next poll with exponential backoff
+        const nextInterval = getNextPollInterval(attempt);
+        await new Promise(resolve => setTimeout(resolve, nextInterval));
       } catch (error) {
         console.error('Polling error:', error);
         setPresentonStatus('failed');
