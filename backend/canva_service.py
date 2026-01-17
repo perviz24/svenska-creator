@@ -309,6 +309,7 @@ class CanvaService:
         """
         # Transform slides to Canva autofill format
         autofill_data = {
+            "type": "presentation",  # Required: data schema type
             "title": title,
             "slides": []
         }

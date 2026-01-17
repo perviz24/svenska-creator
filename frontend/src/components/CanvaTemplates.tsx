@@ -128,7 +128,7 @@ export function CanvaTemplates({
       } else {
         // No brand templates, use built-in
         setTemplates(BUILT_IN_TEMPLATES);
-        toast.info('Inga varumärkesmallar hittades. Använd byggda mallar.');
+        toast.info('Du har inga varumärkesmallar i Canva än. Skapa mallar i Canva först eller använd byggda mallar lokalt.');
       }
     } catch (error: any) {
       console.error('Failed to load brand templates:', error);
@@ -218,11 +218,14 @@ export function CanvaTemplates({
   };
 
   const handleTemplateClick = (templateId: string) => {
-    if (isConnected) {
-      // Connected to Canva: autofill and create design
+    const template = templates.find(t => t.id === templateId);
+
+    // Only autofill if connected AND template is a real Canva template (has brand_id)
+    if (isConnected && template?.brand_id) {
+      // Connected to Canva with real brand template: autofill and create design
       handleAutofillTemplate(templateId);
     } else {
-      // Not connected: apply locally
+      // Not connected OR built-in template: apply locally
       handleApplyLocalTemplate(templateId);
     }
   };
