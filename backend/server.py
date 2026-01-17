@@ -299,7 +299,7 @@ from voice_service import (
     list_elevenlabs_voices, generate_voice, estimate_audio_duration,
     VoiceGenerationRequest
 )
-from fastapi.responses import Response
+from fastapi.responses import Response, HTMLResponse
 
 @api_router.get("/voice/elevenlabs/voices")
 async def get_elevenlabs_voices(api_key: Optional[str] = None):
@@ -568,7 +568,7 @@ async def canva_authorize():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@api_router.get("/canva/callback")
+@api_router.get("/canva/callback", response_class=HTMLResponse)
 async def canva_callback(
     state: str,
     code: Optional[str] = None,
@@ -578,6 +578,7 @@ async def canva_callback(
     """
     Handle OAuth callback from Canva
     Exchange authorization code for access tokens or handle errors
+    Returns HTML that stores tokens in sessionStorage and closes popup
     """
     try:
         # Check for error response from Canva
@@ -586,15 +587,74 @@ async def canva_callback(
             if error_description:
                 error_msg += f" - {error_description}"
             logger.error(error_msg)
-            raise HTTPException(status_code=400, detail=error_msg)
+
+            # Return HTML with error handling
+            return HTMLResponse(content=f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Canva Authorization Error</title>
+                <style>
+                    body {{ font-family: system-ui; padding: 40px; text-align: center; }}
+                    .error {{ color: #dc2626; margin: 20px 0; }}
+                </style>
+            </head>
+            <body>
+                <h2>Authorization Failed</h2>
+                <p class="error">{error}: {error_description or 'Unknown error'}</p>
+                <p>This window will close automatically...</p>
+                <script>
+                    setTimeout(() => window.close(), 3000);
+                </script>
+            </body>
+            </html>
+            """)
 
         # Check if code is present
         if not code:
-            raise HTTPException(status_code=400, detail="No authorization code received from Canva")
+            return HTMLResponse(content="""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Canva Authorization Error</title>
+                <style>
+                    body { font-family: system-ui; padding: 40px; text-align: center; }
+                    .error { color: #dc2626; margin: 20px 0; }
+                </style>
+            </head>
+            <body>
+                <h2>Authorization Failed</h2>
+                <p class="error">No authorization code received from Canva</p>
+                <p>This window will close automatically...</p>
+                <script>
+                    setTimeout(() => window.close(), 3000);
+                </script>
+            </body>
+            </html>
+            """)
 
         # Verify state
         if state not in oauth_states:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
+            return HTMLResponse(content="""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Canva Authorization Error</title>
+                <style>
+                    body { font-family: system-ui; padding: 40px; text-align: center; }
+                    .error { color: #dc2626; margin: 20px 0; }
+                </style>
+            </head>
+            <body>
+                <h2>Authorization Failed</h2>
+                <p class="error">Invalid or expired state parameter</p>
+                <p>This window will close automatically...</p>
+                <script>
+                    setTimeout(() => window.close(), 3000);
+                </script>
+            </body>
+            </html>
+            """)
 
         oauth_data = oauth_states.pop(state)
         code_verifier = oauth_data["code_verifier"]
@@ -602,17 +662,72 @@ async def canva_callback(
         # Exchange code for tokens
         tokens = await canva_service.exchange_code_for_tokens(code, code_verifier)
 
-        # TODO: Store tokens in database associated with user
-        # For now, return them to frontend for storage
-        return {
-            "success": True,
-            "tokens": tokens.dict()
-        }
-    except HTTPException:
-        raise
+        # Return HTML that stores tokens and closes window
+        import json
+        tokens_json = json.dumps(tokens.dict())
+
+        return HTMLResponse(content=f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Canva Authorization Success</title>
+            <style>
+                body {{ font-family: system-ui; padding: 40px; text-align: center; }}
+                .success {{ color: #16a34a; margin: 20px 0; }}
+                .loader {{
+                    border: 4px solid #f3f3f3;
+                    border-top: 4px solid #16a34a;
+                    border-radius: 50%;
+                    width: 40px;
+                    height: 40px;
+                    animation: spin 1s linear infinite;
+                    margin: 20px auto;
+                }}
+                @keyframes spin {{
+                    0% {{ transform: rotate(0deg); }}
+                    100% {{ transform: rotate(360deg); }}
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="loader"></div>
+            <h2 class="success">✓ Connected to Canva!</h2>
+            <p>This window will close automatically...</p>
+            <script>
+                // Store tokens in sessionStorage so parent window can access them
+                sessionStorage.setItem('canva_tokens', JSON.stringify({tokens_json}));
+
+                // Close window after a brief delay
+                setTimeout(() => {{
+                    window.close();
+                }}, 1000);
+            </script>
+        </body>
+        </html>
+        """)
+
     except Exception as e:
         logger.error(f"Canva callback error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return HTMLResponse(content=f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Canva Authorization Error</title>
+            <style>
+                body {{ font-family: system-ui; padding: 40px; text-align: center; }}
+                .error {{ color: #dc2626; margin: 20px 0; }}
+            </style>
+        </head>
+        <body>
+            <h2>Authorization Failed</h2>
+            <p class="error">{str(e)}</p>
+            <p>This window will close automatically...</p>
+            <script>
+                setTimeout(() => window.close(), 3000);
+            </script>
+        </body>
+        </html>
+        """)
 
 
 @api_router.post("/canva/refresh")
