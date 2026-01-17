@@ -663,8 +663,8 @@ async def canva_callback(
         tokens = await canva_service.exchange_code_for_tokens(code, code_verifier)
 
         # Return HTML that stores tokens and closes window
-        import json
-        tokens_json = json.dumps(tokens.dict())
+        # Use Pydantic's .json() method which handles datetime serialization
+        tokens_json = tokens.json()
 
         return HTMLResponse(content=f"""
         <!DOCTYPE html>
