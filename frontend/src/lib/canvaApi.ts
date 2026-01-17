@@ -155,23 +155,69 @@ export async function disconnectCanva(): Promise<void> {
 
 /**
  * Check if user is connected to Canva
+ * Checks for valid tokens in sessionStorage
  */
 export async function isCanvaConnected(): Promise<boolean> {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/canva/status`, {
-      method: 'GET',
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
+    const tokensStr = sessionStorage.getItem('canva_tokens');
+    if (!tokensStr) {
       return false;
     }
 
-    const data = await response.json();
-    return data.connected || false;
+    const tokens = JSON.parse(tokensStr);
+
+    // Check if tokens exist and have required fields
+    if (!tokens.access_token || !tokens.expires_at) {
+      return false;
+    }
+
+    // Check if token is expired
+    const expiresAt = new Date(tokens.expires_at);
+    const now = new Date();
+
+    if (now >= expiresAt) {
+      // Token expired, clear it
+      sessionStorage.removeItem('canva_tokens');
+      return false;
+    }
+
+    return true;
   } catch (error) {
     console.error('Check Canva connection error:', error);
     return false;
+  }
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Get Canva access token from sessionStorage
+ * @returns Access token or null if not found/expired
+ */
+function getAccessToken(): string | null {
+  try {
+    const tokensStr = sessionStorage.getItem('canva_tokens');
+    if (!tokensStr) {
+      return null;
+    }
+
+    const tokens = JSON.parse(tokensStr);
+
+    // Check if token is expired
+    const expiresAt = new Date(tokens.expires_at);
+    const now = new Date();
+
+    if (now >= expiresAt) {
+      sessionStorage.removeItem('canva_tokens');
+      return null;
+    }
+
+    return tokens.access_token;
+  } catch (error) {
+    console.error('Error getting access token:', error);
+    return null;
   }
 }
 
@@ -187,11 +233,19 @@ export async function isCanvaConnected(): Promise<boolean> {
  */
 export async function getBrandTemplates(limit: number = 20): Promise<CanvaTemplate[]> {
   try {
+    const accessToken = getAccessToken();
+    if (!accessToken) {
+      throw new Error('Not connected to Canva. Please connect first.');
+    }
+
     const response = await fetch(
       `${BACKEND_URL}/api/canva/brand-templates?limit=${limit}`,
       {
         method: 'GET',
         credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
       }
     );
 
@@ -224,9 +278,17 @@ export async function createCanvaDesign(
   templateId?: string
 ): Promise<CanvaDesign> {
   try {
+    const accessToken = getAccessToken();
+    if (!accessToken) {
+      throw new Error('Not connected to Canva. Please connect first.');
+    }
+
     const response = await fetch(`${BACKEND_URL}/api/canva/designs`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
       credentials: 'include',
       body: JSON.stringify({
         title,
@@ -263,11 +325,19 @@ export async function autofillCanvaTemplate(
   slides: SlideData[]
 ): Promise<CanvaDesign> {
   try {
+    const accessToken = getAccessToken();
+    if (!accessToken) {
+      throw new Error('Not connected to Canva. Please connect first.');
+    }
+
     console.log(`Autofilling Canva template ${templateId} with ${slides.length} slides...`);
 
     const response = await fetch(`${BACKEND_URL}/api/canva/autofill`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
       credentials: 'include',
       body: JSON.stringify({
         template_id: templateId,
@@ -308,9 +378,17 @@ export async function exportCanvaDesign(
   format: 'pptx' | 'pdf' = 'pptx'
 ): Promise<string> {
   try {
+    const accessToken = getAccessToken();
+    if (!accessToken) {
+      throw new Error('Not connected to Canva. Please connect first.');
+    }
+
     const response = await fetch(`${BACKEND_URL}/api/canva/export`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
       credentials: 'include',
       body: JSON.stringify({
         design_id: designId,
@@ -339,9 +417,17 @@ export async function exportCanvaDesign(
  */
 export async function getExportStatus(jobId: string): Promise<ExportJob> {
   try {
+    const accessToken = getAccessToken();
+    if (!accessToken) {
+      throw new Error('Not connected to Canva. Please connect first.');
+    }
+
     const response = await fetch(`${BACKEND_URL}/api/canva/export/${jobId}`, {
       method: 'GET',
       credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
     });
 
     if (!response.ok) {
